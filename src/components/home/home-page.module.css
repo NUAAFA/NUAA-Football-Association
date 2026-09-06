@@ -211,54 +211,13 @@
   backdrop-filter: blur(8px);
 }
 
-.heroFootnote {
-  position: absolute;
-  bottom: var(--spacing-5);
-  left: max(calc(var(--page-gutter-total) / 2), calc((100vw - var(--container-wide)) / 2));
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-4);
-  color: rgba(255, 255, 255, 0.58);
-  font-size: var(--font-size-caption);
-  letter-spacing: 0.06em;
-}
-
-.heroFootnote span:first-child {
-  color: var(--color-brand-sky-soft);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.14em;
-}
-
-.heroScrollCue {
-  position: absolute;
-  right: max(calc(var(--page-gutter-total) / 2), calc((100vw - var(--container-wide)) / 2));
-  bottom: var(--spacing-4);
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--spacing-3);
-  color: rgba(255, 255, 255, 0.76);
-  font-size: var(--font-size-meta);
-  font-weight: var(--font-weight-semibold);
-  transition: color var(--motion-duration-fast) var(--motion-ease-standard);
-}
-
-.heroScrollCue span {
-  width: 2rem;
-  height: 2rem;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: var(--radius-pill);
-  transition: transform var(--motion-duration-base) var(--motion-ease-standard);
-}
-
 /* Current football */
 .currentFootball {
   z-index: 2;
+  margin-top: calc(var(--spacing-7) * -1);
   padding-block: 0 clamp(var(--spacing-8), 7vw, 7rem);
   background:
-    linear-gradient(180deg, var(--color-brand-deep) 0, var(--color-brand-deep) 3.5rem, var(--color-surface-canvas) 3.5rem);
+    linear-gradient(180deg, var(--color-brand-deep) 0, var(--color-brand-deep) var(--spacing-7), var(--color-surface-canvas) var(--spacing-7));
 }
 
 .currentFootballPanel {
@@ -1058,14 +1017,6 @@
     color: var(--color-text-on-dark);
   }
 
-  .heroScrollCue:hover {
-    color: var(--color-text-on-dark);
-  }
-
-  .heroScrollCue:hover span {
-    transform: translateY(3px);
-  }
-
   .noticeLink:hover {
     background: var(--color-surface-subtle);
   }
@@ -1233,7 +1184,7 @@
 
   .heroShell {
     align-items: flex-end;
-    padding-block: calc(var(--header-height) + var(--spacing-7)) 8.75rem;
+    padding-block: calc(var(--header-height) + var(--spacing-7)) var(--spacing-8);
   }
 
   .heroCopy {
@@ -1268,23 +1219,11 @@
     min-width: 0;
   }
 
-  .heroFootnote {
-    right: calc(var(--page-gutter-total) / 2);
-    bottom: var(--spacing-4);
-  }
-
-  .heroFootnote span:last-child {
-    display: none;
-  }
-
-  .heroScrollCue {
-    right: calc(var(--page-gutter-total) / 2);
-  }
-
   .currentFootball {
+    margin-top: calc(var(--spacing-4) * -1);
     padding-top: 0;
     background:
-      linear-gradient(180deg, var(--color-brand-deep) 0, var(--color-brand-deep) 2rem, var(--color-surface-canvas) 2rem);
+      linear-gradient(180deg, var(--color-brand-deep) 0, var(--color-brand-deep) var(--spacing-4), var(--color-surface-canvas) var(--spacing-4));
   }
 
   .currentFootballPanel {
@@ -1456,15 +1395,6 @@
     flex-direction: column;
   }
 
-  .heroFootnote {
-    bottom: var(--spacing-3);
-  }
-
-  .heroScrollCue {
-    bottom: var(--spacing-2);
-    font-size: var(--font-size-caption);
-  }
-
   .currentCompetitionHeader {
     align-items: flex-start;
     flex-direction: column;
@@ -1501,7 +1431,6 @@
     scale: 1;
   }
 
-  .heroScrollCue span,
   .inlineLink,
   .noticeArrow,
   .featuredStoryImage img,

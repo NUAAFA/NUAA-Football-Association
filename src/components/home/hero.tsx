@@ -42,14 +42,6 @@ export function Hero() {
           </div>
         </div>
       </div>
-
-      <div className={styles.heroFootnote}>
-        <span>{associationIdentity.establishedLabel}</span>
-        <span>2026 男子足球院际杯 · 天目湖校区</span>
-      </div>
-      <a className={styles.heroScrollCue} href="#home-current-football">
-        查看当前赛事 <span aria-hidden="true">↓</span>
-      </a>
     </section>
   );
 }
