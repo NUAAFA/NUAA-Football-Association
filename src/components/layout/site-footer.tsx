@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { BrandMark } from "@/components/ui/brand-mark";
 import { associationIdentity } from "@/data/association";
+import { footerNavigation } from "@/data/navigation";
 import {
   bilibiliPlatform,
   emailPlatform,
@@ -31,15 +32,15 @@ export function SiteFooter({ homeCompact = false }: SiteFooterProps) {
               {associationIdentity.slogan}。我们服务天目湖校园足球，连接赛事、球队、裁判与每一位参与者。
             </p>
           </div>
-          <nav className="footer-column" aria-label="页脚导航">
-            <h2>网站导航</h2>
-            <Link href="/competitions">赛事中心</Link>
-            <Link href="/news">新闻公告</Link>
-            <Link href="/referees">裁判中心</Link>
-            <Link href="/competitions/arbitration">仲裁申诉</Link>
-            <Link href="/participation">参赛指南</Link>
-          </nav>
-          <div className="footer-column">
+          <div className="footer-navigation-groups">
+            {footerNavigation.map((group) => (
+              <nav className="footer-column" aria-label={`页脚${group.label}`} key={group.label}>
+                <h2>{group.label}</h2>
+                {group.items.map((item) => <Link href={item.href} key={item.href}>{item.label}</Link>)}
+              </nav>
+            ))}
+          </div>
+          <div className="footer-column footer-platforms">
             <h2>官方平台与联系</h2>
             <a className="footer-wechat" href={wechatPlatform.qrImage} target="_blank" rel="noopener noreferrer" aria-label="放大湖区FA微信公众号二维码，将在新标签页打开">
               <Image src={wechatPlatform.qrImage} alt={wechatPlatform.qrAlt} width={66} height={66} />

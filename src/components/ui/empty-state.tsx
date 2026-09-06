@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { LinkButton } from "@/components/ui/foundation-primitives";
 
 type EmptyStateProps = {
   title: string;
@@ -22,7 +22,7 @@ export function EmptyState({
         <h3>{title}</h3>
         <p>{description}</p>
       </div>
-      {href && actionLabel ? <Link href={href}>{actionLabel} <span aria-hidden="true">→</span></Link> : null}
+      {href && actionLabel ? <LinkButton href={href} size="small" tone="secondary">{actionLabel} <span aria-hidden="true">→</span></LinkButton> : null}
     </div>
   );
 }

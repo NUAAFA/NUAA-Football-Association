@@ -1,19 +1,19 @@
 /* Acceptance iteration: readability, shared media ratios, and focused page refinements. */
 body {
-  font-size: 16px;
+  font-size: var(--font-size-body);
 }
 
 main p,
 main li,
 main dd {
-  font-size: 16px !important;
-  line-height: 1.7;
+  font-size: var(--font-size-body) !important;
+  line-height: var(--line-height-body);
 }
 
 main small,
 main time,
 main dt {
-  font-size: 14px !important;
+  font-size: var(--font-size-meta) !important;
   line-height: 1.5;
 }
 
@@ -67,11 +67,11 @@ main dt {
 .home-section-bar .text-link,
 .home-featured-news p,
 .association-summary-copy > span {
-  font-size: 16px;
+  font-size: var(--font-size-body);
 }
 
 .match-penalty-note {
-  font-size: 16px !important;
+  font-size: var(--font-size-body) !important;
 }
 
 .featured-competition-card > p,
@@ -79,7 +79,7 @@ main dt {
 .featured-competition-card dd,
 .compact-competition-list small,
 .compact-competition-list p {
-  font-size: 14px;
+  font-size: var(--font-size-meta);
   line-height: 1.55;
 }
 
@@ -158,8 +158,8 @@ main dt {
 .cup-archive-page .cup-source-note,
 .cup-archive-page .cup-overview-primary dd,
 .cup-archive-page .cup-overview-secondary li {
-  font-size: 16px;
-  line-height: 1.75;
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-reading);
 }
 
 .functional-hero .detail-shell > p:first-child,
@@ -200,7 +200,7 @@ main dt {
 .cup-archive-page dt,
 .cup-archive-page small,
 .cup-archive-page time {
-  font-size: 14px;
+  font-size: var(--font-size-meta);
   line-height: 1.5;
 }
 
@@ -215,7 +215,7 @@ main dt {
 .index-card-action,
 .archive-scope-record a,
 .functional-back-link {
-  font-size: 15px;
+  font-size: var(--font-size-action);
   line-height: 1.5;
 }
 
@@ -488,15 +488,15 @@ main dt {
 .site-footer p,
 .site-footer a,
 .site-footer span {
-  font-size: 15px;
-  line-height: 1.7;
+  font-size: var(--font-size-action);
+  line-height: var(--line-height-body);
 }
 
 .site-footer small,
 .site-footer .footer-declarations p,
 .site-footer .footer-bottom {
-  font-size: 14px;
-  line-height: 1.7;
+  font-size: var(--font-size-meta);
+  line-height: var(--line-height-body);
 }
 
 @media (max-width: 1023px) {
@@ -528,7 +528,7 @@ main dt {
   main small,
   main time,
   main dt {
-    font-size: 15px !important;
+    font-size: var(--font-size-body-mobile) !important;
   }
 
   .home-screen-hero .hero-content h1 {
