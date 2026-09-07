@@ -214,10 +214,17 @@
 /* Current football */
 .currentFootball {
   z-index: 2;
-  margin-top: calc(var(--spacing-7) * -1);
-  padding-block: 0 clamp(var(--spacing-8), 7vw, 7rem);
+  margin-top: calc(var(--spacing-5) * -1);
+  padding-block: 0 var(--spacing-8);
   background:
-    linear-gradient(180deg, var(--color-brand-deep) 0, var(--color-brand-deep) var(--spacing-7), var(--color-surface-canvas) var(--spacing-7));
+    linear-gradient(
+      180deg,
+      transparent 0,
+      transparent var(--spacing-5),
+      var(--color-brand-deep) var(--spacing-5),
+      var(--color-brand-deep) calc(100% - var(--spacing-8)),
+      var(--color-surface-raised) 100%
+    );
 }
 
 .currentFootballPanel {
@@ -231,7 +238,7 @@
     radial-gradient(circle at 18% 0%, rgba(75, 159, 234, 0.22), transparent 31rem),
     var(--color-brand-deep-soft);
   color: var(--color-text-on-dark);
-  box-shadow: var(--shadow-overlay);
+  box-shadow: var(--shadow-card-rest);
 }
 
 .currentFootballIntro {
@@ -359,6 +366,7 @@
 
 /* Official updates */
 .officialUpdates {
+  padding-top: var(--spacing-7);
   background:
     linear-gradient(90deg, rgba(28, 31, 136, 0.028) 1px, transparent 1px),
     linear-gradient(rgba(28, 31, 136, 0.028) 1px, transparent 1px),
@@ -1108,6 +1116,19 @@
       linear-gradient(0deg, rgba(5, 15, 35, 0.76), transparent 52%);
   }
 
+  .currentFootball {
+    margin-top: 0;
+    padding-bottom: var(--spacing-6);
+    background:
+      linear-gradient(
+        180deg,
+        var(--color-brand-deep) 0,
+        var(--color-brand-deep) var(--spacing-9),
+        var(--color-surface-raised) calc(var(--spacing-9) + var(--spacing-8)),
+        var(--color-surface-raised) 100%
+      );
+  }
+
   .sectionHeading {
     grid-template-columns: 1fr;
     align-items: start;
@@ -1220,10 +1241,11 @@
   }
 
   .currentFootball {
-    margin-top: calc(var(--spacing-4) * -1);
-    padding-top: 0;
-    background:
-      linear-gradient(180deg, var(--color-brand-deep) 0, var(--color-brand-deep) var(--spacing-4), var(--color-surface-canvas) var(--spacing-4));
+    padding-block: 0 var(--spacing-6);
+  }
+
+  .officialUpdates {
+    padding-top: var(--spacing-7);
   }
 
   .currentFootballPanel {
