@@ -364,6 +364,20 @@
   color: var(--color-brand-sky-soft);
 }
 
+.currentCompetitionCard .inlineLink:link,
+.currentCompetitionCard .inlineLink:visited {
+  color: var(--color-brand-sky-soft);
+}
+
+.currentCompetitionCard .inlineLink:focus-visible {
+  outline-color: var(--color-brand-sky-soft);
+  color: var(--color-text-on-dark);
+}
+
+.currentCompetitionCard .inlineLink:active {
+  color: var(--color-text-on-dark);
+}
+
 /* Official updates */
 .officialUpdates {
   padding-top: var(--spacing-7);
@@ -1010,6 +1024,10 @@
   .inlineLink:hover {
     color: var(--color-brand-nuaa);
     transform: translateX(2px);
+  }
+
+  .currentCompetitionCard .inlineLink:hover {
+    color: var(--color-text-on-dark);
   }
 
   .hero .heroPrimaryAction:hover {
