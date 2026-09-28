@@ -35,7 +35,10 @@ export async function POST(request: Request) {
     const match = await createMatchFromSelections({
       slug: readShortText(body.slug, "页面标识", 80),
       competitionId: readShortText(body.competitionId, "赛事", 64),
-      stage: readShortText(body.stage, "比赛名称或轮次", 80),
+      stageId: body.stageId === undefined ? undefined : readShortText(body.stageId, "阶段", 64, false) || null,
+    groupId: body.groupId === undefined ? undefined : readShortText(body.groupId, "分组", 64, false) || null,
+    roundId: body.roundId === undefined ? undefined : readShortText(body.roundId, "轮次", 64, false) || null,
+    stage: readShortText(body.stage, "比赛名称或轮次", 80),
       kickoff: readDate(body.kickoff, "比赛时间")!,
       endAt: readDate(body.endAt, "比赛结束时间", false),
       venue: readShortText(body.venue, "比赛场地", 120),

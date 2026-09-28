@@ -13,8 +13,8 @@ async function removeDatabase(databasePath: string) {
 async function runPrisma(args: string[], databaseUrl: string) {
   const exitCode = await new Promise<number>((resolve, reject) => {
     const child = spawn(
-      process.env.ComSpec ?? "cmd.exe",
-      ["/d", "/s", "/c", `npx.cmd prisma ${args.join(" ")}`],
+      process.execPath,
+      [path.resolve("node_modules/prisma/build/index.js"), ...args],
       {
       env: { ...process.env, DATABASE_URL: databaseUrl, RUST_LOG: "trace" },
       stdio: "inherit",

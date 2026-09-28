@@ -7,6 +7,7 @@ import { useState } from "react";
 type PositionKey = "REFEREE" | "ASSISTANT_REFEREE_1" | "ASSISTANT_REFEREE_2" | "FOURTH_OFFICIAL" | "RESERVE_ASSISTANT_REFEREE" | "SECOND_REFEREE" | "THIRD_REFEREE" | "TIMEKEEPER" | "FOURTH_REFEREE";
 export type AppointmentWarningView = { code: string; refereeId: string; refereeName: string; message: string; severity: "HARD" | "OVERRIDABLE" | "ADVISORY"; overridable: boolean };
 export type AppointmentMatchView = {
+  canComplete?: boolean;
   id: string; appointmentId: string | null; statusKey: string; format: "ELEVEN_A_SIDE" | "FUTSAL" | "CUSTOM"; publicationNote: string;
   template: Array<{ key: PositionKey; label: string; slot: number }>;
   positions: Array<{ key: PositionKey; slot: number; refereeId: string | null }>;
@@ -73,6 +74,7 @@ export function AdminAppointmentEditor({
   const [enabled, setEnabled] = useState<Record<string, boolean>>(() => Object.fromEntries(match.template.map((item) => [identity(item), initial.has(identity(item))])));
   const [assigned, setAssigned] = useState<Record<string, string>>(() => Object.fromEntries(match.template.map((item) => [identity(item), initial.get(identity(item)) ?? ""])));
   const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
   const [reason, setReason] = useState("");
   const [overrideReason, setOverrideReason] = useState("");
   const [warnings, setWarnings] = useState(initialWarnings);
@@ -92,6 +94,9 @@ export function AdminAppointmentEditor({
 
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    try {
     const form = new FormData(event.currentTarget);
     const positions = match.template.filter((item) => enabled[identity(item)]).map((item) => ({ key: item.key, slot: item.slot, refereeId: assigned[identity(item)] || null }));
     const { response, result } = await jsonApi(`/api/referees/admin/appointments/${match.id}`, "PUT", { positions, publicationNote: form.get("publicationNote"), changeReason: reason, overrideReason });
@@ -99,15 +104,19 @@ export function AdminAppointmentEditor({
     if (result.warnings?.some((warning) => warning.overridable)) setMoreOpen(true);
     setMessage(response.ok ? "选派草稿已保存。" : result.error ?? "保存失败。");
     if (response.ok) router.refresh();
+    } catch { setMessage("网络异常，请核对当前状态后重试。"); } finally { setBusy(false); }
   }
 
   async function action(actionName: "publish" | "withdraw" | "complete" | "cancel") {
+    if (busy) return; setBusy(true);
+    try {
     const { response, result } = await jsonApi(`/api/referees/admin/appointments/${match.id}`, "POST", { action: actionName, reason, overrideReason });
     setWarnings(result.warnings ?? []);
     if (result.warnings?.some((warning) => warning.overridable)) setMoreOpen(true);
     const labels = { publish: "选派已发布。", withdraw: "选派已撤回，可进入修改。", complete: "选派已标记完成。", cancel: "选派已取消。" };
     setMessage(response.ok ? labels[actionName] : result.error ?? "操作失败。");
     if (response.ok) router.refresh();
+    } catch { setMessage("网络异常，请核对当前状态后重试。"); } finally { setBusy(false); }
   }
 
   async function review(applicationId: string, status: string, reviewNote: string) {
@@ -131,7 +140,7 @@ export function AdminAppointmentEditor({
 
   return <>
     <section className="admin-panel admin-assignment-panel">
-      <header className="admin-panel-header admin-workbench-header"><div><h2>裁判选派工作台</h2><p>{match.format === "ELEVEN_A_SIDE" ? "十一人制" : match.format === "FUTSAL" ? "五人制" : "无预设"}岗位模板 · 可正式选派优先，培养中可选；暂不安排不可选</p></div><div className="admin-assignment-summary"><span><strong>{assignedCount}</strong> / {match.template.length} 已分配</span><span data-warning={warnings.length > 0}><strong>{warnings.length}</strong> 个提醒</span></div></header>
+      <header className="admin-panel-header admin-workbench-header"><div><h2>裁判选派工作台</h2><p>{match.format === "ELEVEN_A_SIDE" ? "十一人制" : match.format === "FUTSAL" ? "五人制" : "无预设"}岗位模板 · 可正式选派优先，培养中可选；暂不安排不可选</p></div><div className="admin-assignment-summary"><span><strong>{assignedCount}</strong> / {Object.values(enabled).filter(Boolean).length} 已启用岗位已分配</span><span data-warning={warnings.length > 0}><strong>{warnings.length}</strong> 个提醒</span></div></header>
       <form className="admin-form admin-assignment-form" onSubmit={save}>
         <div aria-label="裁判岗位分配" className="admin-workbench-table" role="table">
           <div className="admin-workbench-table-head" role="row"><span role="columnheader">岗位</span><span role="columnheader">裁判员</span><span role="columnheader">岗位能力</span><span role="columnheader">状态检查</span></div>
@@ -157,8 +166,8 @@ export function AdminAppointmentEditor({
         <p aria-live="polite" className="admin-form-message">{message}</p>
         <footer className="admin-assignment-actions">
           <div className="admin-assignment-secondary-actions">{match.appointmentId ? <Link className="admin-button admin-button-quiet" href={`/referees/assignments/${match.appointmentId}/print`}>打印选派单</Link> : null}</div>
-          <div className="admin-assignment-primary-actions">{canEditDraft ? <><button className="admin-button admin-button-secondary" type="submit">保存草稿</button><button className="admin-button admin-primary-cta" onClick={() => action("publish")} type="button">{currentStatus === "WITHDRAWN" ? "重新发布" : "发布选派"}</button></> : null}
-          {currentStatus === "PUBLISHED" ? <><button className="admin-button admin-button-secondary" onClick={() => action("withdraw")} type="button">撤回并修改</button><button className="admin-button" onClick={() => action("complete")} type="button">完成</button><button className="admin-button admin-button-danger" onClick={() => action("cancel")} type="button">取消</button></> : null}</div>
+          <div className="admin-assignment-primary-actions">{canEditDraft ? <><button className="admin-button admin-button-secondary" disabled={busy} type="submit">保存草稿</button><button className="admin-button admin-primary-cta" disabled={busy} onClick={() => action("publish")} type="button">{currentStatus === "WITHDRAWN" ? "重新发布" : "发布选派"}</button></> : null}
+          {currentStatus === "PUBLISHED" ? <><button className="admin-button admin-button-secondary" disabled={busy} onClick={() => action("withdraw")} type="button">撤回并修改</button><button className="admin-button" disabled={busy || !match.canComplete} onClick={() => { if (window.confirm("确认比赛真实结束且已核对赛果？请填写人工完成原因。")) void action("complete"); }} type="button">标记执裁完成</button><button className="admin-button admin-button-danger" disabled={busy} onClick={() => action("cancel")} type="button">取消</button></> : null}</div>
         </footer>
       </form>
     </section>

@@ -1,0 +1,54 @@
+
+> nuaa-football-association@0.1.0 test:security-http
+> tsx scripts/test-security-http.ts
+
+▲ Next.js 16.3.4
+- Local:         http://127.0.0.1:53333
+- Network:       http://127.0.0.1:53333
+✓ Ready in 53ms
+✓ Running next.config.ts took 11ms
+PASS required member login: 200
+PASS member profile blocked: 403
+PASS member availability create blocked: 403
+PASS member availability delete blocked: 403
+PASS member application create blocked: 403
+PASS member application withdraw blocked: 403
+PASS member appointment acknowledge blocked: 403
+PASS member appointment conflict blocked: 403
+PASS member malformed JSON typed error: 400
+PASS member normal business path after password gate: 200
+PASS referee admin login: 200
+PASS completed direct draft API blocked: 409
+PASS completed direct publish API blocked: 409
+PASS public admission create: 201
+PASS public admission duplicate: 409
+PASS public admission rate limit: 429
+PASS rotating XFF cannot evade login rate-limit identity: 429
+PASS member logout allow-path: 200
+F-001/F-003/F-007/F-011 direct HTTP security regressions passed.
+▲ Next.js 16.3.4
+- Local:         http://127.0.0.1:53347
+- Network:       http://127.0.0.1:53347
+✓ Ready in 61ms
+✓ Running next.config.ts took 13ms
+[referee-api] unexpected failure {
+  correlationId: '031119df-c202-446b-a460-99992a667398',
+  errorName: 'Error'
+}
+PASS member login database failure: safe 500
+[referee-api] unexpected failure {
+  correlationId: 'db83fdac-2480-4ce7-b24a-21652a1c45a5',
+  errorName: 'Error'
+}
+PASS admin login database failure: safe 500
+[referee-api] unexpected failure {
+  correlationId: 'e9b45130-78e0-4572-a2fc-7bab9a10ae3e',
+  errorName: 'Error'
+}
+PASS public admission database failure: safe 500
+[referee-api] unexpected failure {
+  correlationId: 'a64e61ff-6e6f-49bb-af9e-50653fe7f74c',
+  errorName: 'Error'
+}
+PASS legacy authorization database failure: safe 500
+F-004 real HTTP database-failure leakage regressions passed.

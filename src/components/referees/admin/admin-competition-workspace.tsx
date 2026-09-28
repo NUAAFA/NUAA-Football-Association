@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { adminTabKeyboard } from "@/lib/admin-tab-keyboard";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useMemo, useState, type ReactNode } from "react";
 
 import { AdminCompetitionDangerActions } from "@/components/referees/admin/admin-competition-danger-actions";
 import { OrganizationCheckboxSelector } from "@/components/referees/admin/organization-checkbox-selector";
@@ -40,17 +41,23 @@ export function AdminCompetitionWorkspace({
   teams,
   matches,
   canWrite,
-  initialSection = "overview",
+  initialSection = "overview", counts, page, stages, publicEffect, structure,
 }: {
   competition: { id: string; name: string; formatLabel: string; statusLabel: string; year: number | null; slug: string; deletionProtectedReason?: string };
   units: CompetitionWorkspaceUnit[];
   teams: CompetitionWorkspaceTeam[];
-  matches: Array<{ id: string; matchup: string; kickoff: string; venue: string; status: string }>;
+  matches: Array<{ id: string; matchup: string; kickoff: string; venue: string; status: string; stage?: string; group?: string; round?: string; score?: string }>;
   canWrite: boolean;
-  initialSection?: "overview" | "teams";
+  initialSection?: "overview" | "teams" | "matches";
+  counts: { teams: number; matches: number; pending: number; filtered: number }; page: number;
+  stages: Array<{ id: string; name: string; groups: Array<{ id: string; name: string }>; rounds: Array<{ id: string; name: string; groupId: string | null }> }>;
+  publicEffect: string; structure: ReactNode;
 }) {
-  const router = useRouter();
-  const [section, setSection] = useState<"overview" | "teams" | "matches">(initialSection);
+  const router = useRouter(), params = useSearchParams();
+  const section = initialSection;
+  function navigate(key: string, value: string) { const next = new URLSearchParams(params.toString()); if (value) next.set(key, value); else next.delete(key); next.delete("page"); if (key === "stageId") { next.delete("groupId"); next.delete("roundId"); } if (key === "groupId") next.delete("roundId"); router.push(`/admin/competitions/${competition.id}?${next}`); }
+  const setSection = (value: string) => navigate("section", value);
+  const selectedStage = stages.find((s) => s.id === params.get("stageId"));
   const [selected, setSelected] = useState<string[]>([]);
   const [jointSelected, setJointSelected] = useState<string[]>([]);
   const [jointName, setJointName] = useState("");
@@ -106,18 +113,19 @@ export function AdminCompetitionWorkspace({
   }
 
   return <>
-    <nav aria-label="赛事工作台分区" className="admin-tabs admin-workspace-tabs" role="tablist">
-      <button aria-selected={section === "overview"} onClick={() => setSection("overview")} role="tab" type="button">赛事资料</button>
-      <button aria-selected={section === "teams"} onClick={() => setSection("teams")} role="tab" type="button">参赛球队（{teams.length}）</button>
-      <button aria-selected={section === "matches"} onClick={() => setSection("matches")} role="tab" type="button">比赛 / 赛程（{matches.length}）</button>
+    <nav aria-label="赛事工作台分区" className="admin-tabs admin-workspace-tabs" role="tablist" onKeyDown={adminTabKeyboard}>
+      <button id="workspace-tab-overview" aria-controls="workspace-panel-overview" tabIndex={section === "overview" ? 0 : -1} aria-selected={section === "overview"} onClick={() => setSection("overview")} role="tab" type="button">赛事资料</button>
+      <button id="workspace-tab-teams" aria-controls="workspace-panel-teams" tabIndex={section === "teams" ? 0 : -1} aria-selected={section === "teams"} onClick={() => setSection("teams")} role="tab" type="button">参赛球队（{counts.teams}）</button>
+      <button id="workspace-tab-matches" aria-controls="workspace-panel-matches" tabIndex={section === "matches" ? 0 : -1} aria-selected={section === "matches"} onClick={() => setSection("matches")} role="tab" type="button">赛程与比分（{counts.matches}）</button>
     </nav>
 
-    <section className="admin-panel" hidden={section !== "overview"}>
+    <section className="admin-panel" id="workspace-panel-overview" role="tabpanel" aria-labelledby="workspace-tab-overview" hidden={section !== "overview"}>
       <header className="admin-panel-header"><div><h2>赛事资料</h2><p>当前赛事上下文贯穿球队与赛程操作；公开发布开关不在本工作台中自动变更。</p></div>{canWrite ? <div className="admin-page-actions"><Link className="admin-button admin-button-secondary" href={`/admin/competitions/${competition.id}/edit`}>编辑赛事资料</Link><AdminCompetitionDangerActions competitionId={competition.id} competitionName={competition.name} protectedReason={competition.deletionProtectedReason} /></div> : null}</header>
+      <p>{publicEffect}</p><Link href={`/competitions/${competition.slug}`}>查看官网效果</Link>
       <dl className="admin-detail-meta"><div><dt>赛事名称</dt><dd>{competition.name}</dd></div><div><dt>比赛制式</dt><dd>{competition.formatLabel}</dd></div><div><dt>状态</dt><dd>{competition.statusLabel}</dd></div><div><dt>年份</dt><dd>{competition.year ?? "未设置"}</dd></div><div><dt>页面地址标识</dt><dd>{competition.slug}</dd></div></dl>
     </section>
 
-    <section className="admin-panel admin-workspace-team-panel" hidden={section !== "teams"}>
+    <section className="admin-panel admin-workspace-team-panel" id="workspace-panel-teams" role="tabpanel" aria-labelledby="workspace-tab-teams" hidden={section !== "teams"}>
       <header className="admin-panel-header"><div><h2>参赛球队</h2><p>这里只管理“{competition.name}”的参赛球队，不会引入其他赛事的球队。</p></div></header>
       {teams.length ? <div className="admin-team-cards">{teams.map((team) => <article className="admin-team-card" key={team.id}><div><strong>{team.name}</strong><span>{teamTypeLabels[team.teamType]} · {team.matchCount ? `已关联 ${team.matchCount} 场比赛` : "尚无比赛引用"}</span></div>{canWrite ? <button className="admin-button admin-button-danger admin-button-quiet" onClick={() => void deleteTeam(team)} type="button">删除球队</button> : null}</article>)}</div> : <div className="admin-empty-state"><strong>当前赛事尚无参赛球队</strong><p>先从组织单位创建代表队、创建联合队，或导入自由组队球队。</p></div>}
       {canWrite ? <div className="admin-workspace-operations">
@@ -131,9 +139,13 @@ export function AdminCompetitionWorkspace({
       <p aria-live="polite" className="admin-form-message">{message}</p>
     </section>
 
-    <section className="admin-panel" hidden={section !== "matches"}>
-      <header className="admin-panel-header"><div><h2>比赛 / 赛程</h2><p>新建比赛时赛事固定为当前上下文，主客队仅来自本赛事参赛球队。</p></div>{canWrite && teams.length ? <Link className="admin-button" href={`/admin/matches/new?competition=${competition.id}&from=workspace`}>+ 新建比赛</Link> : null}</header>
-      {!teams.length ? <div className="admin-empty-state"><strong>当前赛事尚无参赛球队。</strong><p>请先添加参赛球队，再创建比赛。</p><button className="admin-button" onClick={() => setSection("teams")} type="button">前往添加球队</button></div> : matches.length ? <div className="admin-table-scroll"><table className="admin-data-table"><thead><tr><th>比赛</th><th>时间</th><th>场地</th><th>状态</th><th>操作</th></tr></thead><tbody>{matches.map((match) => <tr key={match.id}><td><strong>{match.matchup}</strong></td><td>{match.kickoff}</td><td>{match.venue}</td><td>{match.status}</td><td><Link href={`/admin/matches/${match.id}`}>进入比赛</Link></td></tr>)}</tbody></table></div> : <div className="admin-empty-state"><strong>当前赛事尚无比赛</strong><p>参赛球队已就绪，可以创建第一场比赛。</p></div>}
+    <section className="admin-panel" id="workspace-panel-matches" role="tabpanel" aria-labelledby="workspace-tab-matches" hidden={section !== "matches"}>
+      <header className="admin-panel-header"><div><h2>赛程与比分</h2><p>共 {counts.matches} 场，待赛果 {counts.pending} 场。新建比赛时赛事固定为当前上下文，主客队仅来自本赛事参赛球队。</p></div>{canWrite && teams.length ? <Link className="admin-button" href={`/admin/matches/new?competitionId=${competition.id}&stageId=${params.get("stageId") ?? ""}&groupId=${params.get("groupId") ?? ""}&roundId=${params.get("roundId") ?? ""}&from=workspace`}>+ 新建比赛</Link> : null}</header>
+      <div className="admin-filter-bar"><label><span>阶段</span><select value={params.get("stageId") ?? ""} onChange={(e) => navigate("stageId", e.target.value)}><option value="">全部阶段</option><option value="legacy">旧记录 / 未结构化</option>{stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>{selectedStage?.groups.length ? <label><span>小组</span><select value={params.get("groupId") ?? ""} onChange={(e) => navigate("groupId", e.target.value)}><option value="">全部小组</option>{selectedStage.groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label> : null}{selectedStage ? <label><span>轮次</span><select value={params.get("roundId") ?? ""} onChange={(e) => navigate("roundId", e.target.value)}><option value="">全部轮次</option>{selectedStage.rounds.filter((r) => !r.groupId || !params.get("groupId") || r.groupId === params.get("groupId")).map((r) => <option key={r.id} value={r.id}>{r.groupId && !params.get("groupId") ? `${selectedStage.groups.find((g) => g.id === r.groupId)?.name ?? ""} · ` : ""}{r.name}</option>)}</select></label> : null}<label><span>状态</span><select value={params.get("status") ?? ""} onChange={(e) => navigate("status", e.target.value)}><option value="">全部</option><option value="SCHEDULED">待赛果</option><option value="COMPLETED">已完赛</option><option value="CANCELLED">已取消</option></select></label></div>
+      <div className="admin-page-actions">{canWrite ? <Link href={`/admin/competitions/import?competitionId=${competition.id}&kind=matches`}>批量导入赛程</Link> : null}<span>当前筛选 {counts.filtered} 场</span></div>
+      {!teams.length ? <div className="admin-empty-state"><strong>当前赛事尚无参赛球队。</strong><p>请先添加参赛球队，再创建比赛。</p><button className="admin-button" onClick={() => setSection("teams")} type="button">前往添加球队</button></div> : matches.length ? <div className="admin-table-scroll"><table className="admin-data-table"><thead><tr><th>比赛</th><th>时间</th><th>场地</th><th>阶段 / 组 / 轮次</th><th>状态 / 比分</th><th>操作</th></tr></thead><tbody>{matches.map((match) => <tr key={match.id}><td><strong>{match.matchup}</strong></td><td>{match.kickoff}</td><td>{match.venue}</td><td>{[match.stage, match.group, match.round].filter(Boolean).join(" · ") || "未结构化"}</td><td>{match.score || (match.status === "COMPLETED" ? "已结束，待核验比分" : match.status === "CANCELLED" ? "已取消" : "待赛果")}</td><td><Link href={`/admin/matches/${match.id}`}>{canWrite ? "录入赛果 / 详情" : "查看详情"}</Link></td></tr>)}</tbody></table></div> : <div className="admin-empty-state"><strong>当前赛事尚无比赛</strong><p>参赛球队已就绪，可以创建第一场比赛。</p></div>}
+      <nav className="admin-pagination" aria-label="赛事比赛分页">{page > 1 ? <Link href={`?${new URLSearchParams({ ...Object.fromEntries(params), page: String(page - 1) })}`}>上一页</Link> : null}<span>{page} / {Math.max(1, Math.ceil(counts.filtered / 30))}</span>{page * 30 < counts.filtered ? <Link href={`?${new URLSearchParams({ ...Object.fromEntries(params), page: String(page + 1) })}`}>下一页</Link> : null}</nav>
     </section>
+    {section === "teams" || section === "matches" ? structure : null}
   </>;
 }

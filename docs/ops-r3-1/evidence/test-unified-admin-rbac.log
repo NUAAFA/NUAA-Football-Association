@@ -1,0 +1,21 @@
+
+> nuaa-football-association@0.1.0 test:unified-admin-rbac
+> tsx scripts/test-unified-admin-rbac.ts
+
+{
+  "legacySuperFallback": true,
+  "roleIsolation": true,
+  "multiRoleUnion": true,
+  "safeRoleBasedLanding": true,
+  "legacyDeepLinkMapping": true,
+  "accountCreateEditDisable": true,
+  "superNormalization": true,
+  "lastActiveSuperProtection": true,
+  "passwordHashOnly": true,
+  "requiredPasswordChange": true,
+  "requiredPasswordFailureAtomicity": true,
+  "requiredPasswordSessionInvalidation": true,
+  "syntheticLegacyPasswordCompatibility": true,
+  "safeAuditMetadata": true,
+  "auditLogCount": 9
+}

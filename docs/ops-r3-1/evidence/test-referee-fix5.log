@@ -1,0 +1,22 @@
+
+> nuaa-football-association@0.1.0 test:referee-fix5
+> tsx scripts/test-referee-fix5.ts
+
+{
+  "competitionEmptyState": true,
+  "manualCompetitionCreateListEdit": true,
+  "manualSourcePreserved": true,
+  "competitionAvailableToMatchAndTeams": true,
+  "unifiedCollegeSorting": true,
+  "groupedShuyuan": true,
+  "directCollegeAndShuyuanSelection": true,
+  "organizationTeamsCreatedBeforeMatch": true,
+  "organizationTeamsReused": true,
+  "formalTeamNamesExcludeCodes": true,
+  "jointAndFreeformRegression": true,
+  "fromUnitsRegression": true,
+  "matchReferencesCorrect": true,
+  "noCompetitionFormState": true,
+  "competitionChangeClearsTeams": true,
+  "sameTeamRejectedWithoutMatchWrite": true
+}

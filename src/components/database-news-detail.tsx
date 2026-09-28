@@ -17,7 +17,8 @@ export async function DatabaseNewsDetail({ slug }: { slug: string }) {
   if (!post) notFound();
   const attachment = post.discipline?.officialMedia;
   return <DetailPageLayout
-    attachments={attachment ? [{ href: attachment.url, label: `查看 / 下载 ${attachment.filename}` }] : []}
+    attachmentsAfterBody
+    attachments={[...post.attachments.map((a) => ({ href: a.url, label: a.url === attachment?.url ? `正式文件 · ${a.filename}` : `查看 / 下载 ${a.filename}` })), ...(attachment && !post.attachments.some((a) => a.url === attachment.url) ? [{ href: attachment.url, label: `正式文件 · ${attachment.filename}` }] : [])]}
     description={post.summary}
     eyebrow={post.type === "DISCIPLINE" ? "DISCIPLINARY DECISION / 纪律决定" : post.type === "ANNOUNCEMENT" ? "OFFICIAL NOTICE / 通知公告" : "OFFICIAL NEWS / 协会新闻"}
     meta={{ source: post.source ?? "NUAAFA", published: formatDate(post.publishedAt), updated: formatDate(post.updatedAt), sourceLabel: post.type === "DISCIPLINE" ? "发布单位" : "来源" }}

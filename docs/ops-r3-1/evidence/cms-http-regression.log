@@ -1,0 +1,379 @@
+
+> nuaa-football-association@0.1.0 test:unified-admin-blockers:http
+> tsx scripts/test-unified-admin-blockers.ts --cms
+
+▲ Next.js 16.3.4
+- Local:         http://127.0.0.1:53285
+- Network:       http://127.0.0.1:53285
+✓ Ready in 61ms
+✓ Running next.config.ts took 13ms
+PASS isolated app health: 200
+PASS super AdminAccount reuse login: 200
+PASS content AdminAccount reuse login: 200
+PASS competition AdminAccount reuse login: 200
+PASS referee AdminAccount reuse login: 200
+PASS multi AdminAccount reuse login: 200
+PASS POST /api/referees/admin/account/password unauthenticated: 401
+PASS POST /api/referees/admin/account/password Origin/CSRF: 403
+PASS POST /api/referees/admin/account/password super: authorized (400)
+PASS POST /api/referees/admin/account/password content: authorized (400)
+PASS POST /api/referees/admin/account/password competition: authorized (400)
+PASS POST /api/referees/admin/account/password referee: authorized (400)
+PASS POST /api/referees/admin/account/password multi: authorized (400)
+PASS POST /api/referees/admin/accounts unauthenticated: 401
+PASS POST /api/referees/admin/accounts Origin/CSRF: 403
+PASS POST /api/referees/admin/accounts super: authorized (400)
+PASS POST /api/referees/admin/accounts content: 403
+PASS POST /api/referees/admin/accounts competition: 403
+PASS POST /api/referees/admin/accounts referee: authorized (400)
+PASS POST /api/referees/admin/accounts multi: authorized (400)
+PASS GET /api/referees/admin/admission-applications unauthenticated: 401
+PASS GET /api/referees/admin/admission-applications super: authorized (200)
+PASS GET /api/referees/admin/admission-applications content: 403
+PASS GET /api/referees/admin/admission-applications competition: 403
+PASS GET /api/referees/admin/admission-applications referee: authorized (200)
+PASS GET /api/referees/admin/admission-applications multi: authorized (200)
+PASS GET /api/referees/admin/admission-applications/cmul8z3nu001wkv1gw4vogy9o unauthenticated: 401
+PASS GET /api/referees/admin/admission-applications/cmul8z3nu001wkv1gw4vogy9o super: authorized (200)
+PASS GET /api/referees/admin/admission-applications/cmul8z3nu001wkv1gw4vogy9o content: 403
+PASS GET /api/referees/admin/admission-applications/cmul8z3nu001wkv1gw4vogy9o competition: 403
+PASS GET /api/referees/admin/admission-applications/cmul8z3nu001wkv1gw4vogy9o referee: authorized (200)
+PASS GET /api/referees/admin/admission-applications/cmul8z3nu001wkv1gw4vogy9o multi: authorized (200)
+PASS PATCH /api/referees/admin/admission-applications/cmul8z3nu001wkv1gw4vogy9o unauthenticated: 401
+PASS PATCH /api/referees/admin/admission-applications/cmul8z3nu001wkv1gw4vogy9o Origin/CSRF: 403
+PASS PATCH /api/referees/admin/admission-applications/cmul8z3nu001wkv1gw4vogy9o super: authorized (400)
+PASS PATCH /api/referees/admin/admission-applications/cmul8z3nu001wkv1gw4vogy9o content: 403
+PASS PATCH /api/referees/admin/admission-applications/cmul8z3nu001wkv1gw4vogy9o competition: 403
+PASS PATCH /api/referees/admin/admission-applications/cmul8z3nu001wkv1gw4vogy9o referee: authorized (400)
+PASS PATCH /api/referees/admin/admission-applications/cmul8z3nu001wkv1gw4vogy9o multi: authorized (400)
+PASS PATCH /api/referees/admin/accounts/missing-account unauthenticated: 401
+PASS PATCH /api/referees/admin/accounts/missing-account Origin/CSRF: 403
+PASS PATCH /api/referees/admin/accounts/missing-account super: authorized (400)
+PASS PATCH /api/referees/admin/accounts/missing-account content: 403
+PASS PATCH /api/referees/admin/accounts/missing-account competition: 403
+PASS PATCH /api/referees/admin/accounts/missing-account referee: authorized (400)
+PASS PATCH /api/referees/admin/accounts/missing-account multi: authorized (400)
+PASS POST /api/referees/admin/accounts/missing-account unauthenticated: 401
+PASS POST /api/referees/admin/accounts/missing-account Origin/CSRF: 403
+PASS POST /api/referees/admin/accounts/missing-account super: authorized (400)
+PASS POST /api/referees/admin/accounts/missing-account content: 403
+PASS POST /api/referees/admin/accounts/missing-account competition: 403
+PASS POST /api/referees/admin/accounts/missing-account referee: authorized (400)
+PASS POST /api/referees/admin/accounts/missing-account multi: authorized (400)
+PASS POST /api/referees/admin/admin-accounts unauthenticated: 401
+PASS POST /api/referees/admin/admin-accounts Origin/CSRF: 403
+PASS POST /api/referees/admin/admin-accounts super: authorized (400)
+PASS POST /api/referees/admin/admin-accounts content: 403
+PASS POST /api/referees/admin/admin-accounts competition: 403
+PASS POST /api/referees/admin/admin-accounts referee: 403
+PASS POST /api/referees/admin/admin-accounts multi: 403
+PASS PATCH /api/referees/admin/admin-accounts unauthenticated: 401
+PASS PATCH /api/referees/admin/admin-accounts Origin/CSRF: 403
+PASS PATCH /api/referees/admin/admin-accounts super: authorized (400)
+PASS PATCH /api/referees/admin/admin-accounts content: 403
+PASS PATCH /api/referees/admin/admin-accounts competition: 403
+PASS PATCH /api/referees/admin/admin-accounts referee: 403
+PASS PATCH /api/referees/admin/admin-accounts multi: 403
+PASS POST /api/admin/system/admin-accounts unauthenticated: 401
+PASS POST /api/admin/system/admin-accounts Origin/CSRF: 403
+PASS POST /api/admin/system/admin-accounts super: authorized (400)
+PASS POST /api/admin/system/admin-accounts content: 403
+PASS POST /api/admin/system/admin-accounts competition: 403
+PASS POST /api/admin/system/admin-accounts referee: 403
+PASS POST /api/admin/system/admin-accounts multi: 403
+PASS PATCH /api/admin/system/admin-accounts unauthenticated: 401
+PASS PATCH /api/admin/system/admin-accounts Origin/CSRF: 403
+PASS PATCH /api/admin/system/admin-accounts super: authorized (400)
+PASS PATCH /api/admin/system/admin-accounts content: 403
+PASS PATCH /api/admin/system/admin-accounts competition: 403
+PASS PATCH /api/admin/system/admin-accounts referee: 403
+PASS PATCH /api/admin/system/admin-accounts multi: 403
+PASS POST /api/referees/admin/affiliation-units unauthenticated: 401
+PASS POST /api/referees/admin/affiliation-units Origin/CSRF: 403
+PASS POST /api/referees/admin/affiliation-units super: authorized (400)
+PASS POST /api/referees/admin/affiliation-units content: 403
+PASS POST /api/referees/admin/affiliation-units competition: authorized (400)
+PASS POST /api/referees/admin/affiliation-units referee: 403
+PASS POST /api/referees/admin/affiliation-units multi: authorized (400)
+PASS POST /api/referees/admin/applications unauthenticated: 401
+PASS POST /api/referees/admin/applications Origin/CSRF: 403
+PASS POST /api/referees/admin/applications super: authorized (400)
+PASS POST /api/referees/admin/applications content: 403
+PASS POST /api/referees/admin/applications competition: 403
+PASS POST /api/referees/admin/applications referee: authorized (400)
+PASS POST /api/referees/admin/applications multi: authorized (400)
+PASS PATCH /api/referees/admin/applications/missing-application unauthenticated: 401
+PASS PATCH /api/referees/admin/applications/missing-application Origin/CSRF: 403
+PASS PATCH /api/referees/admin/applications/missing-application super: authorized (400)
+PASS PATCH /api/referees/admin/applications/missing-application content: 403
+PASS PATCH /api/referees/admin/applications/missing-application competition: 403
+PASS PATCH /api/referees/admin/applications/missing-application referee: authorized (400)
+PASS PATCH /api/referees/admin/applications/missing-application multi: authorized (400)
+PASS PUT /api/referees/admin/appointments/missing-match unauthenticated: 401
+PASS PUT /api/referees/admin/appointments/missing-match Origin/CSRF: 403
+PASS PUT /api/referees/admin/appointments/missing-match super: authorized (400)
+PASS PUT /api/referees/admin/appointments/missing-match content: 403
+PASS PUT /api/referees/admin/appointments/missing-match competition: 403
+PASS PUT /api/referees/admin/appointments/missing-match referee: authorized (400)
+PASS PUT /api/referees/admin/appointments/missing-match multi: authorized (400)
+PASS POST /api/referees/admin/appointments/missing-match unauthenticated: 401
+PASS POST /api/referees/admin/appointments/missing-match Origin/CSRF: 403
+PASS POST /api/referees/admin/appointments/missing-match super: authorized (400)
+PASS POST /api/referees/admin/appointments/missing-match content: 403
+PASS POST /api/referees/admin/appointments/missing-match competition: 403
+PASS POST /api/referees/admin/appointments/missing-match referee: authorized (400)
+PASS POST /api/referees/admin/appointments/missing-match multi: authorized (400)
+PASS POST /api/referees/admin/availability unauthenticated: 401
+PASS POST /api/referees/admin/availability Origin/CSRF: 403
+PASS POST /api/referees/admin/availability super: authorized (400)
+PASS POST /api/referees/admin/availability content: 403
+PASS POST /api/referees/admin/availability competition: 403
+PASS POST /api/referees/admin/availability referee: authorized (400)
+PASS POST /api/referees/admin/availability multi: authorized (400)
+PASS DELETE /api/referees/admin/availability unauthenticated: 401
+PASS DELETE /api/referees/admin/availability Origin/CSRF: 403
+PASS DELETE /api/referees/admin/availability super: authorized (400)
+PASS DELETE /api/referees/admin/availability content: 403
+PASS DELETE /api/referees/admin/availability competition: 403
+PASS DELETE /api/referees/admin/availability referee: authorized (400)
+PASS DELETE /api/referees/admin/availability multi: authorized (400)
+PASS POST /api/referees/admin/colleges unauthenticated: 401
+PASS POST /api/referees/admin/colleges Origin/CSRF: 403
+PASS POST /api/referees/admin/colleges super: authorized (400)
+PASS POST /api/referees/admin/colleges content: 403
+PASS POST /api/referees/admin/colleges competition: authorized (400)
+PASS POST /api/referees/admin/colleges referee: 403
+PASS POST /api/referees/admin/colleges multi: authorized (400)
+PASS POST /api/referees/admin/competitions unauthenticated: 401
+PASS POST /api/referees/admin/competitions Origin/CSRF: 403
+PASS POST /api/referees/admin/competitions super: authorized (400)
+PASS POST /api/referees/admin/competitions content: 403
+PASS POST /api/referees/admin/competitions competition: authorized (400)
+PASS POST /api/referees/admin/competitions referee: 403
+PASS POST /api/referees/admin/competitions multi: authorized (400)
+PASS PATCH /api/referees/admin/competitions/missing-competition unauthenticated: 401
+PASS PATCH /api/referees/admin/competitions/missing-competition Origin/CSRF: 403
+PASS PATCH /api/referees/admin/competitions/missing-competition super: authorized (400)
+PASS PATCH /api/referees/admin/competitions/missing-competition content: 403
+PASS PATCH /api/referees/admin/competitions/missing-competition competition: authorized (400)
+PASS PATCH /api/referees/admin/competitions/missing-competition referee: 403
+PASS PATCH /api/referees/admin/competitions/missing-competition multi: authorized (400)
+PASS PATCH /api/referees/admin/conflict-reports/missing-report unauthenticated: 401
+PASS PATCH /api/referees/admin/conflict-reports/missing-report Origin/CSRF: 403
+PASS PATCH /api/referees/admin/conflict-reports/missing-report super: authorized (400)
+PASS PATCH /api/referees/admin/conflict-reports/missing-report content: 403
+PASS PATCH /api/referees/admin/conflict-reports/missing-report competition: 403
+PASS PATCH /api/referees/admin/conflict-reports/missing-report referee: authorized (400)
+PASS PATCH /api/referees/admin/conflict-reports/missing-report multi: authorized (400)
+PASS GET /api/referees/admin/exports/invalid-kind unauthenticated: 401
+PASS GET /api/referees/admin/exports/invalid-kind super: authorized (400)
+PASS GET /api/referees/admin/exports/invalid-kind content: 403
+PASS GET /api/referees/admin/exports/invalid-kind competition: 403
+PASS GET /api/referees/admin/exports/invalid-kind referee: authorized (400)
+PASS GET /api/referees/admin/exports/invalid-kind multi: authorized (400)
+PASS POST /api/referees/admin/matches unauthenticated: 401
+PASS POST /api/referees/admin/matches Origin/CSRF: 403
+PASS POST /api/referees/admin/matches super: authorized (400)
+PASS POST /api/referees/admin/matches content: 403
+PASS POST /api/referees/admin/matches competition: authorized (400)
+PASS POST /api/referees/admin/matches referee: 403
+PASS POST /api/referees/admin/matches multi: authorized (400)
+PASS PATCH /api/referees/admin/matches/missing-match unauthenticated: 401
+PASS PATCH /api/referees/admin/matches/missing-match Origin/CSRF: 403
+PASS PATCH /api/referees/admin/matches/missing-match super: authorized (400)
+PASS PATCH /api/referees/admin/matches/missing-match content: 403
+PASS PATCH /api/referees/admin/matches/missing-match competition: authorized (400)
+PASS PATCH /api/referees/admin/matches/missing-match referee: 403
+PASS PATCH /api/referees/admin/matches/missing-match multi: authorized (400)
+PASS POST /api/referees/admin/matches/missing-match unauthenticated: 401
+PASS POST /api/referees/admin/matches/missing-match Origin/CSRF: 403
+PASS POST /api/referees/admin/matches/missing-match super: authorized (400)
+PASS POST /api/referees/admin/matches/missing-match content: 403
+PASS POST /api/referees/admin/matches/missing-match competition: authorized (400)
+PASS POST /api/referees/admin/matches/missing-match referee: 403
+PASS POST /api/referees/admin/matches/missing-match multi: authorized (400)
+PASS DELETE /api/referees/admin/matches/missing-match unauthenticated: 401
+PASS DELETE /api/referees/admin/matches/missing-match Origin/CSRF: 403
+PASS DELETE /api/referees/admin/matches/missing-match super: authorized (400)
+PASS DELETE /api/referees/admin/matches/missing-match content: 403
+PASS DELETE /api/referees/admin/matches/missing-match competition: authorized (400)
+PASS DELETE /api/referees/admin/matches/missing-match referee: 403
+PASS DELETE /api/referees/admin/matches/missing-match multi: authorized (400)
+PASS PUT /api/referees/admin/team-affiliations unauthenticated: 401
+PASS PUT /api/referees/admin/team-affiliations Origin/CSRF: 403
+PASS PUT /api/referees/admin/team-affiliations super: authorized (400)
+PASS PUT /api/referees/admin/team-affiliations content: 403
+PASS PUT /api/referees/admin/team-affiliations competition: authorized (400)
+PASS PUT /api/referees/admin/team-affiliations referee: 403
+PASS PUT /api/referees/admin/team-affiliations multi: authorized (400)
+PASS POST /api/referees/admin/teams unauthenticated: 401
+PASS POST /api/referees/admin/teams Origin/CSRF: 403
+PASS POST /api/referees/admin/teams super: authorized (400)
+PASS POST /api/referees/admin/teams content: 403
+PASS POST /api/referees/admin/teams competition: authorized (400)
+PASS POST /api/referees/admin/teams referee: 403
+PASS POST /api/referees/admin/teams multi: authorized (400)
+PASS /admin super page: 200
+PASS /admin content page: 200
+PASS /admin competition page: 200
+PASS /admin referee page: 200
+PASS /admin multi page: 200
+PASS /admin/content/news super page: 200
+PASS /admin/content/news content page: 200
+PASS /admin/content/news competition denied direct URL
+PASS /admin/content/news referee denied direct URL
+PASS /admin/content/news multi denied direct URL
+PASS /admin/media super page: 200
+PASS /admin/media content page: 200
+PASS /admin/media competition denied direct URL
+PASS /admin/media referee denied direct URL
+PASS /admin/media multi denied direct URL
+PASS /admin/competitions super page: 200
+PASS /admin/competitions content denied direct URL
+PASS /admin/competitions competition page: 200
+PASS /admin/competitions referee denied direct URL
+PASS /admin/competitions multi page: 200
+PASS /admin/matches super page: 200
+PASS /admin/matches content denied direct URL
+PASS /admin/matches competition page: 200
+PASS /admin/matches referee denied direct URL
+PASS /admin/matches multi page: 200
+PASS /admin/organizations super page: 200
+PASS /admin/organizations content denied direct URL
+PASS /admin/organizations competition page: 200
+PASS /admin/organizations referee denied direct URL
+PASS /admin/organizations multi page: 200
+PASS /admin/referees super page: 200
+PASS /admin/referees content denied direct URL
+PASS /admin/referees competition denied direct URL
+PASS /admin/referees referee page: 200
+PASS /admin/referees multi page: 200
+PASS /admin/referees/admissions super page: 200
+PASS /admin/referees/admissions content denied direct URL
+PASS /admin/referees/admissions competition denied direct URL
+PASS /admin/referees/admissions referee page: 200
+PASS /admin/referees/admissions multi page: 200
+PASS /admin/referees/admissions/cmul8z3nu001wkv1gw4vogy9o super page: 200
+PASS /admin/referees/admissions/cmul8z3nu001wkv1gw4vogy9o content denied direct URL
+PASS /admin/referees/admissions/cmul8z3nu001wkv1gw4vogy9o competition denied direct URL
+PASS /admin/referees/admissions/cmul8z3nu001wkv1gw4vogy9o referee page: 200
+PASS /admin/referees/admissions/cmul8z3nu001wkv1gw4vogy9o multi page: 200
+PASS /admin/referees/availability super page: 200
+PASS /admin/referees/availability content denied direct URL
+PASS /admin/referees/availability competition denied direct URL
+PASS /admin/referees/availability referee page: 200
+PASS /admin/referees/availability multi page: 200
+PASS /admin/appointments super page: 200
+PASS /admin/appointments content denied direct URL
+PASS /admin/appointments competition denied direct URL
+PASS /admin/appointments referee page: 200
+PASS /admin/appointments multi page: 200
+PASS /admin/conflicts super page: 200
+PASS /admin/conflicts content denied direct URL
+PASS /admin/conflicts competition denied direct URL
+PASS /admin/conflicts referee page: 200
+PASS /admin/conflicts multi page: 200
+PASS /admin/statistics super page: 200
+PASS /admin/statistics content denied direct URL
+PASS /admin/statistics competition denied direct URL
+PASS /admin/statistics referee page: 200
+PASS /admin/statistics multi page: 200
+PASS /admin/system/admins super page: 200
+PASS /admin/system/admins content denied direct URL
+PASS /admin/system/admins competition denied direct URL
+PASS /admin/system/admins referee denied direct URL
+PASS /admin/system/admins multi denied direct URL
+PASS /admin/system/audit super page: 200
+PASS /admin/system/audit content denied direct URL
+PASS /admin/system/audit competition denied direct URL
+PASS /admin/system/audit referee denied direct URL
+PASS /admin/system/audit multi denied direct URL
+PASS legacy redirect /referees/admin -> /admin
+PASS legacy redirect /referees/admin/referees -> /admin/referees
+PASS legacy redirect /referees/admin/referees/new -> /admin/referees/new
+PASS legacy redirect /referees/admin/referees/ref-1 -> /admin/referees/ref-1
+PASS legacy redirect /referees/admin/availability -> /admin/referees/availability
+PASS legacy redirect /referees/admin/affiliations -> /admin/organizations
+PASS legacy redirect /referees/admin/conflicts -> /admin/conflicts
+PASS legacy redirect /referees/admin/statistics -> /admin/statistics
+PASS legacy redirect /referees/admin/admins -> /admin/system/admins
+PASS legacy redirect /referees/admin/audit-log -> /admin/system/audit
+PASS legacy redirect /referees/admin/matches -> /admin/matches
+PASS legacy redirect /referees/admin/matches/new -> /admin/matches/new
+PASS legacy redirect /referees/admin/matches/match-1 -> /admin/matches/match-1
+PASS legacy redirect /referees/admin/matches/match-1/edit -> /admin/matches/match-1/edit
+PASS legacy redirect /referees/admin/matches/competitions -> /admin/competitions
+PASS legacy redirect /referees/admin/matches/competitions/new -> /admin/competitions/new
+PASS legacy redirect /referees/admin/matches/competitions/competition-1/edit -> /admin/competitions/competition-1/edit
+PASS super dashboard navigation: 200
+PASS content dashboard navigation: 200
+PASS competition dashboard navigation: 200
+PASS referee dashboard navigation: 200
+PASS multi dashboard navigation: 200
+PASS super AdminAccount reuse login: 200
+PASS content AdminAccount reuse login: 200
+PASS competition AdminAccount reuse login: 200
+PASS referee AdminAccount reuse login: 200
+PASS multi AdminAccount reuse login: 200
+PASS content AdminAccount reuse login: 200
+PASS content AdminAccount reuse login: 200
+PASS super AdminAccount reuse login: 200
+PASS super AdminAccount reuse login: 200
+PASS required content login: 200
+PASS required referee login: 200
+PASS required competition login: 200
+PASS required super login: 200
+PASS required content second session login: 200
+PASS required CONTENT_EDITOR canonical GET: 403
+PASS required CONTENT_EDITOR canonical POST: 403
+PASS required COMPETITION_ADMIN legacy API: 403
+PASS required REFEREE_ADMIN unified admission API: 403
+PASS required REFEREE_ADMIN legacy API: 403
+PASS required SUPER_ADMIN canonical system API: 403
+PASS required CONTENT_EDITOR locked page: 200
+PASS required CONTENT_EDITOR server-rendered page lock
+PASS required COMPETITION_ADMIN locked page: 200
+PASS required COMPETITION_ADMIN server-rendered page lock
+PASS required REFEREE_ADMIN locked page: 200
+PASS required REFEREE_ADMIN server-rendered page lock
+PASS required SUPER_ADMIN locked page: 200
+PASS required SUPER_ADMIN server-rendered page lock
+PASS required-change login page landing
+PASS required password endpoint bad Origin: 403
+PASS required password endpoint wrong current password: 401
+PASS required password endpoint short new password: 400
+PASS required password endpoint unchanged password: 400
+PASS failed password change preserved required gate: 403
+PASS required password endpoint success: 200
+PASS current session restored after password change: authorized (200)
+PASS other session invalidated after password change: 401
+PASS password-changed CONTENT_EDITOR page restored: 200
+PASS old password rejected after required change: 401
+PASS password-changed content login: 200
+PASS failed COMPETITION_ADMIN password change: 401
+PASS failed COMPETITION_ADMIN change preserved legacy gate: 403
+PASS synthetic legacy administrator login: 200
+PASS synthetic legacy administrator remains authorized: authorized (200)
+PASS synthetic legacy administrator page: 200
+PASS required account logout remains available: 200
+PASS required-password exception, recovery, session invalidation, logout, and legacy compatibility
+PASS database news list API: 200
+PASS database news cursor page: 200
+PASS malformed public cursor: 400
+PASS database news Detail DTO: 200
+PASS database Discipline detail: 200
+PASS smoke-draft public detail hidden: 404
+PASS smoke-archived public detail hidden: 404
+PASS smoke-future public detail hidden: 404
+PASS missing-slug public detail hidden: 404
+PASS bad%20slug public detail hidden: 404
+PASS /news database page: 200
+PASS /news/smoke-news-01 database page: 200
+PASS /news/smoke-discipline database page: 200
+PASS /news missing slug page: 404
+PASS PUBLIC media: 200
+PASS 20 MB streaming media HTTP upload: 201
+PASS PRIVATE media unauthenticated: 401
+PASS PRIVATE media role denied: 403
+PASS PRIVATE media authorized: 200
+PASS PUBLIC / PRIVATE media headers and streaming body

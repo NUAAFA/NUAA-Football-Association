@@ -10,6 +10,7 @@ import {
   type CompetitionImportPreview,
   type CompetitionImportPreviewRow,
 } from "@/lib/competition-import-types";
+import { assertMatchStructure } from "@/lib/competition-structure-service";
 import { prisma } from "@/lib/prisma";
 import {
   requireAdminServiceAuthorization,
@@ -28,6 +29,7 @@ type LoadedTeam = {
 };
 
 type LoadedMatch = {
+  stageId: string | null; groupId: string | null; roundId: string | null;
   id: string;
   slug: string;
   competitionId: string;
@@ -51,6 +53,7 @@ type TeamPlan = {
 };
 
 type MatchPlan = {
+  stageId: string | null; groupId: string | null; roundId: string | null;
   preview: CompetitionImportPreviewRow;
   homeTeam: string;
   awayTeam: string;
@@ -254,11 +257,13 @@ function makeSummary(rows: CompetitionImportPreviewRow[], plannedTeamCreates: nu
 
 function makePreview(
   input: CompetitionImportInput,
-  competition: { id: string; name: string; slug: string },
+  competition: { id: string; name: string; slug: string; publicPublished?: boolean; isTestData?: boolean },
   rows: CompetitionImportPreviewRow[],
   plannedTeamCreates: number,
 ): CompetitionImportPreview {
   return {
+    publicImpact: Boolean(competition.publicPublished && !competition.isTestData),
+    planHash: createHash("sha256").update(JSON.stringify({ inputHash: input.inputHash, publicImpact: Boolean(competition.publicPublished && !competition.isTestData), rows })).digest("hex"),
     competition,
     importType: input.importType,
     inputMethod: input.inputMethod,
@@ -272,7 +277,7 @@ function makePreview(
 async function loadCompetition(db: ImportDb, competitionId: string) {
   const competition = await db.competition.findUnique({
     where: { id: competitionId },
-    select: { id: true, name: true, slug: true },
+    select: { id: true, name: true, slug: true, publicPublished: true, isTestData: true },
   });
   if (!competition) throw new CompetitionImportServiceError("赛事不存在。", 404);
   return competition;
@@ -281,7 +286,7 @@ async function loadCompetition(db: ImportDb, competitionId: string) {
 async function analyzeTeamImport(
   db: ImportDb,
   input: CompetitionImportInput,
-  competition: { id: string; name: string; slug: string },
+  competition: { id: string; name: string; slug: string; publicPublished?: boolean; isTestData?: boolean },
 ): Promise<ImportAnalysis> {
   const requestedExternalIds = input.rows
     .map((row) => displayCell(row.values.externalTeamId).trim())
@@ -382,6 +387,7 @@ function matchDifferences(existing: LoadedMatch, plan: MatchPlan) {
   compare("kickoff", existing.kickoff.toISOString(), plan.kickoff.toISOString());
   compare("venue", existing.venue.trim(), plan.venue);
   compare("stage", existing.stage.trim(), plan.stage);
+  compare("stageId", existing.stageId, plan.stageId); compare("groupId", existing.groupId, plan.groupId); compare("roundId", existing.roundId, plan.roundId);
   compare("endAt", existing.endAt?.toISOString() ?? null, plan.endAt?.toISOString() ?? null);
   compare("round", existing.round?.trim() || null, plan.round);
   if (existing.externalMatchId && plan.externalMatchId && existing.externalMatchId !== plan.externalMatchId) {
@@ -397,6 +403,7 @@ function inputMatchDifferences(existing: MatchPlan, imported: MatchPlan) {
   };
   compare("venue", existing.venue, imported.venue);
   compare("stage", existing.stage, imported.stage);
+  compare("stageId", existing.stageId, imported.stageId); compare("groupId", existing.groupId, imported.groupId); compare("roundId", existing.roundId, imported.roundId);
   compare("endAt", existing.endAt?.toISOString() ?? null, imported.endAt?.toISOString() ?? null);
   compare("round", existing.round, imported.round);
   compare("externalMatchId", existing.externalMatchId, imported.externalMatchId);
@@ -406,13 +413,14 @@ function inputMatchDifferences(existing: MatchPlan, imported: MatchPlan) {
 async function analyzeMatchImport(
   db: ImportDb,
   input: CompetitionImportInput,
-  competition: { id: string; name: string; slug: string },
+  competition: { id: string; name: string; slug: string; publicPublished?: boolean; isTestData?: boolean },
 ): Promise<ImportAnalysis> {
   const currentTeams = await db.team.findMany({
     where: { competitionId: competition.id },
     select: { id: true, competitionId: true, name: true, teamType: true, source: true, externalTeamId: true },
   });
   const existingByTeamName = new Map(currentTeams.map((team) => [comparisonKey(team.name), team]));
+  const structures = await db.competitionStage.findMany({ where: { competitionId: competition.id }, include: { groups: { include: { members: true } }, rounds: true } });
   const preliminary: MatchPlan[] = [];
 
   for (const row of input.rows) {
@@ -425,6 +433,22 @@ async function analyzeMatchImport(
     const venue = readText(row.values, "venue", "场地", 120, errors);
     const stage = readText(row.values, "stage", "阶段", 80, errors);
     const round = readText(row.values, "round", "轮次", 80, errors, false) || null;
+    const groupName = readText(row.values, "group", "分组", 80, errors, false);
+    const findStage = structures.filter((s) => row.values.stageId ? s.id === displayCell(row.values.stageId) : s.name === stage);
+    const selectedStage = findStage.length === 1 ? findStage[0] : undefined;
+    const groups = selectedStage?.groups.filter((g) => row.values.groupId ? g.id === displayCell(row.values.groupId) : g.name === groupName) ?? [];
+    const selectedGroup = groups.length === 1 ? groups[0] : undefined;
+    const rounds = selectedStage?.rounds.filter((r) => (!r.groupId || r.groupId === selectedGroup?.id) && (row.values.roundId ? r.id === displayCell(row.values.roundId) : r.name === round)) ?? [];
+    const selectedRound = rounds.length === 1 ? rounds[0] : undefined;
+    if ((structures.length || row.values.stageId || groupName || row.values.groupId || row.values.roundId) && !selectedStage) errors.push(issue("stage", "STRUCTURE_UNMATCHED", "阶段未匹配；请先建立结构并核对准确名称或 ID。"));
+    if (selectedStage?.type === "GROUP" && !selectedGroup) errors.push(issue("group", "GROUP_UNMATCHED", "小组未匹配；请先建立并选择当前阶段的小组。"));
+    if ((groupName || row.values.groupId) && (!selectedGroup || selectedStage?.type !== "GROUP")) errors.push(issue("group", "GROUP_INVALID", "分组不属于所选小组阶段。"));
+    if (selectedStage && (round || row.values.roundId) && !selectedRound) errors.push(issue("round", "ROUND_UNMATCHED", "轮次未匹配，请先人工建立轮次或选择准确 ID。"));
+    if (selectedGroup) {
+      const members = new Set(selectedGroup.members.map((m) => m.teamId));
+      if (![homeTeam, awayTeam].every((n) => { const t = existingByTeamName.get(comparisonKey(n)); return t && members.has(t.id); })) errors.push(issue("group", "GROUP_TEAM_MISMATCH", "主客队必须是已确定的本组成员，不能自动建队或归组。"));
+    }
+    const stageId = selectedStage?.id ?? null, groupId = selectedGroup?.id ?? null, roundId = selectedRound?.id ?? null;
     const externalMatchId = readText(row.values, "externalMatchId", "外部比赛 ID", 120, errors, false) || null;
     if (homeTeam && awayTeam && comparisonKey(homeTeam) === comparisonKey(awayTeam)) {
       errors.push(issue("awayTeam", "SAME_TEAM", "比赛双方不能相同。"));
@@ -445,6 +469,8 @@ async function analyzeMatchImport(
         kickoff: kickoff?.toISOString() ?? null,
         endAt: endAt?.toISOString() ?? null,
         venue: venue || null,
+        stageId, groupId, roundId, group: groupName || null,
+        structureFingerprint: selectedStage ? createHash("sha256").update(JSON.stringify(selectedStage)).digest("hex") : null,
         stage: stage || null,
         round,
         externalMatchId,
@@ -464,7 +490,7 @@ async function analyzeMatchImport(
       kickoff: kickoff ?? new Date(0),
       endAt,
       venue,
-      stage,
+      stage, stageId, groupId, roundId,
       round,
       externalMatchId,
       slug,
@@ -479,7 +505,7 @@ async function analyzeMatchImport(
     db.match.findMany({
       where: { competitionId: competition.id },
       select: {
-        id: true, slug: true, competitionId: true, stage: true, kickoff: true, endAt: true,
+        id: true, slug: true, competitionId: true, stageId: true, groupId: true, roundId: true, stage: true, kickoff: true, endAt: true,
         venue: true, round: true, source: true, externalMatchId: true,
         homeTeam: { select: { id: true, name: true } },
         awayTeam: { select: { id: true, name: true } },
@@ -489,7 +515,7 @@ async function analyzeMatchImport(
       ? db.match.findMany({
           where: { source: "MANUAL", externalMatchId: { in: requestedExternalIds } },
           select: {
-            id: true, slug: true, competitionId: true, stage: true, kickoff: true, endAt: true,
+            id: true, slug: true, competitionId: true, stageId: true, groupId: true, roundId: true, stage: true, kickoff: true, endAt: true,
             venue: true, round: true, source: true, externalMatchId: true,
             homeTeam: { select: { id: true, name: true } },
             awayTeam: { select: { id: true, name: true } },
@@ -500,7 +526,7 @@ async function analyzeMatchImport(
       ? db.match.findMany({
           where: { slug: { in: requestedSlugs } },
           select: {
-            id: true, slug: true, competitionId: true, stage: true, kickoff: true, endAt: true,
+            id: true, slug: true, competitionId: true, stageId: true, groupId: true, roundId: true, stage: true, kickoff: true, endAt: true,
             venue: true, round: true, source: true, externalMatchId: true,
             homeTeam: { select: { id: true, name: true } },
             awayTeam: { select: { id: true, name: true } },
@@ -607,6 +633,7 @@ export async function commitCompetitionImport(
     return await prisma.$transaction(async (tx) => {
       const analysis = await analyzeCompetitionImport(tx, input);
       const { preview } = analysis;
+      if (input.expectedPlanHash && input.expectedPlanHash !== preview.planHash) throw new CompetitionImportCommitConflict("检查后输入、分组或公开状态已变化，请重新检查并确认。", preview);
       if (preview.summary.errorRows || preview.summary.conflictRows) {
         throw new CompetitionImportCommitConflict("导入内容仍包含错误或冲突，请修正后重新预览。", preview);
       }
@@ -662,11 +689,12 @@ export async function commitCompetitionImport(
           }
           if (analysis.currentTeams.some((team) => team.id === homeTeam.id)) reusedTeamIds.add(homeTeam.id);
           if (analysis.currentTeams.some((team) => team.id === awayTeam.id)) reusedTeamIds.add(awayTeam.id);
+          await assertMatchStructure(tx, { competitionId: input.competitionId, stageId: plan.stageId, groupId: plan.groupId, roundId: plan.roundId, homeTeamId: homeTeam.id, awayTeamId: awayTeam.id });
           await tx.match.create({
             data: {
               slug: plan.slug,
               competitionId: input.competitionId,
-              stage: plan.stage,
+              stage: plan.stage, stageId: plan.stageId, groupId: plan.groupId, roundId: plan.roundId,
               kickoff: plan.kickoff,
               endAt: plan.endAt,
               venue: plan.venue,

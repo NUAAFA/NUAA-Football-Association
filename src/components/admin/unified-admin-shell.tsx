@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { activeAdminHref } from "@/lib/admin-navigation";
 
 type UnifiedAdminModule = "content" | "competitions" | "referees" | "system";
 
@@ -53,9 +54,7 @@ const navigationGroups: Array<{
   },
 ];
 
-function isActive(pathname: string, href: string, exact = false) {
-  return exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
-}
+
 
 async function api(url: string, method: string, body?: unknown) {
   const response = await fetch(url, {
@@ -84,6 +83,7 @@ export function UnifiedAdminShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const activeHref = activeAdminHref(pathname, navigationGroups.filter((group) => !group.module || allowedModules.includes(group.module)).flatMap((group) => group.items));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(mustChangePassword);
@@ -139,7 +139,7 @@ export function UnifiedAdminShell({
                 <span className="admin-nav-label">{group.label}</span>
                 {group.items.map((item) => (
                   <Link
-                    aria-current={isActive(pathname, item.href, item.exact) ? "page" : undefined}
+                    aria-current={activeHref === item.href ? "page" : undefined}
                     href={item.href}
                     key={item.href}
                     onClick={() => setMobileOpen(false)}

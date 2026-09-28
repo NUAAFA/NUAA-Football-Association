@@ -1,0 +1,542 @@
+[
+  {
+    "command": "npm run test:referee-r1",
+    "code": 0,
+    "start": "2026-09-28T11:36:32.239Z",
+    "end": "2026-09-28T11:36:33.291Z"
+  },
+  {
+    "command": "npm run test:referee-r1-3a:migration:fresh",
+    "code": 0,
+    "start": "2026-09-28T11:36:33.291Z",
+    "end": "2026-09-28T11:36:34.405Z"
+  },
+  {
+    "command": "npm run test:competition-import:http",
+    "code": 1,
+    "start": "2026-09-28T11:48:20.547Z",
+    "end": "2026-09-28T11:48:21.755Z"
+  },
+  {
+    "command": "npm run test:public-competition-dynamic:http",
+    "code": 1,
+    "start": "2026-09-28T11:48:21.756Z",
+    "end": "2026-09-28T11:48:23.324Z"
+  },
+  {
+    "command": "npm run test:unified-admin-r1",
+    "code": 0,
+    "start": "2026-09-28T11:48:23.324Z",
+    "end": "2026-09-28T11:48:24.003Z"
+  },
+  {
+    "command": "npm run test:unified-admin-r1-2",
+    "code": 0,
+    "start": "2026-09-28T11:48:24.003Z",
+    "end": "2026-09-28T11:48:24.925Z"
+  },
+  {
+    "command": "npm run test:competition-import:http",
+    "code": 0,
+    "start": "2026-09-28T11:55:14.736Z",
+    "end": "2026-09-28T11:55:16.157Z"
+  },
+  {
+    "command": "npm run test:public-competition-dynamic:http",
+    "code": 1,
+    "start": "2026-09-28T11:55:16.158Z",
+    "end": "2026-09-28T11:55:17.768Z"
+  },
+  {
+    "command": "npm run check:unicode",
+    "code": 0,
+    "start": "2026-09-28T12:07:11.782Z",
+    "end": "2026-09-28T12:07:11.930Z"
+  },
+  {
+    "command": "npm run test:referee-r1",
+    "code": 0,
+    "start": "2026-09-28T12:07:11.930Z",
+    "end": "2026-09-28T12:07:12.802Z"
+  },
+  {
+    "command": "npm run test:referee-flow",
+    "code": 0,
+    "start": "2026-09-28T12:07:12.802Z",
+    "end": "2026-09-28T12:07:17.591Z"
+  },
+  {
+    "command": "npm run test:referee-r1-3a",
+    "code": 0,
+    "start": "2026-09-28T12:07:17.591Z",
+    "end": "2026-09-28T12:07:18.616Z"
+  },
+  {
+    "command": "npm run test:referee-fix2",
+    "code": 0,
+    "start": "2026-09-28T12:07:18.616Z",
+    "end": "2026-09-28T12:07:19.387Z"
+  },
+  {
+    "command": "npm run test:referee-fix3",
+    "code": 0,
+    "start": "2026-09-28T12:07:19.387Z",
+    "end": "2026-09-28T12:07:20.012Z"
+  },
+  {
+    "command": "npm run test:referee-fix5",
+    "code": 0,
+    "start": "2026-09-28T12:07:20.012Z",
+    "end": "2026-09-28T12:07:20.573Z"
+  },
+  {
+    "command": "npm run test:admin-operations-r2",
+    "code": 0,
+    "start": "2026-09-28T12:07:20.573Z",
+    "end": "2026-09-28T12:07:21.321Z"
+  },
+  {
+    "command": "npm run test:admin-operations-r2.1",
+    "code": 0,
+    "start": "2026-09-28T12:07:21.321Z",
+    "end": "2026-09-28T12:07:21.901Z"
+  },
+  {
+    "command": "npm run test:competition-import",
+    "code": 0,
+    "start": "2026-09-28T12:07:21.902Z",
+    "end": "2026-09-28T12:07:22.435Z"
+  },
+  {
+    "command": "npm run test:public-competition-dynamic",
+    "code": 0,
+    "start": "2026-09-28T12:07:22.436Z",
+    "end": "2026-09-28T12:07:24.425Z"
+  },
+  {
+    "command": "npm run test:security-appointments",
+    "code": 0,
+    "start": "2026-09-28T12:07:24.425Z",
+    "end": "2026-09-28T12:07:25.120Z"
+  },
+  {
+    "command": "npm run test:security-admission",
+    "code": 0,
+    "start": "2026-09-28T12:07:25.122Z",
+    "end": "2026-09-28T12:07:25.648Z"
+  },
+  {
+    "command": "npm run test:unified-admin-r1",
+    "code": 0,
+    "start": "2026-09-28T12:07:25.648Z",
+    "end": "2026-09-28T12:07:26.313Z"
+  },
+  {
+    "command": "npm run test:unified-admin-r1-2",
+    "code": 0,
+    "start": "2026-09-28T12:07:26.314Z",
+    "end": "2026-09-28T12:07:27.160Z"
+  },
+  {
+    "command": "npm run lint",
+    "code": 0,
+    "start": "2026-09-28T12:18:11.061Z",
+    "end": "2026-09-28T12:18:16.240Z"
+  },
+  {
+    "command": "npm run check:unicode",
+    "code": 0,
+    "start": "2026-09-28T12:18:16.240Z",
+    "end": "2026-09-28T12:18:16.387Z"
+  },
+  {
+    "command": "npm run test:referee-admission",
+    "code": 0,
+    "start": "2026-09-28T12:18:16.388Z",
+    "end": "2026-09-28T12:18:16.989Z"
+  },
+  {
+    "command": "npm run test:referee-flow",
+    "code": 0,
+    "start": "2026-09-28T12:18:16.989Z",
+    "end": "2026-09-28T12:18:21.775Z"
+  },
+  {
+    "command": "npm run test:referee-r1-3a",
+    "code": 0,
+    "start": "2026-09-28T12:18:21.775Z",
+    "end": "2026-09-28T12:18:22.744Z"
+  },
+  {
+    "command": "npm run test:referee-match-deletion",
+    "code": 0,
+    "start": "2026-09-28T12:18:22.744Z",
+    "end": "2026-09-28T12:18:23.299Z"
+  },
+  {
+    "command": "npm run test:unified-admin-rbac",
+    "code": 0,
+    "start": "2026-09-28T12:18:23.300Z",
+    "end": "2026-09-28T12:18:24.001Z"
+  },
+  {
+    "command": "npm run test:security-appointments",
+    "code": 0,
+    "start": "2026-09-28T12:18:24.001Z",
+    "end": "2026-09-28T12:18:24.662Z"
+  },
+  {
+    "command": "npm run test:security-admission",
+    "code": 0,
+    "start": "2026-09-28T12:18:24.662Z",
+    "end": "2026-09-28T12:18:25.184Z"
+  },
+  {
+    "command": "npm run test:security-csv",
+    "code": 0,
+    "start": "2026-09-28T12:18:25.184Z",
+    "end": "2026-09-28T12:18:25.330Z"
+  },
+  {
+    "command": "npm run test:competition-import",
+    "code": 0,
+    "start": "2026-09-28T12:18:25.330Z",
+    "end": "2026-09-28T12:18:25.875Z"
+  },
+  {
+    "command": "npm run test:public-competition-dynamic",
+    "code": 0,
+    "start": "2026-09-28T12:18:25.876Z",
+    "end": "2026-09-28T12:18:27.998Z"
+  },
+  {
+    "command": "npm run test:team-directory-r1",
+    "code": 0,
+    "start": "2026-09-28T12:18:27.998Z",
+    "end": "2026-09-28T12:18:29.674Z"
+  },
+  {
+    "command": "npm run test:team-directory-r1-1",
+    "code": 0,
+    "start": "2026-09-28T12:18:29.674Z",
+    "end": "2026-09-28T12:18:30.746Z"
+  },
+  {
+    "command": "npm run test:admin-operations-r2",
+    "code": 0,
+    "start": "2026-09-28T12:18:30.747Z",
+    "end": "2026-09-28T12:18:31.493Z"
+  },
+  {
+    "command": "npm run test:admin-operations-r2.1",
+    "code": 0,
+    "start": "2026-09-28T12:18:31.493Z",
+    "end": "2026-09-28T12:18:32.063Z"
+  },
+  {
+    "command": "npm run test:referee-r1",
+    "code": 0,
+    "start": "2026-09-28T12:18:32.063Z",
+    "end": "2026-09-28T12:18:32.856Z"
+  },
+  {
+    "command": "npm run test:unified-admin-r1",
+    "code": 0,
+    "start": "2026-09-28T12:18:32.856Z",
+    "end": "2026-09-28T12:18:33.557Z"
+  },
+  {
+    "command": "npm run test:unified-admin-r1-2",
+    "code": 1,
+    "start": "2026-09-28T12:18:33.558Z",
+    "end": "2026-09-28T12:18:34.252Z"
+  },
+  {
+    "command": "npm run test:security-api-errors",
+    "code": 0,
+    "start": "2026-09-28T12:18:34.252Z",
+    "end": "2026-09-28T12:18:34.431Z"
+  },
+  {
+    "command": "npm run test:referee-fix2",
+    "code": 0,
+    "start": "2026-09-28T12:18:34.431Z",
+    "end": "2026-09-28T12:18:35.252Z"
+  },
+  {
+    "command": "npm run test:referee-fix3",
+    "code": 0,
+    "start": "2026-09-28T12:18:35.252Z",
+    "end": "2026-09-28T12:18:35.889Z"
+  },
+  {
+    "command": "npm run test:referee-fix5",
+    "code": 0,
+    "start": "2026-09-28T12:18:35.889Z",
+    "end": "2026-09-28T12:18:36.439Z"
+  },
+  {
+    "command": "npm run test:referee-r1-3a:migration",
+    "code": 0,
+    "start": "2026-09-28T12:18:36.439Z",
+    "end": "2026-09-28T12:18:36.757Z"
+  },
+  {
+    "command": "npm run test:referee-r1-3a:migration:fresh",
+    "code": 0,
+    "start": "2026-09-28T12:18:36.757Z",
+    "end": "2026-09-28T12:18:37.612Z"
+  },
+  {
+    "command": "npm run test:unified-admin-migration",
+    "code": 0,
+    "start": "2026-09-28T12:18:37.612Z",
+    "end": "2026-09-28T12:18:37.886Z"
+  },
+  {
+    "command": "npm run test:admin-operations-r2:migration",
+    "code": 0,
+    "start": "2026-09-28T12:18:37.886Z",
+    "end": "2026-09-28T12:18:38.210Z"
+  },
+  {
+    "command": "npm run lint",
+    "code": 0,
+    "start": "2026-09-28T12:19:50.101Z",
+    "end": "2026-09-28T12:19:55.447Z"
+  },
+  {
+    "command": "npm run test:unified-admin-r1-2",
+    "code": 0,
+    "start": "2026-09-28T12:19:55.448Z",
+    "end": "2026-09-28T12:19:56.469Z"
+  },
+  {
+    "command": "npm run test:security-api-errors",
+    "code": 0,
+    "start": "2026-09-28T12:19:56.469Z",
+    "end": "2026-09-28T12:19:56.641Z"
+  },
+  {
+    "command": "npm run test:competition-import:http",
+    "code": 0,
+    "start": "2026-09-28T12:24:00.409Z",
+    "end": "2026-09-28T12:24:02.025Z"
+  },
+  {
+    "command": "npm run test:public-competition-dynamic:http",
+    "code": 1,
+    "start": "2026-09-28T12:24:02.026Z",
+    "end": "2026-09-28T12:24:03.544Z"
+  },
+  {
+    "command": "npm run test:security-http",
+    "code": 0,
+    "start": "2026-09-28T12:24:03.544Z",
+    "end": "2026-09-28T12:24:09.334Z"
+  },
+  {
+    "command": "npm run test:unified-admin-blockers:http",
+    "code": 0,
+    "start": "2026-09-28T12:24:09.334Z",
+    "end": "2026-09-28T12:24:11.165Z"
+  },
+  {
+    "command": "npm run test:public-competition-dynamic:http",
+    "code": 0,
+    "start": "2026-09-28T12:25:42.253Z",
+    "end": "2026-09-28T12:25:43.959Z"
+  },
+  {
+    "command": "npm run lint",
+    "code": 0,
+    "start": "2026-09-28T12:29:17.836Z",
+    "end": "2026-09-28T12:29:23.384Z"
+  },
+  {
+    "command": "npm run check:unicode",
+    "code": 0,
+    "start": "2026-09-28T12:29:23.384Z",
+    "end": "2026-09-28T12:29:23.522Z"
+  },
+  {
+    "command": "npm run test:referee-flow",
+    "code": 0,
+    "start": "2026-09-28T12:29:23.523Z",
+    "end": "2026-09-28T12:29:28.253Z"
+  },
+  {
+    "command": "npm run test:referee-r1",
+    "code": 0,
+    "start": "2026-09-28T12:29:28.254Z",
+    "end": "2026-09-28T12:29:28.990Z"
+  },
+  {
+    "command": "npm run test:referee-r1-3a",
+    "code": 0,
+    "start": "2026-09-28T12:29:28.991Z",
+    "end": "2026-09-28T12:29:29.992Z"
+  },
+  {
+    "command": "npm run test:referee-match-deletion",
+    "code": 0,
+    "start": "2026-09-28T12:29:29.992Z",
+    "end": "2026-09-28T12:29:30.544Z"
+  },
+  {
+    "command": "npm run test:security-appointments",
+    "code": 0,
+    "start": "2026-09-28T12:29:30.544Z",
+    "end": "2026-09-28T12:29:31.223Z"
+  },
+  {
+    "command": "npm run test:public-competition-dynamic",
+    "code": 0,
+    "start": "2026-09-28T12:29:31.224Z",
+    "end": "2026-09-28T12:29:33.298Z"
+  },
+  {
+    "command": "npm run test:admin-operations-r2",
+    "code": 0,
+    "start": "2026-09-28T12:29:33.298Z",
+    "end": "2026-09-28T12:29:34.058Z"
+  },
+  {
+    "command": "npm run test:admin-operations-r2.1",
+    "code": 0,
+    "start": "2026-09-28T12:29:34.058Z",
+    "end": "2026-09-28T12:29:34.618Z"
+  },
+  {
+    "command": "npm run test:competition-import",
+    "code": 0,
+    "start": "2026-09-28T12:29:34.618Z",
+    "end": "2026-09-28T12:29:35.152Z"
+  },
+  {
+    "command": "npm run test:unified-admin-r1-2",
+    "code": 0,
+    "start": "2026-09-28T12:29:35.152Z",
+    "end": "2026-09-28T12:29:36.008Z"
+  },
+  {
+    "command": "npm run lint",
+    "code": 0,
+    "start": "2026-09-28T12:31:28.437Z",
+    "end": "2026-09-28T12:31:35.403Z"
+  },
+  {
+    "command": "npm run check:unicode",
+    "code": 0,
+    "start": "2026-09-28T12:31:35.404Z",
+    "end": "2026-09-28T12:31:35.549Z"
+  },
+  {
+    "command": "npm run test:competition-import:http",
+    "code": 0,
+    "start": "2026-09-28T12:32:40.326Z",
+    "end": "2026-09-28T12:32:41.774Z"
+  },
+  {
+    "command": "npm run test:public-competition-dynamic:http",
+    "code": 0,
+    "start": "2026-09-28T12:32:41.774Z",
+    "end": "2026-09-28T12:32:43.453Z"
+  },
+  {
+    "command": "npm run test:security-http",
+    "code": 0,
+    "start": "2026-09-28T12:32:43.454Z",
+    "end": "2026-09-28T12:32:49.073Z"
+  },
+  {
+    "command": "npm run test:unified-admin-blockers:http",
+    "code": 0,
+    "start": "2026-09-28T12:32:49.073Z",
+    "end": "2026-09-28T12:32:50.696Z"
+  },
+  {
+    "command": "npm run test:competition-import:http",
+    "code": 0,
+    "start": "2026-09-28T12:41:12.151Z",
+    "end": "2026-09-28T12:41:14.179Z"
+  },
+  {
+    "command": "npm run test:public-competition-dynamic:http",
+    "code": 0,
+    "start": "2026-09-28T12:41:14.180Z",
+    "end": "2026-09-28T12:41:15.791Z"
+  },
+  {
+    "command": "npm run test:security-http",
+    "code": 0,
+    "start": "2026-09-28T12:41:15.791Z",
+    "end": "2026-09-28T12:41:21.390Z"
+  },
+  {
+    "command": "npm run test:unified-admin-blockers:http",
+    "code": 0,
+    "start": "2026-09-28T12:41:21.390Z",
+    "end": "2026-09-28T12:41:22.996Z"
+  },
+  {
+    "command": "npm run lint",
+    "code": 0,
+    "start": "2026-09-28T12:49:29.239Z",
+    "end": "2026-09-28T12:49:34.398Z"
+  },
+  {
+    "command": "npm run check:unicode",
+    "code": 0,
+    "start": "2026-09-28T12:49:34.398Z",
+    "end": "2026-09-28T12:49:34.533Z"
+  },
+  {
+    "command": "npm run test:competition-import:http",
+    "code": 0,
+    "start": "2026-09-28T12:52:23.848Z",
+    "end": "2026-09-28T12:52:25.475Z"
+  },
+  {
+    "command": "npm run test:public-competition-dynamic:http",
+    "code": 0,
+    "start": "2026-09-28T12:52:25.476Z",
+    "end": "2026-09-28T12:52:27.284Z"
+  },
+  {
+    "command": "npm run test:security-http",
+    "code": 0,
+    "start": "2026-09-28T12:52:27.284Z",
+    "end": "2026-09-28T12:52:32.973Z"
+  },
+  {
+    "command": "npm run test:unified-admin-blockers:http",
+    "code": 0,
+    "start": "2026-09-28T12:52:32.974Z",
+    "end": "2026-09-28T12:52:34.608Z"
+  },
+  {
+    "command": "npm run lint",
+    "code": 0,
+    "start": "2026-09-28T12:54:56.868Z",
+    "end": "2026-09-28T12:55:02.832Z"
+  },
+  {
+    "command": "npm run check:unicode",
+    "code": 0,
+    "start": "2026-09-28T12:55:02.832Z",
+    "end": "2026-09-28T12:55:02.974Z"
+  },
+  {
+    "command": "npm run lint",
+    "code": 0,
+    "start": "2026-09-28T12:55:39.142Z",
+    "end": "2026-09-28T12:55:45.163Z"
+  },
+  {
+    "command": "npm run check:unicode",
+    "code": 0,
+    "start": "2026-09-28T12:55:45.163Z",
+    "end": "2026-09-28T12:55:45.330Z"
+  }
+]

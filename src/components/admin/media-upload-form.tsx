@@ -10,6 +10,7 @@ export function MediaUploadForm() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitting) return;
     const form = event.currentTarget;
     setSubmitting(true);
     setMessage("");
@@ -30,7 +31,7 @@ export function MediaUploadForm() {
       const result = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(result.error ?? "上传失败。");
       form.reset();
-      setMessage("文件上传成功，文件与元数据已持久化。");
+      setMessage("文件上传成功，可在内容编辑页选择使用。");
       router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "上传失败。");
@@ -43,7 +44,7 @@ export function MediaUploadForm() {
     <form className="admin-form admin-media-upload-form" onSubmit={submit}>
       <div className="admin-form-grid">
         <label><span>文件</span><input accept="image/jpeg,image/png,image/webp,application/pdf" name="file" required type="file" /><small>JPG / PNG / WEBP 最大 10 MB；PDF 最大 20 MB。</small></label>
-        <label><span>可见性</span><select defaultValue="PRIVATE" name="visibility"><option value="PRIVATE">PRIVATE · 仅后台</option><option value="PUBLIC">PUBLIC · 公开访问</option></select><small>默认 PRIVATE；公开前请确认文件内容。</small></label>
+        <label><span>可见性</span><select defaultValue="PRIVATE" name="visibility"><option value="PRIVATE">仅后台</option><option value="PUBLIC">公开文件（已确认可公开）</option></select><small>默认仅后台；公开文件可直接通过媒体地址访问，草稿不会使其私密。</small></label>
         <label className="admin-form-span-2"><span>替代文字 / 文件说明</span><input maxLength={240} name="altText" placeholder="图片建议填写；PDF 可填写文件说明" /></label>
       </div>
       <p aria-live="polite" className="admin-form-message">{message}</p>

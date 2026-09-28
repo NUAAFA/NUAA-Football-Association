@@ -33,6 +33,8 @@ const headerAliases: Record<CompetitionImportType, Record<string, readonly strin
     endAt: ["endat", "end at", "end_at", "结束时间"],
     venue: ["venue", "场地", "比赛场地"],
     stage: ["stage", "阶段", "比赛阶段"],
+    group: ["group", "分组", "小组"],
+    stageId: ["stageid", "阶段id"], groupId: ["groupid", "分组id"], roundId: ["roundid", "轮次id"],
     round: ["round", "轮次"],
     externalMatchId: ["externalmatchid", "external match id", "external_match_id", "外部比赛id", "外部比赛 ID"],
   },
@@ -182,16 +184,18 @@ function prepareHeader(
   headerRow: readonly CompetitionImportCell[],
   importType: CompetitionImportType,
   initialWarnings: string[],
+  mapping: Record<string, string> = {},
+  inspect = false,
 ) {
   assertRowResourceBudget(headerRow);
-  const canonicalByIndex = headerRow.map((value) => canonicalHeader(importType, value));
+  const canonicalByIndex = headerRow.map((value) => mapping[String(value ?? "")] === "ignore" ? null : mapping[String(value ?? "")] || canonicalHeader(importType, value));
   const canonicalHeaders = canonicalByIndex.filter((value): value is string => Boolean(value));
   const duplicates = canonicalHeaders.filter((value, index) => canonicalHeaders.indexOf(value) !== index);
   if (duplicates.length) {
     throw new CompetitionImportParseError(`导入表头重复：${[...new Set(duplicates)].join("、")}。`);
   }
   const missing = requiredHeaders[importType].filter((header) => !canonicalHeaders.includes(header));
-  if (missing.length) throw new CompetitionImportParseError(`缺少必填表头：${missing.join("、")}。`);
+  if (missing.length && !inspect) throw new CompetitionImportParseError(`缺少必填表头：${missing.join("、")}。`);
 
   const unknownHeaders = headerRow
     .map((value, index) => ({ value: String(value ?? "").trim(), canonical: canonicalByIndex[index] }))
@@ -199,7 +203,7 @@ function prepareHeader(
     .map((item) => item.value);
   const inputWarnings = [...initialWarnings];
   if (unknownHeaders.length) inputWarnings.push(`已忽略未知表头：${unknownHeaders.join("、")}。`);
-  return { canonicalByIndex, inputWarnings };
+  return { canonicalByIndex, inputWarnings, columns: headerRow.map((v) => String(v ?? "")) };
 }
 
 function mappedRow(
@@ -220,10 +224,11 @@ function mapTabularRows(
   data: CompetitionImportCell[][],
   importType: CompetitionImportType,
   initialWarnings: string[] = [],
+  mapping: Record<string, string> = {}, inspect = false,
 ) {
   const firstNonEmptyIndex = data.findIndex((row) => !rowIsEmpty(row));
   if (firstNonEmptyIndex < 0) throw new CompetitionImportParseError("导入内容为空。");
-  const { canonicalByIndex, inputWarnings } = prepareHeader(data[firstNonEmptyIndex], importType, initialWarnings);
+  const { canonicalByIndex, inputWarnings, columns } = prepareHeader(data[firstNonEmptyIndex], importType, initialWarnings, mapping, inspect);
   const rows: CompetitionImportParsedRow[] = [];
   for (let index = firstNonEmptyIndex + 1; index < data.length; index += 1) {
     const row = data[index];
@@ -234,7 +239,7 @@ function mapTabularRows(
     }
   }
   if (!rows.length) throw new CompetitionImportParseError("没有可导入的数据行。");
-  return { rows, inputWarnings };
+  return { rows, inputWarnings, columns, samples: data.slice(firstNonEmptyIndex + 1, firstNonEmptyIndex + 4).map((r) => r.map((v) => String(v ?? ""))) };
 }
 
 function mapDelimitedText(
@@ -242,15 +247,18 @@ function mapDelimitedText(
   delimiter: "," | "\t",
   importType: CompetitionImportType,
   syntheticHeader?: CompetitionImportCell[],
+  mapping: Record<string, string> = {}, inspect = false,
 ) {
-  let header = syntheticHeader ? prepareHeader(syntheticHeader, importType, []) : null;
+  let header = syntheticHeader ? prepareHeader(syntheticHeader, importType, [], mapping, inspect) : null;
   const rows: CompetitionImportParsedRow[] = [];
+  const samples: string[][] = [];
   forEachDelimitedRow(text, delimiter, (row, recordIndex) => {
     if (rowIsEmpty(row)) return;
     if (!header) {
-      header = prepareHeader(row, importType, []);
+      header = prepareHeader(row, importType, [], mapping, inspect);
       return;
     }
+    if (samples.length < 3) samples.push(row);
     rows.push(mappedRow(row, recordIndex + (syntheticHeader ? 2 : 1), header.canonicalByIndex));
     if (rows.length > COMPETITION_IMPORT_MAX_ROWS) {
       throw new CompetitionImportParseError(`导入行数不能超过 ${COMPETITION_IMPORT_MAX_ROWS} 行。`, 413);
@@ -258,27 +266,27 @@ function mapDelimitedText(
   });
   if (!header) throw new CompetitionImportParseError("导入内容为空。");
   if (!rows.length) throw new CompetitionImportParseError("没有可导入的数据行。");
-  return { rows, inputWarnings: header.inputWarnings };
+  return { rows, inputWarnings: header.inputWarnings, columns: header.columns, samples };
 }
 
-export function parseCompetitionImportCsv(text: string, importType: CompetitionImportType) {
-  return mapDelimitedText(text, ",", importType);
+export function parseCompetitionImportCsv(text: string, importType: CompetitionImportType, mapping: Record<string, string> = {}, inspect = false) {
+  return mapDelimitedText(text, ",", importType, undefined, mapping, inspect);
 }
 
-export function parseCompetitionImportPaste(text: string, importType: CompetitionImportType) {
+export function parseCompetitionImportPaste(text: string, importType: CompetitionImportType, mapping: Record<string, string> = {}, inspect = false) {
   const source = text.replace(/^\uFEFF/, "");
   const firstNonEmptyLine = source.match(/(?:^|\r?\n)([^\r\n]*\S[^\r\n]*)/u)?.[1] ?? "";
   if (!firstNonEmptyLine.includes("\t") && !/[,"]/.test(firstNonEmptyLine)) {
     if (importType === "TEAM" && canonicalHeader("TEAM", firstNonEmptyLine) !== "name") {
-      return mapDelimitedText(source, "\t", importType, ["name"]);
+      return mapDelimitedText(source, "\t", importType, ["name"], mapping, inspect);
     }
-    return mapDelimitedText(source, "\t", importType);
+    return mapDelimitedText(source, "\t", importType, undefined, mapping, inspect);
   }
   const delimiter = firstNonEmptyLine.includes("\t") ? "\t" : ",";
-  return mapDelimitedText(source, delimiter, importType);
+  return mapDelimitedText(source, delimiter, importType, undefined, mapping, inspect);
 }
 
-export async function parseCompetitionImportXlsx(buffer: Buffer, importType: CompetitionImportType) {
+export async function parseCompetitionImportXlsx(buffer: Buffer, importType: CompetitionImportType, mapping: Record<string, string> = {}, inspect = false) {
   try {
     inspectCompetitionImportXlsx(buffer);
   } catch (error) {
@@ -297,7 +305,7 @@ export async function parseCompetitionImportXlsx(buffer: Buffer, importType: Com
   const warnings = sheets.length > 1
     ? [`工作簿包含多个工作表，仅导入第一个工作表“${sheets[0].sheet}”。`]
     : [];
-  return mapTabularRows(sheets[0].data as CompetitionImportCell[][], importType, warnings);
+  return mapTabularRows(sheets[0].data as CompetitionImportCell[][], importType, warnings, mapping, inspect);
 }
 
 function readFormString(form: FormData, name: string) {
@@ -359,15 +367,19 @@ export async function readCompetitionImportRequest(request: Request): Promise<Co
   const importType = readImportType(readFormString(form, "importType"));
   const inputMethod = readInputMethod(readFormString(form, "inputMethod"));
 
+  let mapping: Record<string, string> = {};
+  try { mapping = JSON.parse(String(form.get("columnMapping") ?? "{}")); } catch { throw new CompetitionImportParseError("对应列设置无效。"); }
+  if (!mapping || Array.isArray(mapping) || typeof mapping !== "object" || Object.keys(mapping).length > 32 || Object.entries(mapping).some(([k, v]) => k.length > 2048 || typeof v !== "string" || ![...Object.keys(headerAliases[importType]), "ignore"].includes(v))) throw new CompetitionImportParseError("对应列设置无效。");
+  const inspect = form.get("inspect") === "true";
   let bytes: Uint8Array;
-  let parsed: { rows: CompetitionImportParsedRow[]; inputWarnings: string[] };
+  let parsed: { rows: CompetitionImportParsedRow[]; inputWarnings: string[]; columns: string[]; samples: string[][] };
   if (inputMethod === "PASTE") {
     const content = readFormString(form, "content");
     bytes = new TextEncoder().encode(content);
     if (bytes.byteLength > COMPETITION_IMPORT_MAX_FILE_BYTES) {
       throw new CompetitionImportParseError("粘贴内容不能超过 5 MB。", 413);
     }
-    parsed = parseCompetitionImportPaste(content, importType);
+    parsed = parseCompetitionImportPaste(content, importType, mapping, inspect);
   } else {
     const file = form.get("file");
     if (!(file instanceof File)) throw new CompetitionImportParseError("请选择导入文件。");
@@ -386,9 +398,9 @@ export async function readCompetitionImportRequest(request: Request): Promise<Co
       } catch {
         throw new CompetitionImportParseError("CSV 文件必须使用 UTF-8 编码。", 415);
       }
-      parsed = parseCompetitionImportCsv(content, importType);
+      parsed = parseCompetitionImportCsv(content, importType, mapping, inspect);
     } else {
-      parsed = await parseCompetitionImportXlsx(Buffer.from(bytes), importType);
+      parsed = await parseCompetitionImportXlsx(Buffer.from(bytes), importType, mapping, inspect);
     }
   }
 
@@ -396,7 +408,9 @@ export async function readCompetitionImportRequest(request: Request): Promise<Co
     competitionId,
     importType,
     inputMethod,
-    inputHash: fingerprint({ competitionId, importType, inputMethod, bytes }),
+    inputHash: createHash("sha256").update(fingerprint({ competitionId, importType, inputMethod, bytes })).update(JSON.stringify(Object.entries(mapping).sort())).digest("hex"),
+    expectedPlanHash: typeof form.get("planHash") === "string" ? String(form.get("planHash")) : undefined,
+    columns: parsed.columns, samples: parsed.samples,
     rows: parsed.rows,
     inputWarnings: parsed.inputWarnings,
   };
@@ -406,5 +420,5 @@ export function competitionImportTemplate(importType: CompetitionImportType) {
   if (importType === "TEAM") {
     return "\uFEFFname,teamType,externalTeamId\r\n示例球队,FREEFORM,\r\n";
   }
-  return "\uFEFFhomeTeam,awayTeam,kickoff,endAt,venue,stage,round,externalMatchId\r\n示例主队,示例客队,2026-10-15 18:30,,天目湖校区足球场,小组赛,第1轮,\r\n";
+  return "\uFEFF主队,客队,开球时间,结束时间,场地,阶段,分组,轮次,外部比赛 ID\r\n示例主队,示例客队,2026-10-15 18:30,,天目湖校区足球场,小组赛,A组,第1轮,\r\n";
 }

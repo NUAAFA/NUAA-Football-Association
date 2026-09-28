@@ -1,0 +1,2 @@
+PASS npm run lint
+PASS npm run check:unicode

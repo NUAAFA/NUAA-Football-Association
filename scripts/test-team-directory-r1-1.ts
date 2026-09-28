@@ -1,3 +1,4 @@
+import { preparePreTeamDirectoryBaseline } from "./prepare-test-migration-baseline";
 import { spawn } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
@@ -12,7 +13,7 @@ async function expectFailure(action: () => Promise<unknown>, message: string) {
   throw new Error(message);
 }
 async function deploy(cwd: string) {
-  const migrate = spawn(process.execPath, [path.resolve(cwd, "node_modules/prisma/build/index.js"), "migrate", "deploy"], { cwd, env: { ...process.env, RUST_LOG: "trace" }, stdio: ["ignore", "pipe", "pipe"] });
+  const migrate = spawn(process.execPath, [path.resolve("node_modules/prisma/build/index.js"), "migrate", "deploy"], { cwd, env: { ...process.env, RUST_LOG: "trace" }, stdio: ["ignore", "pipe", "pipe"] });
   let output = "";
   migrate.stdout.on("data", (chunk) => { output += String(chunk); });
   migrate.stderr.on("data", (chunk) => { output += String(chunk); });
@@ -26,7 +27,7 @@ async function main() {
   process.env.NUAAFA_ISOLATED_SECURITY_TEST = "1";
   const sql = createClient({ url: process.env.DATABASE_URL });
   try {
-    await deploy(path.resolve("../v2-9-r1-0-main-audit"));
+    await deploy(await preparePreTeamDirectoryBaseline(root, process.env.DATABASE_URL));
     await deploy(process.cwd());
     const { prisma } = await import("../src/lib/prisma");
     const canonical = await import("../src/lib/referee-r1-service");

@@ -39,6 +39,7 @@ export type ContentPostInput = {
   pinned?: boolean;
   featured?: boolean;
   discipline?: DisciplineInput | null;
+  attachments?: Array<{ mediaAssetId: string; displayName?: string | null }>;
 };
 
 const maximumStructuredContentBytes = 100_000;
@@ -228,6 +229,7 @@ export function readContentPostInput(value: unknown): ContentPostInput {
     pinned: value.pinned === true,
     featured: value.featured === true,
     discipline: readDiscipline(value.discipline),
+    attachments: readAttachments(value.attachments),
   };
 }
 
@@ -236,4 +238,15 @@ export function createEmptyStructuredContent(text = ""): StructuredContent {
     schemaVersion: 1,
     document: { type: "doc", content: [{ type: "paragraph", ...(text ? { content: [{ type: "text", text }] } : {}) }] },
   };
+}
+
+export function readAttachments(value: unknown): ContentPostInput["attachments"] {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.length > 100) throw new UnifiedAdminInputError("附件最多 100 个。");
+  const result = value.map((item) => {
+    if (!isRecord(item)) throw new UnifiedAdminInputError("附件格式无效。");
+    return { mediaAssetId: readText(item.mediaAssetId, "附件", 64)!, displayName: readText(item.displayName, "附件显示名称", 180, false) };
+  });
+  if (new Set(result.map((r) => r.mediaAssetId)).size !== result.length) throw new UnifiedAdminInputError("附件不能重复。");
+  return result;
 }

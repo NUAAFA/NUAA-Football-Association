@@ -124,6 +124,7 @@ export type PublicCompetitionView = Omit<
   publicOrder: number;
   teams: PublicCompetitionTeam[];
   matches: PublicCompetitionMatch[];
+  standings?: Array<{ groupId: string; groupName: string; stageName: string; rows: Array<{ id: string; name: string; played: number; won: number; drawn: number; lost: number; goalsFor: number; goalsAgainst: number; goalDifference: number; points: number }>; hasResults: boolean; tied: boolean; rankingConfirmed: boolean; qualificationStale: boolean; qualifiedTeamIds: string[] }>;
   dataOrigin: "database";
 };
 
@@ -135,6 +136,7 @@ export type PublicCompetitionTeam = {
 };
 
 export type PublicCompetitionMatch = {
+  group?: string | null; stageOrder?: number; groupOrder?: number; roundOrder?: number; homePenaltyScore?: number | null; awayPenaltyScore?: number | null;
   id: string;
   slug: string;
   stage: string;

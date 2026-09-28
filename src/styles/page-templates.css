@@ -315,3 +315,5 @@
     min-height: 310px;
   }
 }
+
+.ops-content-attachments { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); }

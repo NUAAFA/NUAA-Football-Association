@@ -38,6 +38,9 @@ function inputFromBody(body: Record<string, unknown>) {
   return {
     slug: readShortText(body.slug, "页面标识", 80),
     competitionId: readShortText(body.competitionId, "赛事", 64),
+    stageId: body.stageId === undefined ? undefined : readShortText(body.stageId, "阶段", 64, false) || null,
+    groupId: body.groupId === undefined ? undefined : readShortText(body.groupId, "分组", 64, false) || null,
+    roundId: body.roundId === undefined ? undefined : readShortText(body.roundId, "轮次", 64, false) || null,
     stage: readShortText(body.stage, "比赛名称或轮次", 80),
     kickoff: readDate(body.kickoff, "比赛时间")!,
     endAt: readDate(body.endAt, "比赛结束时间", false),
@@ -61,6 +64,7 @@ function inputFromBody(body: Record<string, unknown>) {
     publicNote: readShortText(body.publicNote, "公开说明", 500, false),
     internalNote: readShortText(body.internalNote, "内部备注", 500, false),
     cancellationReason: readShortText(body.cancellationReason, "取消原因", 240, false),
+    structureChangeReason: readShortText(body.structureChangeReason, "重新归类原因", 500, false),
     positionCounts: counts(body.positionCounts),
   };
 }
@@ -102,8 +106,9 @@ export async function POST(
       slug: readShortText(body.slug, "新页面标识", 80),
       competitionId: source.competitionId,
       stage: readShortText(body.stage, "新比赛名称或轮次", 80),
+      stageId: source.stageId, groupId: source.groupId, roundId: source.roundId,
       kickoff: readDate(body.kickoff, "新比赛时间")!,
-      endAt: source.endAt ?? undefined,
+      endAt: undefined,
       venue: source.venue,
       round: source.round ?? undefined,
       source: "MANUAL",

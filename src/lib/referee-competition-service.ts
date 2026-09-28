@@ -3,7 +3,6 @@ import { randomBytes } from "node:crypto";
 import type {
   CompetitionFormat,
   CompetitionStatus,
-  Prisma,
 } from "@/generated/prisma-v29/client";
 import type { CompetitionMutationInput } from "@/lib/referee-competition-input";
 import { prisma } from "@/lib/prisma";
@@ -49,9 +48,7 @@ const publicProfileFields = [
   "registrationUrl",
 ] as const;
 
-const homepageFeaturedLimit = 2;
 const homepagePublishedError = "只有已公开发布的赛事才能在首页赛事预告中展示。";
-const homepageLimitError = "首页最多同时展示 2 项赛事，请先关闭一项现有首页赛事。";
 
 function manualCompetitionSlug(year?: number | null) {
   return `manual-${year ?? "competition"}-${randomBytes(6).toString("hex")}`;
@@ -81,24 +78,13 @@ function resolvePlayingFormat(format: CompetitionFormat, value?: string | null, 
 }
 
 async function assertHomepageFeatureAllowed(
-  tx: Prisma.TransactionClient,
   input: { publicPublished: boolean; homepageFeatured: boolean },
-  currentCompetitionId?: string,
 ) {
   if (!input.homepageFeatured) return;
   if (!input.publicPublished) {
     throw new RefereeServiceError(homepagePublishedError, 409);
   }
-  const existingFeatured = await tx.competition.count({
-    where: {
-      homepageFeatured: true,
-      isTestData: false,
-      ...(currentCompetitionId ? { id: { not: currentCompetitionId } } : {}),
-    },
-  });
-  if (existingFeatured >= homepageFeaturedLimit) {
-    throw new RefereeServiceError(homepageLimitError, 409);
-  }
+
 }
 
 export async function createCompetition(input: CompetitionInput, actor: AdminActor) {
@@ -108,7 +94,7 @@ export async function createCompetition(input: CompetitionInput, actor: AdminAct
       const publicPublished = input.publicPublished ?? false;
       const homepageFeatured = input.homepageFeatured ?? false;
       const playingFormat = resolvePlayingFormat(input.format, input.playingFormat);
-      await assertHomepageFeatureAllowed(tx, { publicPublished, homepageFeatured });
+      await assertHomepageFeatureAllowed({ publicPublished, homepageFeatured });
       const competition = await tx.competition.create({
         data: {
           slug,
@@ -179,9 +165,7 @@ export async function updateCompetition(id: string, input: CompetitionInput, act
     const homepageFeatured = input.homepageFeatured ?? existing.homepageFeatured;
     const playingFormat = resolvePlayingFormat(input.format, input.playingFormat, existing.playingFormat);
     await assertHomepageFeatureAllowed(
-      tx,
       { publicPublished, homepageFeatured },
-      existing.id,
     );
     const data = {
       name: input.name,

@@ -1,0 +1,277 @@
+[
+  {
+    "name": "media-table",
+    "width": 1440,
+    "at": "2026-09-28T12:18:32.377Z",
+    "activeNav": 1,
+    "scrollWidth": 1440,
+    "tables": [
+      {
+        "scrollWidth": 1130,
+        "width": 1130
+      }
+    ],
+    "viewport": 1440
+  },
+  {
+    "name": "media-table",
+    "width": 1024,
+    "at": "2026-09-28T12:18:32.528Z",
+    "activeNav": 1,
+    "scrollWidth": 1024,
+    "tables": [
+      {
+        "scrollWidth": 962,
+        "width": 962
+      }
+    ],
+    "viewport": 1024
+  },
+  {
+    "name": "media-table",
+    "width": 768,
+    "at": "2026-09-28T12:18:32.596Z",
+    "activeNav": 1,
+    "scrollWidth": 768,
+    "tables": [
+      {
+        "scrollWidth": 724,
+        "width": 706
+      }
+    ],
+    "viewport": 768
+  },
+  {
+    "name": "media-table",
+    "width": 390,
+    "at": "2026-09-28T12:18:32.731Z",
+    "activeNav": 1,
+    "scrollWidth": 390,
+    "tables": [
+      {
+        "scrollWidth": 760,
+        "width": 360
+      }
+    ],
+    "viewport": 390
+  },
+  {
+    "name": "media-table",
+    "width": 360,
+    "at": "2026-09-28T12:18:32.802Z",
+    "activeNav": 1,
+    "scrollWidth": 360,
+    "tables": [
+      {
+        "scrollWidth": 760,
+        "width": 330
+      }
+    ],
+    "viewport": 360
+  },
+  {
+    "name": "content-editor",
+    "width": 1440,
+    "scrollWidth": 1440,
+    "viewport": 1440
+  },
+  {
+    "name": "content-editor",
+    "width": 1024,
+    "scrollWidth": 1024,
+    "viewport": 1024
+  },
+  {
+    "name": "content-editor",
+    "width": 768,
+    "scrollWidth": 768,
+    "viewport": 768
+  },
+  {
+    "name": "content-editor",
+    "width": 390,
+    "scrollWidth": 390,
+    "viewport": 390
+  },
+  {
+    "name": "content-editor",
+    "width": 360,
+    "scrollWidth": 360,
+    "viewport": 360
+  },
+  {
+    "name": "competition-workspace",
+    "width": 1440,
+    "activeNav": 1,
+    "scrollWidth": 1440,
+    "viewport": 1440
+  },
+  {
+    "name": "competition-workspace",
+    "width": 1024,
+    "activeNav": 1,
+    "scrollWidth": 1024,
+    "viewport": 1024
+  },
+  {
+    "name": "competition-workspace",
+    "width": 768,
+    "activeNav": 1,
+    "scrollWidth": 768,
+    "viewport": 768
+  },
+  {
+    "name": "competition-workspace",
+    "width": 390,
+    "activeNav": 1,
+    "scrollWidth": 390,
+    "viewport": 390
+  },
+  {
+    "name": "competition-workspace",
+    "width": 360,
+    "activeNav": 1,
+    "scrollWidth": 360,
+    "viewport": 360
+  },
+  {
+    "name": "published-discipline",
+    "width": 1440,
+    "scrollWidth": 1440,
+    "viewport": 1440
+  },
+  {
+    "name": "published-discipline",
+    "width": 1024,
+    "scrollWidth": 1024,
+    "viewport": 1024
+  },
+  {
+    "name": "published-discipline",
+    "width": 768,
+    "scrollWidth": 768,
+    "viewport": 768
+  },
+  {
+    "name": "published-discipline",
+    "width": 390,
+    "scrollWidth": 390,
+    "viewport": 390
+  },
+  {
+    "name": "published-discipline",
+    "width": 360,
+    "scrollWidth": 360,
+    "viewport": 360
+  },
+  {
+    "name": "public-schedule",
+    "width": 1440,
+    "scrollWidth": 1440,
+    "tables": [
+      {
+        "scrollWidth": 1238,
+        "width": 1238
+      },
+      {
+        "scrollWidth": 1240,
+        "width": 1240
+      }
+    ],
+    "viewport": 1440
+  },
+  {
+    "name": "public-schedule",
+    "width": 1024,
+    "scrollWidth": 1024,
+    "tables": [
+      {
+        "scrollWidth": 1050,
+        "width": 982
+      },
+      {
+        "scrollWidth": 984,
+        "width": 984
+      }
+    ],
+    "viewport": 1024
+  },
+  {
+    "name": "public-schedule",
+    "width": 768,
+    "scrollWidth": 768,
+    "tables": [
+      {
+        "scrollWidth": 1050,
+        "width": 726
+      },
+      {
+        "scrollWidth": 728,
+        "width": 728
+      }
+    ],
+    "viewport": 768
+  },
+  {
+    "name": "public-schedule",
+    "width": 390,
+    "scrollWidth": 390,
+    "tables": [
+      {
+        "scrollWidth": 1050,
+        "width": 356
+      },
+      {
+        "scrollWidth": 358,
+        "width": 358
+      }
+    ],
+    "viewport": 390
+  },
+  {
+    "name": "public-schedule",
+    "width": 360,
+    "scrollWidth": 360,
+    "tables": [
+      {
+        "scrollWidth": 1050,
+        "width": 326
+      },
+      {
+        "scrollWidth": 328,
+        "width": 328
+      }
+    ],
+    "viewport": 360
+  },
+  {
+    "name": "account-menu",
+    "width": 1440,
+    "scrollWidth": 1440,
+    "viewport": 1440
+  },
+  {
+    "name": "account-menu",
+    "width": 1024,
+    "scrollWidth": 1024,
+    "viewport": 1024
+  },
+  {
+    "name": "account-menu",
+    "width": 768,
+    "scrollWidth": 768,
+    "viewport": 768
+  },
+  {
+    "name": "account-menu",
+    "width": 390,
+    "scrollWidth": 390,
+    "viewport": 390
+  },
+  {
+    "name": "account-menu",
+    "width": 360,
+    "scrollWidth": 360,
+    "viewport": 360
+  }
+]

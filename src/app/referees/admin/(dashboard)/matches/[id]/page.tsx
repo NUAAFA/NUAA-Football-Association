@@ -82,7 +82,7 @@ export default async function AdminMatchDetailPage({ params, appointmentOnly = f
   const initialWarnings = templateConfigured && currentPositions.length ? await detectAppointmentWarnings(match.id, currentPositions) : [];
   const completedCounts = new Map(statistics.map((item) => [item.refereeId, item.totalMatches]));
   const appointmentView: AppointmentMatchView = {
-    id: match.id, appointmentId: match.appointment?.id ?? null, statusKey: match.appointment?.status ?? "NONE",
+    canComplete: match.status === "COMPLETED" && match.kickoff <= new Date() && match.homeScore !== null && match.awayScore !== null, id: match.id, appointmentId: match.appointment?.id ?? null, statusKey: match.appointment?.status ?? "NONE",
     format: match.competition.format, publicationNote: match.appointment?.publicationNote ?? "", template, positions: currentPositions,
   };
   const deletionProtected = match.status !== "SCHEDULED" || match.applications.length > 0 || Boolean(match.appointment);

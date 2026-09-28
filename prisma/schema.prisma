@@ -149,8 +149,9 @@ enum AppointmentPositionKey {
 }
 
 model Competition {
-  id                    String             @id @default(cuid())
-  slug                  String             @unique
+  stages                CompetitionStage[]
+  id                    String                 @id @default(cuid())
+  slug                  String                 @unique
   name                  String
   shortName             String?
   year                  Int?
@@ -160,9 +161,9 @@ model Competition {
   status                CompetitionStatus
   semesterLabel         String?
   teamFormation         String?
-  publicPublished       Boolean            @default(false)
-  homepageFeatured      Boolean            @default(false)
-  publicOrder           Int                @default(0)
+  publicPublished       Boolean                @default(false)
+  homepageFeatured      Boolean                @default(false)
+  publicOrder           Int                    @default(0)
   registrationStartAt   DateTime?
   registrationEndAt     DateTime?
   matchStartAt          DateTime?
@@ -173,12 +174,12 @@ model Competition {
   summary               String?
   notice                String?
   registrationUrl       String?
-  isTestData            Boolean            @default(false)
-  source                DataSource         @default(MANUAL)
+  isTestData            Boolean                @default(false)
+  source                DataSource             @default(MANUAL)
   externalCompetitionId String?
   lastSyncedAt          DateTime?
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
   teams                 Team[]
   teamDirectorySettings TeamDirectorySettings?
   matches               Match[]
@@ -189,26 +190,27 @@ model Competition {
 }
 
 model Team {
-  id               String                @id @default(cuid())
-  competitionId    String
-  name             String
-  teamType         TeamType              @default(FREEFORM)
-  source           DataSource            @default(MANUAL)
-  externalTeamId   String?
-  lastSyncedAt     DateTime?
-  competition      Competition           @relation(fields: [competitionId], references: [id], onDelete: Cascade)
-  homeMatches      Match[]               @relation("HomeTeam")
-  awayMatches      Match[]               @relation("AwayTeam")
-  affiliations     TeamAffiliation[]
-  unitAffiliations TeamUnitAffiliation[]
-  publicStatus     String?
-  publicContactName String?
-  publicContactRole String?
-  publicContactQQ   String?
-  publicContactEmail String?
-  publicDirectoryNote String?
-  directoryIsPublic Boolean @default(false)
-  directoryPublicOrder Int @default(0)
+  memberships          TeamGroupMembership[]
+  id                   String                @id @default(cuid())
+  competitionId        String
+  name                 String
+  teamType             TeamType              @default(FREEFORM)
+  source               DataSource            @default(MANUAL)
+  externalTeamId       String?
+  lastSyncedAt         DateTime?
+  competition          Competition           @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  homeMatches          Match[]               @relation("HomeTeam")
+  awayMatches          Match[]               @relation("AwayTeam")
+  affiliations         TeamAffiliation[]
+  unitAffiliations     TeamUnitAffiliation[]
+  publicStatus         String?
+  publicContactName    String?
+  publicContactRole    String?
+  publicContactQQ      String?
+  publicContactEmail   String?
+  publicDirectoryNote  String?
+  directoryIsPublic    Boolean               @default(false)
+  directoryPublicOrder Int                   @default(0)
 
   @@unique([competitionId, name])
   @@unique([source, externalTeamId])
@@ -229,6 +231,17 @@ model TeamDirectorySettings {
 }
 
 model Match {
+  stageId           String?
+  groupId           String?
+  roundId           String?
+  homePenaltyScore  Int?
+  awayPenaltyScore  Int?
+  resultVersion     Int               @default(0)
+  resultConfirmedAt DateTime?
+  structureStage    CompetitionStage? @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  structureGroup    CompetitionGroup? @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  structureRound    CompetitionRound? @relation(fields: [roundId], references: [id], onDelete: Restrict)
+
   id                      String                     @id @default(cuid())
   slug                    String                     @unique
   competitionId           String
@@ -618,21 +631,22 @@ model AdminRoleAssignment {
 }
 
 model MediaAsset {
-  id                String             @id @default(cuid())
-  storageKey        String             @unique
+  attachments       ContentAttachment[]
+  id                String              @id @default(cuid())
+  storageKey        String              @unique
   originalFilename  String
-  storedFilename    String             @unique
+  storedFilename    String              @unique
   mimeType          String
   size              Int
-  visibility        MediaVisibility    @default(PRIVATE)
+  visibility        MediaVisibility     @default(PRIVATE)
   altText           String?
   metadata          Json?
   uploadedByAdminId String?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  uploadedByAdmin   AdminAccount?      @relation(fields: [uploadedByAdminId], references: [id], onDelete: SetNull)
-  coverPosts        ContentPost[]      @relation("ContentPostCover")
-  disciplineDetails DisciplineDetail[] @relation("DisciplineOfficialMedia")
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  uploadedByAdmin   AdminAccount?       @relation(fields: [uploadedByAdminId], references: [id], onDelete: SetNull)
+  coverPosts        ContentPost[]       @relation("ContentPostCover")
+  disciplineDetails DisciplineDetail[]  @relation("DisciplineOfficialMedia")
 
   @@index([visibility, createdAt])
   @@index([mimeType, createdAt])
@@ -640,23 +654,24 @@ model MediaAsset {
 }
 
 model ContentPost {
-  id            String            @id @default(cuid())
-  type          ContentPostType   @default(NEWS)
-  slug          String            @unique
+  attachments   ContentAttachment[]
+  id            String              @id @default(cuid())
+  type          ContentPostType     @default(NEWS)
+  slug          String              @unique
   title         String
   summary       String
   content       Json
   coverMediaId  String?
-  status        ContentPostStatus @default(DRAFT)
+  status        ContentPostStatus   @default(DRAFT)
   authorAdminId String?
   source        String?
   publishedAt   DateTime?
-  pinned        Boolean           @default(false)
-  featured      Boolean           @default(false)
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  coverMedia    MediaAsset?       @relation("ContentPostCover", fields: [coverMediaId], references: [id], onDelete: Restrict)
-  authorAdmin   AdminAccount?     @relation(fields: [authorAdminId], references: [id], onDelete: SetNull)
+  pinned        Boolean             @default(false)
+  featured      Boolean             @default(false)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  coverMedia    MediaAsset?         @relation("ContentPostCover", fields: [coverMediaId], references: [id], onDelete: Restrict)
+  authorAdmin   AdminAccount?       @relation(fields: [authorAdminId], references: [id], onDelete: SetNull)
   discipline    DisciplineDetail?
 
   @@index([status, type, publishedAt])
@@ -735,4 +750,95 @@ model RefereeSession {
 
   @@index([refereeId])
   @@index([expiresAt])
+}
+
+// Additive OPS-R3.1 relationships; legacy stage/round and media facts stay intact.
+enum CompetitionStageType {
+  GROUP
+  KNOCKOUT
+  OTHER
+}
+
+model CompetitionStage {
+  id            String                @id @default(cuid())
+  competitionId String
+  name          String
+  type          CompetitionStageType
+  sortOrder     Int                   @default(0)
+  competition   Competition           @relation(fields: [competitionId], references: [id], onDelete: Restrict)
+  groups        CompetitionGroup[]
+  rounds        CompetitionRound[]
+  matches       Match[]
+  memberships   TeamGroupMembership[]
+
+  @@unique([competitionId, name])
+}
+
+model CompetitionGroup {
+  id            String                @id @default(cuid())
+  stageId       String
+  name          String
+  sortOrder     Int                   @default(0)
+  stage         CompetitionStage      @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  rounds        CompetitionRound[]
+  matches       Match[]
+  members       TeamGroupMembership[]
+  confirmations GroupConfirmation[]
+
+  @@unique([stageId, name])
+}
+
+model CompetitionRound {
+  id        String            @id @default(cuid())
+  stageId   String
+  groupId   String?
+  name      String
+  sortOrder Int               @default(0)
+  stage     CompetitionStage  @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  group     CompetitionGroup? @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  matches   Match[]
+
+  @@index([stageId, groupId])
+}
+
+model TeamGroupMembership {
+  id      String           @id @default(cuid())
+  teamId  String
+  stageId String
+  groupId String
+  team    Team             @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  stage   CompetitionStage @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  group   CompetitionGroup @relation(fields: [groupId], references: [id], onDelete: Restrict)
+
+  @@unique([stageId, teamId])
+  @@index([groupId])
+}
+
+model GroupConfirmation {
+  id          String           @id @default(cuid())
+  groupId     String
+  kind        String
+  teamIds     Json
+  fingerprint String
+  reason      String
+  actorId     String?
+  createdAt   DateTime         @default(now())
+  group       CompetitionGroup @relation(fields: [groupId], references: [id], onDelete: Restrict)
+
+  @@index([groupId, kind, createdAt])
+}
+
+model ContentAttachment {
+  id               String      @id @default(cuid())
+  contentPostId    String
+  mediaAssetId     String
+  displayName      String?
+  sortOrder        Int         @default(0)
+  createdByAdminId String?
+  createdAt        DateTime    @default(now())
+  contentPost      ContentPost @relation(fields: [contentPostId], references: [id], onDelete: Cascade)
+  mediaAsset       MediaAsset  @relation(fields: [mediaAssetId], references: [id], onDelete: Restrict)
+
+  @@unique([contentPostId, mediaAssetId])
+  @@index([mediaAssetId])
 }

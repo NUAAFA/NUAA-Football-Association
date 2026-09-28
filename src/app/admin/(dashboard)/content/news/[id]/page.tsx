@@ -16,5 +16,12 @@ export default async function EditContentPostPage({ params }: { params: Promise<
     prisma.competition.findMany({ select: { id: true, name: true }, orderBy: [{ year: "desc" }, { name: "asc" }], take: 200 }),
   ]);
   if (!post) notFound();
-  return <><AdminPageHeader eyebrow="CONTENT OPERATIONS" title="编辑内容" description={`当前状态：${post.status}`} /><ContentPostForm competitions={competitions} imageMedia={imageMedia} initialValue={{ id: post.id, type: post.type, slug: post.slug, title: post.title, summary: post.summary, contentJson: JSON.stringify(post.content, null, 2), source: post.source ?? "", coverMediaId: post.coverMedia?.id ?? "", pinned: post.pinned, featured: post.featured, discipline: { competitionId: post.discipline?.competitionId ?? "", officialMediaId: post.discipline?.officialMediaId ?? "", versionLabel: post.discipline?.versionLabel ?? "", scopeLabel: post.discipline?.scopeLabel ?? "" } }} pdfMedia={pdfMedia} /></>;
+  const statusLabel = { DRAFT: "草稿", PUBLISHED: "已发布", ARCHIVED: "已归档" }[post.status];
+  // Keep existing selections visible even when outside the first picker page.
+  if (post.coverMedia && !imageMedia.some((asset) => asset.id === post.coverMedia!.id)) imageMedia.push(post.coverMedia);
+  if (post.discipline?.officialMediaId && !pdfMedia.some((asset) => asset.id === post.discipline!.officialMediaId)) {
+    const selected = await prisma.mediaAsset.findUnique({ where: { id: post.discipline.officialMediaId }, select: { id: true, originalFilename: true } });
+    if (selected) pdfMedia.push(selected);
+  }
+  return <><AdminPageHeader eyebrow="CONTENT OPERATIONS" title="编辑内容" description={`当前状态：${statusLabel}`} /><ContentPostForm competitions={competitions} imageMedia={imageMedia} initialValue={{ attachments: post.attachments.map((a) => ({ mediaAssetId: a.mediaAssetId, displayName: a.displayName, filename: a.mediaAsset.originalFilename, visibility: a.mediaAsset.visibility, mimeType: a.mediaAsset.mimeType })), id: post.id, type: post.type, slug: post.slug, title: post.title, summary: post.summary, contentJson: JSON.stringify(post.content, null, 2), source: post.source ?? "", coverMediaId: post.coverMedia?.id ?? "", pinned: post.pinned, featured: post.featured, discipline: { competitionId: post.discipline?.competitionId ?? "", officialMediaId: post.discipline?.officialMediaId ?? "", versionLabel: post.discipline?.versionLabel ?? "", scopeLabel: post.discipline?.scopeLabel ?? "" } }} pdfMedia={pdfMedia} /></>;
 }

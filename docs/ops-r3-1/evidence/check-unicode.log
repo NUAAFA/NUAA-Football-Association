@@ -1,0 +1,5 @@
+
+> nuaa-football-association@0.1.0 check:unicode
+> node scripts/check-unicode-safety.mjs
+
+Unicode safety check passed for 63 changed text file(s).

@@ -5,6 +5,7 @@ import type {
   AvailabilityKind,
   CompetitionFormat,
   ConflictReportStatus,
+  Prisma,
   TeamType,
 } from "@/generated/prisma-v29/client";
 import { prisma } from "@/lib/prisma";
@@ -610,11 +611,12 @@ export async function deleteRefereeAvailability(
   });
 }
 
-async function getCurrentPublishedVersion(appointmentId: string, refereeId: string) {
-  const appointment = await prisma.refereeAppointment.findFirst({
+async function getCurrentPublishedVersion(appointmentId: string, refereeId: string, db: Prisma.TransactionClient) {
+  const appointment = await db.refereeAppointment.findFirst({
     where: {
       id: appointmentId,
       status: "PUBLISHED",
+      match: { status: "SCHEDULED" },
       positions: { some: { refereeId } },
     },
     select: {
@@ -636,22 +638,24 @@ async function getCurrentPublishedVersion(appointmentId: string, refereeId: stri
 }
 
 export async function acknowledgeAppointment(appointmentId: string, refereeId: string) {
-  const { version } = await getCurrentPublishedVersion(appointmentId, refereeId);
-  const acknowledgement = await prisma.appointmentAcknowledgement.upsert({
-    where: { versionId_refereeId: { versionId: version.id, refereeId } },
-    update: { acknowledgedAt: new Date() },
-    create: { appointmentId, versionId: version.id, refereeId },
+  return prisma.$transaction(async (tx) => {
+  const { version } = await getCurrentPublishedVersion(appointmentId, refereeId, tx);
+  const existing = await tx.appointmentAcknowledgement.findUnique({ where: { versionId_refereeId: { versionId: version.id, refereeId } } });
+  if (existing) return existing;
+  const acknowledgement = await tx.appointmentAcknowledgement.create({
+    data: { appointmentId, versionId: version.id, refereeId },
   });
-  await audit({
+  await tx.auditLog.create({ data: {
     actorType: "REFEREE",
     actorId: refereeId,
     action: "APPOINTMENT_ACKNOWLEDGED",
     entityType: "RefereeAppointment",
     entityId: appointmentId,
     summary: "裁判员确认知悉已发布选派",
-    metadata: { versionId: version.id },
-  });
+    metadata: JSON.stringify({ versionId: version.id }),
+  } });
   return acknowledgement;
+  });
 }
 
 export async function reportAppointmentConflict(
@@ -675,22 +679,24 @@ export async function reportAppointmentConflict(
   } as const;
   const explanation = structuredInput.explanation.trim();
   const reason = `${reasonLabels[structuredInput.reasonCode]}：${explanation}`;
-  const { version } = await getCurrentPublishedVersion(appointmentId, refereeId);
-  const report = await prisma.appointmentConflictReport.upsert({
+  return prisma.$transaction(async (tx) => {
+  const { version } = await getCurrentPublishedVersion(appointmentId, refereeId, tx);
+  const report = await tx.appointmentConflictReport.upsert({
     where: { versionId_refereeId: { versionId: version.id, refereeId } },
     update: { reason, reasonCode: structuredInput.reasonCode, explanation, reportedAt: new Date(), status: "PENDING", resolutionNote: null, resolvedAt: null, resolvedByAdminId: null },
     create: { appointmentId, versionId: version.id, refereeId, reason, reasonCode: structuredInput.reasonCode, explanation },
   });
-  await audit({
+  await tx.auditLog.create({ data: {
     actorType: "REFEREE",
     actorId: refereeId,
     action: "APPOINTMENT_CONFLICT_REPORTED",
     entityType: "AppointmentConflictReport",
     entityId: report.id,
     summary: "裁判员报告已发布选派冲突",
-    metadata: { appointmentId, versionId: version.id, reasonCode: structuredInput.reasonCode },
-  });
+    metadata: JSON.stringify({ appointmentId, versionId: version.id, reasonCode: structuredInput.reasonCode }),
+  } });
   return report;
+  });
 }
 
 export async function resolveAppointmentConflictReport(
@@ -866,11 +872,12 @@ export async function getCompletedRefereeStatistics(options: {
       appointment: {
         status: "COMPLETED",
         match: {
+          status: "COMPLETED", kickoff: { lte: new Date() }, homeScore: { not: null }, awayScore: { not: null },
           ...(options.competitionId ? { competitionId: options.competitionId } : {}),
           ...((options.from || options.to) ? {
             kickoff: {
               ...(options.from ? { gte: options.from } : {}),
-              ...(options.to ? { lt: options.to } : {}),
+              lt: options.to && options.to < new Date() ? options.to : new Date(),
             },
           } : {}),
         },

@@ -32,6 +32,9 @@ export type CompetitionImportInput = {
   inputHash: string;
   rows: CompetitionImportParsedRow[];
   inputWarnings: string[];
+  expectedPlanHash?: string;
+  columns?: string[];
+  samples?: string[][];
 };
 
 export type CompetitionImportIssue = {
@@ -70,6 +73,8 @@ export type CompetitionImportSummary = {
 };
 
 export type CompetitionImportPreview = {
+  publicImpact: boolean;
+  planHash: string;
   competition: { id: string; name: string; slug: string };
   importType: CompetitionImportType;
   inputMethod: CompetitionImportInputMethod;

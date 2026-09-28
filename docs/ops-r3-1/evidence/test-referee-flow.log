@@ -1,0 +1,29 @@
+
+> nuaa-football-association@0.1.0 test:referee-flow
+> tsx scripts/test-referee-flow.ts
+
+{
+  "isolatedDatabase": true,
+  "passwordHashing": true,
+  "authBoundaries": true,
+  "originValidation": true,
+  "loginSuccessAndFailure": true,
+  "sessionExpiryRule": true,
+  "firstLoginPasswordChange": true,
+  "duplicateAccountBlocked": true,
+  "duplicateApplicationBlocked": true,
+  "deadlineBlocked": true,
+  "withdrawalBeforeDeadline": true,
+  "draftHidden": true,
+  "positionOverageBlocked": true,
+  "publishWithdrawRepublish": true,
+  "versionHistoryRetained": true,
+  "missingEndNotInferred": true,
+  "disabledAccountBlocked": true,
+  "loginRateLimited": true,
+  "csvAuthorizationGuard": true,
+  "publicDirectoryDoesNotLeak": true,
+  "contentAndQrVerified": true,
+  "metadataAndJsonLdVerified": true,
+  "auditLogCount": 23
+}

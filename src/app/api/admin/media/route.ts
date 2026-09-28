@@ -22,6 +22,8 @@ export async function GET(request: Request) {
       page: Number.isSafeInteger(page) ? page : 1,
       visibility: visibility === "PUBLIC" || visibility === "PRIVATE" ? visibility : undefined,
       mimeType: url.searchParams.get("mimeType") || undefined,
+      category: url.searchParams.get("category") || undefined,
+      query: url.searchParams.get("query") || undefined,
     });
     return NextResponse.json(result);
   } catch (error) {

@@ -51,6 +51,11 @@ async function main() {
   }
 
   async function postImport(pathname: "preview" | "commit", cookie: string | undefined, origin: string, form: FormData) {
+    if (pathname === "commit" && cookie) {
+      const checked = await fetch(`${baseUrl}/api/admin/competitions/import/preview`, { method: "POST", headers: { cookie, origin }, body: form });
+      const checkedBody = await checked.json() as { preview?: { planHash?: string } };
+      if (checkedBody.preview?.planHash) form.set("planHash", checkedBody.preview.planHash);
+    }
     return fetch(`${baseUrl}/api/admin/competitions/import/${pathname}`, {
       method: "POST",
       headers: { ...(cookie ? { cookie } : {}), origin },
@@ -69,7 +74,7 @@ async function main() {
       const response = await fetch(`${baseUrl}/admin/competitions/import`, { headers: { cookie: cookies[role] }, redirect: "manual" });
       expectStatus(`${role} import page`, response.status, 200);
       const html = await response.text();
-      assert(html.includes("赛事批量导入") && html.includes("Preview / Dry-run"), `${role} import page did not render the functional workflow.`);
+      assert(html.includes("赛事批量导入") && html.includes("检查导入内容"), `${role} import page did not render the functional workflow.`);
     }
     for (const role of ["content", "referee"] as const) {
       const response = await fetch(`${baseUrl}/admin/competitions/import`, { headers: { cookie: cookies[role] }, redirect: "manual" });

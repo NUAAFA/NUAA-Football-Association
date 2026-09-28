@@ -1,0 +1,13 @@
+{
+  "origin": "http://127.0.0.1:3187",
+  "startedAt": "2026-09-28T12:52:24.186Z",
+  "HTTP-journey": "PASS",
+  "IMP-01": "36 CSV/XLSX/paste previews, zero writes, one atomic commit, duplicate zero",
+  "PUB-01/02/03/05/06": "PASS",
+  "REF/RES/TAB/QUAL": "PASS",
+  "competitionId": "cmul8z3oa0004jj1gaksm3462",
+  "slug": "ops-36-mul8z3nn",
+  "matchId": "cmul8z3td0029jj1gp7dkt8zh",
+  "semiId": "cmul8z45i003tjj1godifooqu",
+  "finishedAt": "2026-09-28T12:52:28.612Z"
+}

@@ -12,6 +12,7 @@ import type {
   RefereeStatus,
   TrainingStatus,
 } from "@/generated/prisma-v29/client";
+import { assertMatchStructure } from "@/lib/competition-structure-service";
 import { prisma } from "@/lib/prisma";
 import {
   requireAdminServiceAuthorization,
@@ -608,6 +609,9 @@ export async function reviewApplication(
 export async function createMatch(input: {
   slug: string;
   competitionId: string;
+  stageId?: string | null;
+  groupId?: string | null;
+  roundId?: string | null;
   stage: string;
   kickoff: Date;
   endAt?: Date;
@@ -624,6 +628,7 @@ export async function createMatch(input: {
   internalNote?: string;
   positionCounts: Partial<Record<AppointmentPositionKey, number>>;
 }, actor?: AdminActor) {
+  if (input.status === "COMPLETED") throw new RefereeServiceError("请通过确认赛果入口标记比赛完赛。", 409);
   if (input.homeTeamId === input.awayTeamId) {
     throw new RefereeServiceError("比赛双方不能相同。");
   }
@@ -648,11 +653,13 @@ export async function createMatch(input: {
   if (!teamIds.has(input.homeTeamId) || !teamIds.has(input.awayTeamId)) {
     throw new RefereeServiceError("比赛球队不属于所选赛事。");
   }
+  await assertMatchStructure(prisma, input);
   const match = await prisma.match.create({
     data: {
       slug: input.slug,
       competitionId: input.competitionId,
       stage: input.stage,
+      stageId: input.stageId || null, groupId: input.groupId || null, roundId: input.roundId || null,
       kickoff: input.kickoff,
       endAt: input.endAt ?? null,
       venue: input.venue,
@@ -699,6 +706,7 @@ export async function createMatchFromSelections(
   ) {
     throw new RefereeServiceError("开放报名时，截止时间须晚于当前时间且早于开球时间。");
   }
+  if (input.status === "COMPLETED") throw new RefereeServiceError("请通过确认赛果入口标记比赛完赛。", 409);
   return prisma.$transaction(async (tx) => {
     const competition = await tx.competition.findUnique({
       where: { id: input.competitionId },
@@ -717,11 +725,13 @@ export async function createMatchFromSelections(
     if (home.team.id === away.team.id) {
       throw new RefereeServiceError("比赛双方不能相同。");
     }
+    await assertMatchStructure(tx, { ...input, homeTeamId: home.team.id, awayTeamId: away.team.id });
     const match = await tx.match.create({
       data: {
         slug: input.slug,
         competitionId: input.competitionId,
         stage: input.stage,
+      stageId: input.stageId || null, groupId: input.groupId || null, roundId: input.roundId || null,
         kickoff: input.kickoff,
         endAt: input.endAt ?? null,
         venue: input.venue,
@@ -757,11 +767,13 @@ export async function createMatchFromSelections(
 
 export async function updateMatch(
   id: string,
-  input: Parameters<typeof createMatch>[0] & { cancellationReason?: string },
+  input: Parameters<typeof createMatch>[0] & { cancellationReason?: string; structureChangeReason?: string },
   actor?: AdminActor,
 ) {
   const existing = await prisma.match.findUnique({ where: { id } });
   if (!existing) throw new RefereeServiceError("比赛不存在。", 404);
+  if (input.status === "COMPLETED" && (existing.status !== "COMPLETED" || input.kickoff > new Date() || (input.endAt && input.endAt > new Date()) || existing.homeScore === null || existing.awayScore === null)) throw new RefereeServiceError("请通过确认赛果入口标记比赛完赛，未来比赛不能结束。", 409);
+  if (existing.status === "COMPLETED" && (input.status !== existing.status || input.homeTeamId !== existing.homeTeamId || input.awayTeamId !== existing.awayTeamId || input.competitionId !== existing.competitionId)) throw new RefereeServiceError("已确认赛果的比赛不可更换参赛球队或状态，请使用赛果更正。", 409);
   if (input.homeTeamId === input.awayTeamId) {
     throw new RefereeServiceError("比赛双方不能相同。");
   }
@@ -787,13 +799,22 @@ export async function updateMatch(
     throw new RefereeServiceError("比赛球队不属于所选赛事。");
   }
   const match = await prisma.$transaction(async (tx) => {
+    const current = await tx.match.findUnique({ where: { id } });
+    if (!current) throw new RefereeServiceError("比赛不存在。", 404);
+    if (input.status === "COMPLETED" && (current.status !== "COMPLETED" || input.kickoff > new Date() || (input.endAt && input.endAt > new Date()) || current.homeScore === null || current.awayScore === null)) throw new RefereeServiceError("请通过确认赛果入口标记比赛完赛。", 409);
+    if (current.status === "COMPLETED" && (input.status !== current.status || input.homeTeamId !== current.homeTeamId || input.awayTeamId !== current.awayTeamId || input.competitionId !== current.competitionId)) throw new RefereeServiceError("已确认赛果的比赛不可更换参赛球队或状态。", 409);
+    const existing = current;
+    await assertMatchStructure(tx, { ...input, stageId: input.stageId === undefined ? existing.stageId : input.stageId, groupId: input.groupId === undefined ? existing.groupId : input.groupId, roundId: input.roundId === undefined ? existing.roundId : input.roundId });
+    const structureChanged = input.stageId !== undefined && input.stageId !== existing.stageId || input.groupId !== undefined && input.groupId !== existing.groupId || input.roundId !== undefined && input.roundId !== existing.roundId;
+    if (existing.status === "COMPLETED" && structureChanged && (!input.structureChangeReason?.trim() || input.structureChangeReason.length > 500)) throw new RefereeServiceError("已完赛比赛重新归类将影响积分及人工确认，请填写核对原因。", 409);
     await tx.matchPositionRequirement.deleteMany({ where: { matchId: id } });
-    return tx.match.update({
+    const updated = await tx.match.update({
       where: { id },
       data: {
         slug: input.slug,
         competitionId: input.competitionId,
         stage: input.stage,
+      stageId: input.stageId, groupId: input.groupId, roundId: input.roundId,
         kickoff: input.kickoff,
         endAt: input.endAt ?? null,
         venue: input.venue,
@@ -814,13 +835,17 @@ export async function updateMatch(
         },
       },
     });
-  });
-  await writeAudit({
-    action: "MATCH_UPDATED",
-    entityType: "Match",
-    entityId: match.id,
-    summary: `更新裁判开放场次 ${match.slug}`,
-    actorId: actor?.id ?? undefined,
+    if (input.status === "CANCELLED" && existing.status !== "CANCELLED") {
+      const appointment = await tx.refereeAppointment.findUnique({ where: { matchId: id } });
+      if (appointment && ["DRAFT", "PUBLISHED", "WITHDRAWN"].includes(appointment.status)) {
+        const reason = input.cancellationReason?.trim() || "比赛取消派生撤销任务";
+        const version = await saveAppointmentVersion(tx, appointment.id, "CANCELLED", reason, "", actor?.id);
+        await tx.refereeAppointment.update({ where: { id: appointment.id }, data: { status: "CANCELLED", cancelledAt: new Date(), cancellationReason: reason, lastChangeReason: reason } });
+        await writeAudit({ action: "APPOINTMENT_CANCELLED_FROM_MATCH", entityType: "RefereeAppointment", entityId: appointment.id, actorId: actor?.id ?? undefined, summary: "比赛取消派生撤销任务", metadata: { matchId: id, versionId: version.id } }, tx);
+      }
+    }
+    await writeAudit({ action: "MATCH_UPDATED", entityType: "Match", entityId: updated.id, summary: `更新裁判开放场次 ${updated.slug}`, actorId: actor?.id ?? undefined, metadata: structureChanged ? { structureBefore: { stageId: existing.stageId, groupId: existing.groupId, roundId: existing.roundId }, structureAfter: { stageId: updated.stageId, groupId: updated.groupId, roundId: updated.roundId }, structureChangeReason: input.structureChangeReason || null, resultsPreserved: true } : undefined }, tx);
+    return updated;
   });
   return match;
 }
@@ -1250,9 +1275,11 @@ export async function completeAppointment(
 ) {
   const actor = authorizedAdminActor(authorization, "referees:write");
   return prisma.$transaction(async (tx) => {
-    const appointment = await tx.refereeAppointment.findUnique({ where: { matchId } });
+    const appointment = await tx.refereeAppointment.findUnique({ where: { matchId }, include: { match: true } });
     assertAppointmentTransition(appointment?.status ?? "NONE", "complete");
     if (!appointment) throw new RefereeServiceError("只有已发布选派可以标记完成。", 409);
+    if (appointment.match.status !== "COMPLETED" || appointment.match.kickoff > new Date() || appointment.match.homeScore === null || appointment.match.awayScore === null) throw new RefereeServiceError("须先确认真实完赛及双方比分，不能提前标记执裁完成。", 409);
+    if (!reason.trim()) throw new RefereeServiceError("请填写人工完成原因。");
     const version = await saveAppointmentVersion(tx, appointment.id, "COMPLETED", reason, "", actor?.id);
     const updated = await tx.refereeAppointment.update({
       where: { id: appointment.id },
@@ -1300,5 +1327,32 @@ export async function cancelAppointment(
       metadata: { matchId, versionId: version.id, reason },
     }, tx);
     return { appointment: updated, version };
+  });
+}
+
+export async function confirmMatchResult(matchId: string, input: { homeScore: number; awayScore: number; homePenaltyScore: number | null; awayPenaltyScore: number | null; expectedVersion: number; actualEnded: boolean; reason: string }, authorization: AdminServiceAuthorization<"competitions:write">) {
+  const actor = requireAdminServiceAuthorization(authorization, "competitions:write");
+  if (![input.homeScore, input.awayScore].every((n) => Number.isSafeInteger(n) && n >= 0 && n <= 999)) throw new RefereeServiceError("双方比分必须是 0 至 999 的整数。");
+  if ((input.homePenaltyScore === null) !== (input.awayPenaltyScore === null) || [input.homePenaltyScore, input.awayPenaltyScore].some((n) => n !== null && (!Number.isSafeInteger(n) || n < 0 || n > 999))) throw new RefereeServiceError("点球比分必须成对填写非负整数。");
+  if (!Number.isSafeInteger(input.expectedVersion) || input.expectedVersion < 0) throw new RefereeServiceError("赛果版本无效。");
+  return prisma.$transaction(async (tx) => {
+    const match = await tx.match.findUnique({ where: { id: matchId }, include: { structureStage: true, appointment: true } });
+    if (!match) throw new RefereeServiceError("比赛不存在。", 404);
+    if (match.status === "CANCELLED" || match.kickoff > new Date() || !input.actualEnded || (match.endAt && match.endAt > new Date())) throw new RefereeServiceError("取消、未来或尚未确认结束的比赛不能确认赛果。", 409);
+    if (input.homePenaltyScore !== null && (match.structureStage?.type !== "KNOCKOUT" || input.homeScore !== input.awayScore || input.homePenaltyScore === input.awayPenaltyScore)) throw new RefereeServiceError("点球仅用于淘汰赛场上平局，且点球比分应分出胜负。");
+    const unchanged = match.status === "COMPLETED" && match.homeScore === input.homeScore && match.awayScore === input.awayScore && match.homePenaltyScore === input.homePenaltyScore && match.awayPenaltyScore === input.awayPenaltyScore;
+    if (unchanged && (input.expectedVersion === match.resultVersion || input.expectedVersion + 1 === match.resultVersion)) return match;
+    if (match.resultVersion !== input.expectedVersion) throw new RefereeServiceError("赛果已被其他管理员更新，请刷新后核对。", 409);
+    if (match.status === "COMPLETED" && !input.reason.trim()) throw new RefereeServiceError("更正已确认赛果必须填写原因。");
+    if (input.reason.length > 500) throw new RefereeServiceError("原因不能超过 500 字。");
+    const updated = await tx.match.update({ where: { id: matchId, resultVersion: input.expectedVersion }, data: { status: "COMPLETED", homeScore: input.homeScore, awayScore: input.awayScore, homePenaltyScore: input.homePenaltyScore, awayPenaltyScore: input.awayPenaltyScore, resultVersion: { increment: 1 }, resultConfirmedAt: new Date(), applicationWindowStatus: "CLOSED" } });
+    if (match.appointment?.status === "PUBLISHED") {
+      assertAppointmentTransition(match.appointment.status, "complete");
+      const version = await saveAppointmentVersion(tx, match.appointment.id, "COMPLETED", "确认赛果派生完成", "", actor.id);
+      await tx.refereeAppointment.update({ where: { id: match.appointment.id }, data: { status: "COMPLETED", completedAt: new Date(), lastChangeReason: "确认赛果派生完成" } });
+      await writeAudit({ actorId: actor.id ?? undefined, action: "APPOINTMENT_COMPLETED_FROM_RESULT", entityType: "RefereeAppointment", entityId: match.appointment.id, summary: "确认赛果后完成已发布执裁任务", metadata: { matchId, versionId: version.id, derivedFrom: "MATCH_RESULT_CONFIRMED" } }, tx);
+    }
+    await writeAudit({ actorId: actor.id ?? undefined, action: "MATCH_RESULT_CONFIRMED", entityType: "Match", entityId: matchId, summary: input.reason || "确认比赛真实完赛及比分", metadata: { before: { homeScore: match.homeScore, awayScore: match.awayScore, homePenaltyScore: match.homePenaltyScore, awayPenaltyScore: match.awayPenaltyScore, version: match.resultVersion }, after: input } }, tx);
+    return updated;
   });
 }

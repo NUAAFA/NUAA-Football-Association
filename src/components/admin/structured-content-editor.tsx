@@ -1,5 +1,6 @@
 "use client";
 
+import { MediaPicker } from "@/components/admin/media-picker";
 import Image from "@tiptap/extension-image";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -36,7 +37,7 @@ function sanitizePastedHtml(html: string) {
   return document.body.innerHTML;
 }
 
-export function StructuredContentEditor({ initialValue, imageMedia }: { initialValue: string; imageMedia: MediaChoice[] }) {
+export function StructuredContentEditor({ initialValue, imageMedia, onDirty, onBusy }: { initialValue: string; imageMedia: MediaChoice[]; onDirty?: () => void; onBusy?: (busy: boolean) => void }) {
   const initialDocument = useMemo(() => readInitialDocument(initialValue), [initialValue]);
   const [serialized, setSerialized] = useState(() => JSON.stringify({ schemaVersion: 1, document: initialDocument }));
   const [selectedMediaId, setSelectedMediaId] = useState(imageMedia[0]?.id ?? "");
@@ -66,6 +67,7 @@ export function StructuredContentEditor({ initialValue, imageMedia }: { initialV
     },
     onUpdate: ({ editor: current }) => {
       setSerialized(JSON.stringify({ schemaVersion: 1, document: current.getJSON() }));
+      onDirty?.();
     },
   });
 
@@ -106,8 +108,9 @@ export function StructuredContentEditor({ initialValue, imageMedia }: { initialV
         <label><span>插入媒体库图片</span><select onChange={(event) => setSelectedMediaId(event.target.value)} value={selectedMediaId}><option value="">请选择 PUBLIC 图片</option>{imageMedia.map((asset) => <option key={asset.id} value={asset.id}>{asset.originalFilename}</option>)}</select></label>
         <button className="admin-button admin-button-secondary" disabled={!selectedMediaId} onClick={insertImage} type="button">插入图片</button>
       </div>
+      <MediaPicker mode="images" onBusy={onBusy} onSelect={(a) => editor?.chain().focus().setImage({ src: `/media/${a.id}`, alt: a.originalFilename }).run()} />
       <textarea aria-hidden="true" name="content" readOnly required tabIndex={-1} value={serialized} />
-      <small>保存的是白名单校验后的版本化 JSON；粘贴 HTML 会先清理，服务端仍会重新验证节点、标记、链接、大小和深度。</small>
+      <small>插入的正文图片与封面、下载附件相互独立。发布时正文图片须为公开文件。</small>
     </div>
   );
 }

@@ -1,5 +1,6 @@
+import { getStructuredContentMediaIds } from "@/lib/admin-content-input";
 import { randomUUID } from "node:crypto";
-import { access, mkdir, open, readFile, readdir, rename, rm, stat } from "node:fs/promises";
+import { mkdir, open, readFile, readdir, rename, rm, stat } from "node:fs/promises";
 import path from "node:path";
 
 import type { MediaVisibility, Prisma } from "@/generated/prisma-v29/client";
@@ -162,7 +163,12 @@ export async function cleanupAbandonedMediaStaging(options: { now?: Date; maximu
   for (const entry of entries) {
     if (!entry.isFile() || !entry.name.endsWith(".upload")) continue;
     const target = path.join(stagingDirectory, entry.name);
-    if ((await stat(target)).mtimeMs < cutoff) { await rm(target, { force: true }); removed += 1; }
+    try {
+      if ((await stat(target)).mtimeMs < cutoff) { await rm(target); removed += 1; }
+    } catch (error) {
+      // A concurrent successful upload or another cleanup may already have moved it.
+      if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
+    }
   }
   return removed;
 }
@@ -225,28 +231,56 @@ export async function storeMediaAssetUpload(input: { fileName: string; mimeType:
   return storeMediaAssetUploadStream({ ...input, stream, contentLength: input.bytes.length });
 }
 
-export async function getAdminMediaPage(input: { actor: UnifiedAdminActor; page?: number; visibility?: MediaVisibility; mimeType?: string }) {
+export async function mediaUsage(db: Prisma.TransactionClient = prisma) {
+  const posts = await db.contentPost.findMany({ select: { id: true, title: true, status: true, content: true, coverMediaId: true, discipline: { select: { officialMediaId: true } }, attachments: { select: { mediaAssetId: true } } } });
+  const usage = new Map<string, Map<string, { id: string; title: string; status: string; ways: string[] }>>();
+  for (const post of posts) {
+    const add = (id: string | null | undefined, way: string) => { if (!id) return; const map = usage.get(id) ?? new Map(); const row = map.get(post.id) ?? { id: post.id, title: post.title, status: post.status, ways: [] }; if (!row.ways.includes(way)) row.ways.push(way); map.set(post.id, row); usage.set(id, map); };
+    add(post.coverMediaId, "封面"); add(post.discipline?.officialMediaId, "正式文件");
+    for (const a of post.attachments) add(a.mediaAssetId, "附件");
+    for (const id of getStructuredContentMediaIds(post.content)) add(id, "正文图片");
+  }
+  return usage;
+}
+export async function getAdminMediaPage(input: { actor: UnifiedAdminActor; page?: number; visibility?: MediaVisibility; mimeType?: string; category?: string; query?: string }) {
   assertUnifiedAdminPermission(input.actor, "media:read");
-  const page = Math.max(1, input.page ?? 1);
   const pageSize = 20;
-  const where: Prisma.MediaAssetWhereInput = { ...(input.visibility ? { visibility: input.visibility } : {}), ...(input.mimeType ? { mimeType: input.mimeType } : {}) };
-  const [total, rows] = await Promise.all([
-    prisma.mediaAsset.count({ where }),
-    prisma.mediaAsset.findMany({ where, select: { id: true, originalFilename: true, mimeType: true, size: true, visibility: true, altText: true, storageKey: true, createdAt: true, uploadedByAdmin: { select: { displayName: true } } }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], skip: (page - 1) * pageSize, take: pageSize }),
-  ]);
+  const imageMimes = ["image/jpeg", "image/png", "image/webp"];
+  const base: Prisma.MediaAssetWhereInput = { ...(input.visibility ? { visibility: input.visibility } : {}), ...(input.query?.trim() ? { OR: [{ originalFilename: { contains: input.query.trim() } }, { altText: { contains: input.query.trim() } }] } : {}) };
+  const where: Prisma.MediaAssetWhereInput = { ...base, ...(input.mimeType ? { mimeType: input.mimeType } : input.category === "images" ? { mimeType: { in: imageMimes } } : input.category === "files" ? { mimeType: "application/pdf" } : {}) };
+  const [total, categories, usage] = await Promise.all([prisma.mediaAsset.count({ where }), prisma.mediaAsset.groupBy({ by: ["mimeType"], where: base, _count: true }), mediaUsage()]);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(totalPages, Math.max(1, input.page ?? 1));
+  const rows = await prisma.mediaAsset.findMany({ where, select: { id: true, originalFilename: true, mimeType: true, size: true, visibility: true, altText: true, storageKey: true, createdAt: true, uploadedByAdmin: { select: { displayName: true } } }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], skip: (page - 1) * pageSize, take: pageSize });
   const items = await Promise.all(rows.map(async ({ storageKey, ...row }) => {
-    try { await access(resolveMediaStoragePath(storageKey).target); return { ...row, fileStatus: "AVAILABLE" as const }; }
-    catch { return { ...row, fileStatus: "MISSING" as const }; }
+    const usages = [...(usage.get(row.id)?.values() ?? [])];
+    try { const file = await stat(resolveMediaStoragePath(storageKey).target); if (!file.isFile() || file.size !== row.size) throw new Error("size"); return { ...row, usage: usages, usageCount: usages.length, fileStatus: "AVAILABLE" as const }; }
+    catch { return { ...row, usage: usages, usageCount: usages.length, fileStatus: "MISSING" as const }; }
   }));
-  return { items, total, page, pageSize, totalPages: Math.max(1, Math.ceil(total / pageSize)) };
+  const counts = { all: 0, images: 0, files: 0 };
+  for (const c of categories) { counts.all += c._count; if (imageMimes.includes(c.mimeType)) counts.images += c._count; else if (c.mimeType === "application/pdf") counts.files += c._count; }
+  return { items, total, page, pageSize, totalPages, counts };
+}
+
+export async function changeMediaVisibility(id: string, visibility: MediaVisibility, actor: UnifiedAdminActor) {
+  assertUnifiedAdminPermission(actor, "media:write");
+  validateVisibility(visibility);
+  await resolveMediaAssetFile(id, actor);
+  return prisma.$transaction(async (tx) => {
+    const usage = await mediaUsage(tx);
+    if (visibility === "PRIVATE" && [...(usage.get(id)?.values() ?? [])].some((p) => p.status === "PUBLISHED")) throw new UnifiedAdminInputError("文件被公开内容引用，不能改为仅后台。请先处理公开内容。", 409);
+    const asset = await tx.mediaAsset.update({ where: { id }, data: { visibility }, select: { id: true, visibility: true } });
+    await tx.auditLog.create({ data: { actorType: "ADMIN", actorId: actor.id, action: "MEDIA_VISIBILITY_CHANGED", entityType: "MediaAsset", entityId: id, summary: visibility === "PUBLIC" ? "管理员明确确认文件公开" : "文件设为仅后台" } });
+    return asset;
+  });
 }
 
 export async function resolveMediaAssetFile(
   id: string,
   actor: UnifiedAdminActor | null,
-  options: { passwordChangeRequired?: boolean } = {},
+  options: { passwordChangeRequired?: boolean; db?: Prisma.TransactionClient } = {},
 ) {
-  const asset = await prisma.mediaAsset.findUnique({ where: { id }, select: { id: true, originalFilename: true, storageKey: true, mimeType: true, size: true, visibility: true } });
+  const asset = await (options.db ?? prisma).mediaAsset.findUnique({ where: { id }, select: { id: true, originalFilename: true, storageKey: true, mimeType: true, size: true, visibility: true } });
   if (!asset) throw new UnifiedAdminInputError("媒体不存在。", 404);
   if (asset.visibility === "PRIVATE") {
     if (options.passwordChangeRequired) {

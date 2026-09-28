@@ -1,0 +1,43 @@
+{
+  "verifiedAt": "2026-09-28T12:56:35.984629+00:00",
+  "commands": [
+    {
+      "command": "node scripts/start-ops-r3-1-acceptance.mjs --build",
+      "exitCode": 0,
+      "log": "build.log"
+    },
+    {
+      "command": "npx --no-install tsc --noEmit",
+      "exitCode": 0,
+      "log": "typecheck.log"
+    },
+    {
+      "command": "TZ=Europe/London npx --no-install tsx scripts/test-ops-r3-1.ts",
+      "exitCode": 0,
+      "log": "ops-integration.log"
+    },
+    {
+      "command": "npx --no-install tsx scripts/test-ops-r3-1-http.ts",
+      "exitCode": 0,
+      "log": "ops-http.log"
+    },
+    {
+      "command": "npm run test:unified-admin-blockers:http -- --cms",
+      "exitCode": 0,
+      "log": "cms-http-regression.log"
+    },
+    {
+      "command": "python3 scripts/test-ops-r3-1-audit.py",
+      "exitCode": 0,
+      "log": "audit-test.log"
+    }
+  ],
+  "existingScriptsLastRuns": 31,
+  "priorExistingScriptFailures": 5,
+  "humanAcceptance": "PENDING",
+  "productionRelease": "NOT PERFORMED",
+  "writableTests": "isolated",
+  "baseline": "4f594af0dc4f8d8d7e7eff96b0d702d81962e446",
+  "branch": "codex/ops-r3-1",
+  "acceptanceServices": "STOPPED; no listeners on 3187/3188"
+}

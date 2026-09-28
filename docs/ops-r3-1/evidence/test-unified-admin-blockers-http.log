@@ -1,0 +1,172 @@
+
+> nuaa-football-association@0.1.0 test:unified-admin-blockers:http
+> tsx scripts/test-unified-admin-blockers.ts
+
+▲ Next.js 16.3.4
+- Local:         http://127.0.0.1:53353
+- Network:       http://127.0.0.1:53353
+✓ Ready in 50ms
+✓ Running next.config.ts took 13ms
+PASS isolated blocker app health: 200
+PASS super login: 200
+PASS content login: 200
+PASS competition login: 200
+PASS referee login: 200
+PASS multi login: 200
+PASS contentReferee login: 200
+PASS contentCompetition login: 200
+PASS required super login: 200
+PASS required content login: 200
+PASS required competition login: 200
+PASS required referee login: 200
+PASS required CONTENT_EDITOR canonical API: 403
+PASS required COMPETITION_ADMIN legacy API: 403
+PASS required REFEREE_ADMIN canonical API: 403
+PASS required SUPER_ADMIN canonical API: 403
+PASS required CONTENT_EDITOR locked HTML: 200
+PASS required CONTENT_EDITOR locked RSC: 200
+PASS required COMPETITION_ADMIN locked HTML: 200
+PASS required COMPETITION_ADMIN locked RSC: 200
+PASS required REFEREE_ADMIN locked HTML: 200
+PASS required REFEREE_ADMIN locked RSC: 200
+PASS required SUPER_ADMIN locked HTML: 200
+PASS required SUPER_ADMIN locked RSC: 200
+PASS required /admin safe lock landing: 200
+PASS required legacy compatibility gate: 307
+PASS PUBLIC media anonymous: 200
+PASS PUBLIC media required session: 200
+PASS PRIVATE media required session: 403
+PASS required password change success: 200
+PASS PRIVATE media restored for same current session: 200
+PASS required-password HTML/RSC/API and PUBLIC/PRIVATE media matrix
+PASS super legacy root redirect: 307
+PASS super legacy root final page: 200
+PASS super legacy matches root redirect: 307
+PASS super legacy matches root final page: 200
+PASS super legacy competitions root redirect: 307
+PASS super legacy competitions root final page: 200
+PASS super legacy match detail redirect: 307
+PASS super legacy match detail final page: 200
+PASS super legacy match edit redirect: 307
+PASS super legacy match edit final page: 200
+PASS super legacy referee detail redirect: 307
+PASS super legacy referee detail final page: 200
+PASS super legacy competition edit redirect: 307
+PASS super legacy competition edit final page: 200
+PASS content legacy root redirect: 307
+PASS content legacy root final page: 200
+PASS content legacy matches root redirect: 307
+PASS content legacy matches root final page: 200
+PASS content legacy competitions root redirect: 307
+PASS content legacy competitions root final page: 200
+PASS content legacy match detail redirect: 307
+PASS content legacy match detail final page: 200
+PASS content legacy match edit redirect: 307
+PASS content legacy match edit final page: 200
+PASS content legacy referee detail redirect: 307
+PASS content legacy referee detail final page: 200
+PASS content legacy competition edit redirect: 307
+PASS content legacy competition edit final page: 200
+PASS content referee API permission: 403
+PASS content competition API permission: 403
+PASS content system API permission: 403
+PASS competition legacy root redirect: 307
+PASS competition legacy root final page: 200
+PASS competition legacy matches root redirect: 307
+PASS competition legacy matches root final page: 200
+PASS competition legacy competitions root redirect: 307
+PASS competition legacy competitions root final page: 200
+PASS competition legacy match detail redirect: 307
+PASS competition legacy match detail final page: 200
+PASS competition legacy match edit redirect: 307
+PASS competition legacy match edit final page: 200
+PASS competition legacy referee detail redirect: 307
+PASS competition legacy referee detail final page: 200
+PASS competition legacy competition edit redirect: 307
+PASS competition legacy competition edit final page: 200
+PASS competition content API permission: 403
+PASS competition referee API permission: 403
+PASS competition system API permission: 403
+PASS referee legacy root redirect: 307
+PASS referee legacy root final page: 200
+PASS referee legacy matches root redirect: 307
+PASS referee legacy matches root final page: 200
+PASS referee legacy competitions root redirect: 307
+PASS referee legacy competitions root final page: 200
+PASS referee legacy match detail redirect: 307
+PASS referee legacy match detail final page: 200
+PASS referee legacy match edit redirect: 307
+PASS referee legacy match edit final page: 200
+PASS referee legacy referee detail redirect: 307
+PASS referee legacy referee detail final page: 200
+PASS referee legacy competition edit redirect: 307
+PASS referee legacy competition edit final page: 200
+PASS referee content API permission: 403
+PASS referee competition API permission: 403
+PASS referee system API permission: 403
+PASS multi legacy root redirect: 307
+PASS multi legacy root final page: 200
+PASS multi legacy matches root redirect: 307
+PASS multi legacy matches root final page: 200
+PASS multi legacy competitions root redirect: 307
+PASS multi legacy competitions root final page: 200
+PASS multi legacy match detail redirect: 307
+PASS multi legacy match detail final page: 200
+PASS multi legacy match edit redirect: 307
+PASS multi legacy match edit final page: 200
+PASS multi legacy referee detail redirect: 307
+PASS multi legacy referee detail final page: 200
+PASS multi legacy competition edit redirect: 307
+PASS multi legacy competition edit final page: 200
+PASS multi content API permission: 403
+PASS multi system API permission: 403
+PASS contentReferee legacy root redirect: 307
+PASS contentReferee legacy root final page: 200
+PASS contentReferee legacy matches root redirect: 307
+PASS contentReferee legacy matches root final page: 200
+PASS contentReferee legacy competitions root redirect: 307
+PASS contentReferee legacy competitions root final page: 200
+PASS contentReferee legacy match detail redirect: 307
+PASS contentReferee legacy match detail final page: 200
+PASS contentReferee legacy match edit redirect: 307
+PASS contentReferee legacy match edit final page: 200
+PASS contentReferee legacy referee detail redirect: 307
+PASS contentReferee legacy referee detail final page: 200
+PASS contentReferee legacy competition edit redirect: 307
+PASS contentReferee legacy competition edit final page: 200
+PASS contentReferee competition API permission: 403
+PASS contentReferee system API permission: 403
+PASS contentCompetition legacy root redirect: 307
+PASS contentCompetition legacy root final page: 200
+PASS contentCompetition legacy matches root redirect: 307
+PASS contentCompetition legacy matches root final page: 200
+PASS contentCompetition legacy competitions root redirect: 307
+PASS contentCompetition legacy competitions root final page: 200
+PASS contentCompetition legacy match detail redirect: 307
+PASS contentCompetition legacy match detail final page: 200
+PASS contentCompetition legacy match edit redirect: 307
+PASS contentCompetition legacy match edit final page: 200
+PASS contentCompetition legacy referee detail redirect: 307
+PASS contentCompetition legacy referee detail final page: 200
+PASS contentCompetition legacy competition edit redirect: 307
+PASS contentCompetition legacy competition edit final page: 200
+PASS contentCompetition referee API permission: 403
+PASS contentCompetition system API permission: 403
+PASS unauthenticated legacy route: 307
+PASS legacy root/matches/deep-link role and multi-role redirect chains plus final API permissions
+PASS PRIVATE media unauthenticated: 401
+PASS PRIVATE media role denied: 403
+PASS PRIVATE media authorized: 200
+PASS existing PUBLIC/PRIVATE media permission semantics
+PASS known malformed login validation: 400
+[referee-api] unexpected failure {
+  correlationId: '10fcf8d4-a60b-4a2b-9b93-779acde878be',
+  errorName: 'PrismaClientKnownRequestError'
+}
+PASS unknown login database failure: 500
+[referee-api] unexpected failure {
+  correlationId: '6eee9de1-2bd7-44bd-8d43-6882a256e586',
+  errorName: 'PrismaClientKnownRequestError'
+}
+PASS unknown password session failure: 500
+PASS login/password unknown runtime failures are fixed 500 responses without internal leakage

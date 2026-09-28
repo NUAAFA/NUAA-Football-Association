@@ -212,6 +212,18 @@ export async function listRefereeAdmissionApplications(
   });
 }
 
+export async function getAdmissionQueuePage(status: RefereeAdmissionApplicationStatus, page: number, actor: UnifiedAdminActor) {
+  assertAdmissionRead(actor);
+  const pageSize = 30;
+  const counts = await prisma.refereeAdmissionApplication.groupBy({ by: ["status"], _count: true });
+  const totals = { PENDING: 0, APPROVED: 0, REJECTED: 0 };
+  for (const row of counts) totals[row.status] = row._count;
+  const totalPages = Math.max(1, Math.ceil(totals[status] / pageSize));
+  const currentPage = Math.min(totalPages, Math.max(1, Number.isSafeInteger(page) ? page : 1));
+  const items = await prisma.refereeAdmissionApplication.findMany({ where: { status }, select: admissionDetailSelect, orderBy: [{ createdAt: "desc" }, { id: "desc" }], skip: (currentPage - 1) * pageSize, take: pageSize });
+  return { items, counts: totals, page: currentPage, totalPages };
+}
+
 export async function getRefereeAdmissionApplication(
   id: string,
   actor: UnifiedAdminActor,
@@ -267,6 +279,8 @@ export async function reviewRefereeAdmissionApplication(
         throw new RefereeServiceError("该准入申请已经完成审核，不能重复处理。", 409);
       }
 
+      const claimed = await tx.refereeAdmissionApplication.updateMany({ where: { id, status: "PENDING" }, data: { status: input.action === "REJECT" ? "REJECTED" : "APPROVED" } });
+      if (claimed.count !== 1) throw new RefereeServiceError("该准入申请已被其他管理员处理，请刷新。", 409);
       const reviewedAt = new Date();
       const reviewNote = input.reviewNote.trim();
       if (input.action === "REJECT") {

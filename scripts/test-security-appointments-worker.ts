@@ -138,6 +138,7 @@ async function main() {
       for (const action of actions) {
         const fixture = await createFixture(state, `${state.toLowerCase()}-${action.toLowerCase()}`);
         const expected = service.appointmentTransitionTable[state][action as keyof typeof service.appointmentTransitionTable[typeof state]] as AppointmentStatus | undefined;
+        if (expected && action === "complete") await prisma.match.update({ where: { id: fixture.match.id }, data: { status: "COMPLETED", kickoff: new Date(Date.now() - 7200000), homeScore: 0, awayScore: 0 } });
         const before = await snapshot(fixture.match.id);
         let status = 0;
         try {

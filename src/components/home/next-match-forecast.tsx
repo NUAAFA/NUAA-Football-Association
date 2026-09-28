@@ -12,7 +12,7 @@ function ForecastCard({
   index: number;
 }) {
   const forecast = competition.nextMatch;
-  const actionHref = competition.detailHref;
+  const actionHref = forecast.state === "scheduled" ? forecast.detailHref : competition.detailHref;
   const actionLabel = forecast.state === "completed" ? "查看赛事详情" : "进入赛事主页";
 
   return (

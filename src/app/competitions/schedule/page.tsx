@@ -1,3 +1,5 @@
+import { PublicSchedule } from "@/components/competitions/public-schedule";
+import { getAllPublicCompetitionDetails } from "@/lib/public-competition-service";
 import type { Metadata } from "next";
 
 import { CompetitionScheduleExplorer } from "@/components/competitions/competition-schedule-explorer";
@@ -11,7 +13,12 @@ export const metadata: Metadata = {
   description: "按赛事、阶段和球队筛选校园足球赛程与赛果。",
 };
 
-export default function CompetitionSchedulePage() {
+export const dynamic = "force-dynamic";
+export default async function CompetitionSchedulePage() {
+  const competitions = await getAllPublicCompetitionDetails();
+  const normalized = (s: string) => s.normalize("NFKC").replace(/\s/g, "");
+  const keys = new Set(competitions.flatMap((c) => c.matches.map((m) => [c.detailHref, m.dateLabel, m.timeLabel, normalized(m.homeTeam.name), normalized(m.awayTeam.name)].join("|"))));
+  const archived = publicMatchRecords.filter((m) => !keys.has([m.competitionHref, m.dateLabel, m.timeLabel, normalized(m.homeTeam), normalized(m.awayTeam)].join("|")));
   return (
     <>
       <SiteHeader />
@@ -21,8 +28,8 @@ export default function CompetitionSchedulePage() {
         </section>
         <section className="functional-section">
           <div className="detail-shell">
-            <div className="functional-section-head"><div><span>OFFICIAL MATCH RECORDS</span><h2>比赛记录</h2></div><p>浏览2026男子、女子足球院际杯赛程与赛果。</p></div>
-            <CompetitionScheduleExplorer matches={publicMatchRecords} />
+            <div className="functional-section-head"><div><span>OFFICIAL MATCH RECORDS</span><h2>比赛记录</h2></div><p>公开赛事实时赛程与已确认赛果；历史档案另列。</p></div>
+            <PublicSchedule competitions={competitions} /><details><summary>历史档案（独立归档资料）</summary><CompetitionScheduleExplorer matches={archived} /></details>
           </div>
         </section>
       </main>

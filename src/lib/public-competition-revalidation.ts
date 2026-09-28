@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 export function revalidatePublicCompetitionPaths(slug?: string) {
   revalidatePath("/");
   revalidatePath("/competitions");
+  revalidatePath("/competitions/schedule");
+  revalidatePath("/competitions/standings");
   if (slug) revalidatePath(`/competitions/${slug}`);
 }
 

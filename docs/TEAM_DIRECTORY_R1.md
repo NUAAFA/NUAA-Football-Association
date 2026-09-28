@@ -1,6 +1,6 @@
 # Dynamic public Team Directory R1
 
-The current directory on `/teams` is owned by Unified Admin at `/admin/team-directory` under the existing `competitions:read` and `competitions:write` permissions. Admin selects one Competition, publishes the directory, edits the Association contact, and edits public metadata on Teams already assigned to that Competition. Team creation and assignment remain in **组织与球队**.
+The current directory on `/teams` is owned by Unified Admin at `/admin/team-directory` under the existing `competitions:read` and `competitions:write` permissions. Admin selects one Competition, publishes the directory, edits the Association contact, and edits public metadata on Teams already assigned to that Competition. The directory also offers the existing organization, joint and freeform team creation shortcuts and batch visibility controls. These reuse Competition-scoped Team records and the existing organization/team services; they do not create a second team identity.
 
 ## Data choice
 

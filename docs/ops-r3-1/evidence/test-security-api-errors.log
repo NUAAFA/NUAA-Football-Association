@@ -1,0 +1,5 @@
+
+> nuaa-football-association@0.1.0 test:security-api-errors
+> tsx scripts/test-security-api-errors.ts
+
+F-004 typed and unexpected API error mapping tests passed.

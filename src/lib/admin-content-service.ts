@@ -5,6 +5,8 @@ import type {
 } from "@/generated/prisma-v29/client";
 import type { ContentPostInput, DisciplineInput } from "@/lib/admin-content-input";
 import { getStructuredContentMediaIds, validateStructuredContent } from "@/lib/admin-content-input";
+import { resolveMediaAssetFile } from "@/lib/admin-media-service";
+import { readAttachments } from "@/lib/admin-content-input";
 import { UnifiedAdminInputError } from "@/lib/unified-admin-api";
 import { prisma } from "@/lib/prisma";
 import {
@@ -40,6 +42,7 @@ const adminContentPostSelect = {
   featured: true,
   createdAt: true,
   updatedAt: true,
+  attachments: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }], select: { mediaAssetId: true, displayName: true, mediaAsset: { select: { id: true, originalFilename: true, mimeType: true, size: true, visibility: true } } } },
   coverMedia: {
     select: { id: true, originalFilename: true, mimeType: true, visibility: true },
   },
@@ -67,6 +70,7 @@ function normalizeInput(input: ContentPostInput) {
     throw new UnifiedAdminInputError("只有纪律处罚内容可以保存纪律扩展信息。");
   }
   return {
+    attachments: readAttachments(input.attachments),
     type: input.type,
     slug: normalizeSlug(input.slug),
     title: input.title.trim(),
@@ -157,8 +161,10 @@ export async function createContentPost(input: ContentPostInput, actor: UnifiedA
   try {
     return await prisma.$transaction(async (tx) => {
       await assertPublishableMedia(tx, data);
+      await assertAttachmentFiles(tx, data, actor);
       const post = await tx.contentPost.create({
         data: {
+          attachments: data.attachments ? { create: data.attachments.map((a, sortOrder) => ({ ...a, sortOrder, createdByAdminId: actor.id })) } : undefined,
           type: data.type,
           slug: data.slug,
           title: data.title,
@@ -204,16 +210,19 @@ export async function updateContentPost(
     return await prisma.$transaction(async (tx) => {
       const current = await tx.contentPost.findUnique({
         where: { id },
-        select: { id: true, status: true, publishedAt: true, type: true },
+        select: { id: true, status: true, publishedAt: true, type: true, slug: true, attachments: { select: { mediaAssetId: true, displayName: true } } },
       });
       if (!current) throw new UnifiedAdminInputError("内容不存在或已被移除。", 404);
+      if (current.publishedAt && data.slug !== current.slug) throw new UnifiedAdminInputError("已发布内容的固定网址不可修改。", 409);
       await assertPublishableMedia(tx, data);
+      await assertAttachmentFiles(tx, { ...data, attachments: data.attachments ?? current.attachments }, actor);
       const publishedAt = data.status === "PUBLISHED"
         ? current.publishedAt ?? new Date()
         : current.publishedAt;
       const post = await tx.contentPost.update({
         where: { id },
         data: {
+          attachments: data.attachments ? { deleteMany: {}, create: data.attachments.map((a, sortOrder) => ({ ...a, sortOrder, createdByAdminId: actor.id })) } : undefined,
           type: data.type,
           slug: data.slug,
           title: data.title,
@@ -271,7 +280,9 @@ export async function getAdminContentPage(input: {
     ...(query ? { OR: [{ title: { contains: query } }, { slug: { contains: query } }] } : {}),
   };
   const page = Math.max(1, input.page);
-  const [total, items] = await Promise.all([
+  const { type: _selectedType, ...countWhere } = where;
+  void _selectedType;
+  const [total, items, groups] = await Promise.all([
     prisma.contentPost.count({ where }),
     prisma.contentPost.findMany({
       where,
@@ -280,9 +291,11 @@ export async function getAdminContentPage(input: {
       skip: (page - 1) * contentPostPageSize,
       take: contentPostPageSize,
     }),
+    prisma.contentPost.groupBy({ by: ["type"], where: countWhere, _count: true }),
   ]);
   return {
-    items,
+    counts: Object.fromEntries(groups.map((g) => [g.type, g._count])),
+    items: items.map((p) => ({ ...p, attachmentCount: new Set([...p.attachments.map((a) => a.mediaAssetId), ...(p.discipline?.officialMediaId ? [p.discipline.officialMediaId] : [])]).size })),
     page,
     pageSize: contentPostPageSize,
     total,
@@ -434,6 +447,7 @@ export async function getPublishedContentDetailBySlug(slug: string, now = new Da
   const row = await prisma.contentPost.findFirst({
     where: { slug, status: "PUBLISHED", publishedAt: { lte: now } },
     select: {
+      attachments: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }], where: { mediaAsset: { visibility: "PUBLIC" } }, select: { displayName: true, mediaAsset: { select: { id: true, originalFilename: true, mimeType: true, size: true } } } },
       type: true,
       slug: true,
       title: true,
@@ -458,6 +472,7 @@ export async function getPublishedContentDetailBySlug(slug: string, now = new Da
   if (!row) return null;
   const official = row.discipline?.officialMedia;
   return {
+    attachments: row.attachments.map((a) => ({ url: `/media/${a.mediaAsset.id}`, filename: a.displayName || a.mediaAsset.originalFilename, mimeType: a.mediaAsset.mimeType, size: a.mediaAsset.size })),
     type: row.type,
     slug: row.slug,
     title: row.title,
@@ -480,4 +495,18 @@ export async function getPublishedContentDetailBySlug(slug: string, now = new Da
         : null,
     } : null,
   };
+}
+
+async function assertAttachmentFiles(tx: Prisma.TransactionClient, input: ReturnType<typeof normalizeInput>, actor: UnifiedAdminActor) {
+  const attachments = input.attachments ?? [];
+  const ids = [...new Set([...attachments.map((a) => a.mediaAssetId), ...(input.status === "PUBLISHED" ? [input.coverMediaId, input.discipline?.officialMediaId, ...getStructuredContentMediaIds(input.content)].filter((id): id is string => Boolean(id)) : [])])];
+  if (!ids.length) return;
+  const assets = await tx.mediaAsset.findMany({ where: { id: { in: ids } }, select: { id: true, originalFilename: true, visibility: true, mimeType: true } });
+  for (const id of ids) {
+    const asset = assets.find((a) => a.id === id);
+    if (!asset) throw new UnifiedAdminInputError(`附件或图片不存在：${id}`, 409);
+    if (attachments.some((a) => a.mediaAssetId === id) && !["application/pdf", "image/jpeg", "image/png", "image/webp"].includes(asset.mimeType)) throw new UnifiedAdminInputError(`文件格式不支持：${asset.originalFilename}`, 409);
+    if (input.status === "PUBLISHED" && asset.visibility !== "PUBLIC") throw new UnifiedAdminInputError(`文件“${asset.originalFilename}”仅后台可见，请显式确认公开后再发布。`, 409);
+    try { await resolveMediaAssetFile(id, actor, { db: tx }); } catch { throw new UnifiedAdminInputError(`文件“${asset.originalFilename}”缺失、大小异常或不可访问。`, 409); }
+  }
 }

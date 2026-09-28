@@ -69,6 +69,8 @@ async function main() {
   await applyMigration(raw, "20260913120000_public_competition_dynamic_r1");
   await applyMigration(raw, "20260914210000_admin_operations_r2");
   await applyMigration(raw, "20260922120000_public_competition_true_dynamic_r3");
+  await applyMigration(raw, "20260923120000_dynamic_public_team_directory_r1");
+  await applyMigration(raw, "20260928090000_ops_r3_1");
   raw.close();
 
   const verifier = new PrismaClient({ adapter: new PrismaLibSql({ url }) });
@@ -384,6 +386,7 @@ async function main() {
       "管理员未能处理冲突报告或处理人未记录。",
     );
 
+    await verifier.match.update({ where: { id: legacyMatch.id }, data: { status: "COMPLETED", homeScore: 0, awayScore: 0 } });
     await service.completeAppointment(legacyMatch.id, "比赛已完成", refereeAuthorization);
     const history = await publicQueries.getPublicHistoricalAppointments(new Date("2026-08-19T00:00:00.000Z"));
     const historicalAppointment = history.find((item) => item.id === legacyAppointment.id);

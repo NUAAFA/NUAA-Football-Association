@@ -2,6 +2,7 @@ import "server-only";
 
 import type { CompetitionStatus, Prisma } from "@/generated/prisma-v29/client";
 import { formatBeijingDateTime, formatBeijingWindow } from "@/lib/beijing-datetime";
+import { getGroupStandings } from "@/lib/competition-structure-service";
 import { prisma } from "@/lib/prisma";
 import { isAllowedCompetitionRegistrationUrl } from "@/lib/referee-competition-input";
 import type {
@@ -43,11 +44,12 @@ const publicCompetitionSelect = {
   },
   matches: {
     where: { isTestData: false },
-    orderBy: [{ kickoff: "asc" }, { createdAt: "asc" }],
+    orderBy: [{ kickoff: "asc" }, { structureStage: { sortOrder: "asc" } }, { structureGroup: { sortOrder: "asc" } }, { structureRound: { sortOrder: "asc" } }, { id: "asc" }],
     select: {
       id: true,
       slug: true,
       stage: true,
+      structureStage: { select: { name: true, sortOrder: true } }, structureGroup: { select: { name: true, sortOrder: true } }, structureRound: { select: { name: true, sortOrder: true } }, homePenaltyScore: true, awayPenaltyScore: true,
       round: true,
       kickoff: true,
       venue: true,
@@ -114,8 +116,11 @@ function publicMatch(match: PublicCompetitionRow["matches"][number]): PublicComp
   return {
     id: match.id,
     slug: match.slug,
-    stage: match.stage,
-    round: match.round,
+    stage: match.structureStage?.name ?? match.stage,
+    group: match.structureGroup?.name ?? null,
+    stageOrder: match.structureStage?.sortOrder ?? -1, groupOrder: match.structureGroup?.sortOrder ?? -1, roundOrder: match.structureRound?.sortOrder ?? -1,
+    round: match.structureRound?.name ?? match.round,
+    homePenaltyScore: match.homePenaltyScore, awayPenaltyScore: match.awayPenaltyScore,
     kickoff: match.kickoff,
     dateLabel: kickoff.dateLabel,
     timeLabel: kickoff.timeLabel,
@@ -138,7 +143,7 @@ export function selectCompetitionNextMatch(
   now = new Date(),
 ): CompetitionNextMatch {
   if (status === "COMPLETED") return { state: "completed", label: "赛事已结束", summary: "赛事已结束", archiveHref: detailHref };
-  const match = matches.find((item) => item.status === "scheduled" && item.kickoff > now);
+  const match = [...matches].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime() || (a.stageOrder ?? -1) - (b.stageOrder ?? -1) || (a.groupOrder ?? -1) - (b.groupOrder ?? -1) || (a.roundOrder ?? -1) - (b.roundOrder ?? -1) || a.id.localeCompare(b.id)).find((item) => item.status === "scheduled" && item.kickoff >= now);
   if (match) {
     return {
       state: "scheduled",
@@ -151,6 +156,7 @@ export function selectCompetitionNextMatch(
       detailHref: `${detailHref}#match-${match.id}`,
     };
   }
+  if (matches.length) return { state: "none", label: "暂无下一场", summary: matches.some((item) => item.status === "scheduled") ? "暂无下一场预告，赛果待确认。" : "暂无后续赛程，可查看现有赛果。" };
   return { state: "pending", label: "赛程待发布", summary: statusPresentation[status].pendingSummary, dateLabel: "待正式发布", venue: fallbackVenue ?? "待正式确认" };
 }
 
@@ -201,23 +207,23 @@ function databaseView(row: PublicCompetitionRow, now = new Date()): PublicCompet
   };
 }
 
-async function loadPublishedCompetitions(homepageOnly = false) {
-  return prisma.competition.findMany({
-    where: { publicPublished: true, isTestData: false, ...(homepageOnly ? { homepageFeatured: true } : {}) },
-    select: publicCompetitionSelect,
+async function loadCompetitionSummaries(homepageOnly: boolean, asOf: Date) {
+  const rows = await prisma.competition.findMany({
+    where: { publicPublished: true, isTestData: false, ...(homepageOnly ? { homepageFeatured: true, status: { not: "COMPLETED" as const } } : {}) },
+    select: { ...publicCompetitionSelect, teams: { ...publicCompetitionSelect.teams, take: 0 }, _count: { select: { teams: true, matches: { where: { isTestData: false } } } }, matches: { ...publicCompetitionSelect.matches, where: { isTestData: false, status: "SCHEDULED", kickoff: { gte: asOf } }, take: 1, select: { ...publicCompetitionSelect.matches.select, appointment: false } } },
     orderBy: [{ publicOrder: "asc" }, { year: "desc" }, { createdAt: "asc" }, { id: "asc" }],
-    ...(homepageOnly ? { take: 2 } : {}),
+  });
+  const counts = rows.length ? await prisma.match.groupBy({ by: ["competitionId", "status"], where: { competitionId: { in: rows.map((r) => r.id) }, isTestData: false }, _count: true }) : [];
+  return rows.map((row) => {
+    const view = databaseView({ ...row, matches: row.matches.map((m) => ({ ...m, appointment: null })) }, asOf);
+    view.scale = row._count.teams ? `${row._count.teams} 支球队` : "参赛规模待确认";
+    if (!row.matches.length && row._count.matches && row.status !== "COMPLETED") view.nextMatch = { state: "none", label: "暂无下一场", summary: counts.some((c) => c.competitionId === row.id && c.status === "SCHEDULED") ? "暂无下一场预告，赛果待确认。" : "暂无后续赛程，可查看现有赛果。" };
+    return { view, nextTime: row.matches[0]?.kickoff.getTime() ?? Infinity, publicOrder: row.publicOrder, id: row.id };
   });
 }
-
 export async function getPublicCompetitionCatalog(): Promise<PublicCompetitionView[]> {
-  try {
-    const now = new Date();
-    return (await loadPublishedCompetitions()).map((row) => databaseView(row, now));
-  } catch (error) {
-    console.error("[public-competition] catalogue unavailable", { errorName: error instanceof Error ? error.name : "UnknownError" });
-    return [];
-  }
+  try { return (await loadCompetitionSummaries(false, new Date())).map((r) => r.view); }
+  catch (error) { console.error("[public-competition] catalogue unavailable", { errorName: error instanceof Error ? error.name : "UnknownError" }); return []; }
 }
 
 export const getCurrentPublicCompetitions = getPublicCompetitionCatalog;
@@ -225,19 +231,24 @@ export const getCurrentPublicCompetitions = getPublicCompetitionCatalog;
 export async function getPublicCompetition(slug: string): Promise<PublicCompetitionView | undefined> {
   try {
     const row = await prisma.competition.findFirst({ where: { slug, publicPublished: true, isTestData: false }, select: publicCompetitionSelect });
-    return row ? databaseView(row) : undefined;
+    return row ? { ...databaseView(row), standings: await getPublicCompetitionStandings(row.id) } : undefined;
   } catch (error) {
     console.error("[public-competition] detail unavailable", { slug, errorName: error instanceof Error ? error.name : "UnknownError" });
     return undefined;
   }
 }
 
-export async function getHomepagePublicCompetitions(): Promise<PublicCompetitionView[]> {
-  try {
-    const now = new Date();
-    return (await loadPublishedCompetitions(true)).map((row) => databaseView(row, now));
-  } catch (error) {
-    console.error("[public-competition] homepage selection unavailable", { errorName: error instanceof Error ? error.name : "UnknownError" });
-    return [];
-  }
+export async function getHomepagePublicCompetitions(asOf = new Date()): Promise<PublicCompetitionView[]> {
+  try { return (await loadCompetitionSummaries(true, asOf)).sort((a, b) => a.nextTime - b.nextTime || a.publicOrder - b.publicOrder || a.id.localeCompare(b.id)).slice(0, 2).map((r) => r.view); }
+  catch (error) { console.error("[public-competition] homepage selection unavailable", { errorName: error instanceof Error ? error.name : "UnknownError" }); return []; }
+}
+export async function getPublicCompetitionStandings(competitionId: string) {
+  const competition = await prisma.competition.findFirst({ where: { id: competitionId, publicPublished: true, isTestData: false }, select: { stages: { where: { type: "GROUP" }, orderBy: [{ sortOrder: "asc" }, { id: "asc" }], select: { groups: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }], select: { id: true } } } } } });
+  if (!competition) return [];
+  const tables = await Promise.all(competition.stages.flatMap((s) => s.groups.map((g) => getGroupStandings(g.id))));
+  return tables.map((t) => ({ groupId: t.group.id, groupName: t.group.name, stageName: t.group.stageName, rows: t.rows, hasResults: t.hasResults, tied: t.tied, rankingConfirmed: t.rankingConfirmed, qualificationStale: t.qualificationStale, qualifiedTeamIds: t.qualifiedTeamIds }));
+}
+export async function getAllPublicCompetitionDetails() {
+  const ids = await prisma.competition.findMany({ where: { publicPublished: true, isTestData: false }, select: { slug: true }, orderBy: [{ publicOrder: "asc" }, { id: "asc" }] });
+  return (await Promise.all(ids.map((r) => getPublicCompetition(r.slug)))).filter((r): r is PublicCompetitionView => Boolean(r));
 }

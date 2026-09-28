@@ -1249,3 +1249,15 @@
   .referee-calendar-grid button { padding-inline: 2px; text-align: center; }
   .referee-calendar-grid button small { justify-content: center; font-size: 0 !important; }
 }
+
+/* OPS-R3.1 uses the existing public palette and keeps tables reachable on phones. */
+.functional-filters > label { min-width: 0; }
+.functional-filters input { min-width: 0; width: 100%; min-height: 42px; padding: 8px; border: 1px solid #cbd9e9; background: white; }
+.ops-public-table { display: block; max-width: 100%; overflow-x: auto; }
+.core-competition-pending > .ops-public-standings { grid-column: 1 / -1; min-width: 0; }
+.ops-public-standings section { min-width: 0; margin-bottom: 24px; }
+.ops-public-standings h3 { margin-bottom: 10px; }
+.ops-public-standings p { margin-bottom: 12px; }
+.ops-public-standings .admin-table-scroll { max-width: 100%; overflow-x: auto; }
+.ops-public-standings table { width: 100%; min-width: 660px; border-collapse: collapse; background: white; font-size: 14px; }
+.ops-public-standings th, .ops-public-standings td { padding: 12px; border-bottom: 1px solid var(--line); text-align: left; }

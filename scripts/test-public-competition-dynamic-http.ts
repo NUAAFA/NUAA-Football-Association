@@ -474,7 +474,7 @@ async function main() {
     assert(
       onlyHomeCard.includes("2030校园七人制联赛")
       && onlyHomeCard.includes("七人制")
-      && onlyHomeCard.includes('href="/competitions/seven-a-side-test"')
+      && onlyHomeCard.includes(`href="/competitions/seven-a-side-test#match-${sevenMatchId}"`)
       && !onlyHomeCard.includes("2030六人制邀请赛")
       && !onlyHomeCard.includes("2030未公开测试赛"),
       "Homepage feature selection or own-slug link is incorrect.",
@@ -563,18 +563,15 @@ async function main() {
     const thirdId = await createCompetition(origin, competitionCookie, thirdPayload);
     const { slug: thirdSlug, ...thirdEditable } = thirdPayload;
     assert(thirdSlug === "third-featured-test", "Third fixture slug changed.");
-    await expectError(
-      apiRequest(origin, `/api/referees/admin/competitions/${thirdId}`, "PATCH", { ...thirdEditable, homepageFeatured: true }, competitionCookie),
-      409,
-      "首页最多同时展示 2 项赛事，请先关闭一项现有首页赛事。",
-      "third homepage feature",
-    );
+    await expectStatus(apiRequest(origin, `/api/referees/admin/competitions/${thirdId}`, "PATCH", { ...thirdEditable, homepageFeatured: true }, competitionCookie), 200, "third homepage candidate allowed");
+    assertHomepageCardCount(await pageHtml(origin, "/"), 2, "three candidates bounded to two");
     const featureRows = await verifier.competition.findMany({
       where: { id: { in: [sevenId, sixId, thirdId] } },
       select: { id: true, homepageFeatured: true },
     });
     const featured = new Map(featureRows.map((row) => [row.id, row.homepageFeatured]));
-    assert(featured.get(sevenId) && featured.get(sixId) && !featured.get(thirdId), "Third-feature rejection was not transaction-safe.");
+    assert(featured.get(sevenId) && featured.get(sixId) && featured.get(thirdId), "Third candidate flag did not persist.");
+    await expectStatus(apiRequest(origin, `/api/referees/admin/competitions/${thirdId}`, "PATCH", { ...thirdEditable, homepageFeatured: false }, competitionCookie), 200, "remove third candidate after bounded selection check");
     await expectStatus(
       apiRequest(origin, `/api/referees/admin/competitions/${sixId}`, "PATCH", { ...sixEditable, homepageFeatured: false }, superCookie),
       200,
@@ -597,16 +594,13 @@ async function main() {
       assert(html.includes("21:30") && html.includes("新场地") && html.includes("E学院"), `${route} did not reflect the same-process Match edit.`);
     }
 
-    await expectStatus(
-      apiRequest(origin, `/api/referees/admin/matches/${sevenMatchId}`, "PATCH", { ...editedSeven, status: "COMPLETED" }, competitionCookie),
-      200,
-      "complete first Match",
-    );
+    await expectStatus(apiRequest(origin, `/api/referees/admin/matches/${sevenMatchId}`, "PATCH", { ...editedSeven, status: "COMPLETED" }, competitionCookie), 409, "future complete blocked");
+    await expectStatus(apiRequest(origin, `/api/referees/admin/matches/${sevenMatchId}`, "PATCH", { ...editedSeven, kickoff: new Date(Date.now() - 7200000).toISOString() }, competitionCookie), 200, "set isolated ended fixture");
+    await expectStatus(apiRequest(origin, `/api/admin/matches/${sevenMatchId}/result`, "POST", { homeScore: 3, awayScore: 1, homePenaltyScore: null, awayPenaltyScore: null, expectedVersion: 0, actualEnded: true, reason: "隔离赛果验证" }, competitionCookie), 200, "confirm actual result");
     for (const route of ["/", "/competitions", "/competitions/seven-a-side-test"]) {
       const html = await pageHtml(origin, route);
       assert(html.includes("2030.10.05") && html.includes("七人制第二场地"), `${route} did not advance to the next scheduled Match.`);
     }
-    await verifier.match.update({ where: { id: sevenMatchId }, data: { homeScore: 3, awayScore: 1 } });
     assert((await pageHtml(origin, "/competitions/seven-a-side-test")).includes("3 : 1"), "Completed Match result did not render where supported.");
     await expectError(
       apiRequest(origin, `/api/referees/admin/matches/${sevenMatchId}`, "DELETE", { reason: "不得删除正式历史" }, competitionCookie),
@@ -638,7 +632,7 @@ async function main() {
     );
     for (const route of ["/", "/competitions", "/competitions/seven-a-side-test"]) {
       const html = await pageHtml(origin, route);
-      assert(html.includes("当前暂无已正式发布的下一场比赛，请关注赛事公告。"), `${route} did not return to the canonical no-Match state.`);
+      assert(html.includes("暂无后续赛程，可查看现有赛果。"), `${route} did not return to the canonical no-Match state.`);
     }
 
     const { slug: sevenSlug, ...sevenEditable } = sevenPayload;

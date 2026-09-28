@@ -1,0 +1,26 @@
+
+> nuaa-football-association@0.1.0 test:unified-admin-r1
+> tsx scripts/test-unified-admin-r1.ts
+
+{
+  "fullRolePermissionMatrix": true,
+  "legacyAndExplicitRoleCompatibility": true,
+  "multiRoleUnion": true,
+  "structuredJsonValidation": true,
+  "contentDraftPublishArchiveAndPublicDto": true,
+  "stableCursorPagination": {
+    "pageSizes": [
+      10,
+      10,
+      5
+    ],
+    "total": 25
+  },
+  "disciplineInvariantsAndForeignKeys": true,
+  "publicPrivateMediaAuthorization": true,
+  "uploadValidationAndAtomicCleanup": true,
+  "missingFileDetection": true,
+  "externalFailClosedStorage": true,
+  "backupManifestContract": true,
+  "auditLogCount": 36
+}

@@ -1,0 +1,4 @@
+PASS npm run test:competition-import:http
+PASS npm run test:public-competition-dynamic:http
+PASS npm run test:security-http
+PASS npm run test:unified-admin-blockers:http

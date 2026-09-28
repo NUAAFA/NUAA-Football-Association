@@ -1,3 +1,4 @@
+import { preparePreTeamDirectoryBaseline } from "./prepare-test-migration-baseline";
 import { spawn } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
@@ -11,7 +12,7 @@ function assert(value: unknown, message: string): asserts value {
 }
 
 async function runPrisma(url: string, args: string[], cwd = process.cwd()) {
-  const child = spawn(process.execPath, [path.resolve(cwd, "node_modules/prisma/build/index.js"), ...args], {
+  const child = spawn(process.execPath, [path.resolve("node_modules/prisma/build/index.js"), ...args], {
     cwd, env: { ...process.env, DATABASE_URL: url, RUST_LOG: "trace" }, stdio: ["ignore", "pipe", "pipe"],
   });
   let output = "";
@@ -31,7 +32,7 @@ async function expectFailure(action: () => Promise<unknown>, label: string) {
 async function main() {
   const root = await mkdtemp(path.join(os.tmpdir(), "nuaafa-team-directory-"));
   const databaseUrl = `file:${path.join(root, "rehearsal.db").replaceAll("\\", "/")}`;
-  const baseline = path.resolve("../v2-9-r1-0-main-audit");
+  const baseline = await preparePreTeamDirectoryBaseline(root, databaseUrl);
   process.env.DATABASE_URL = databaseUrl;
   process.env.NUAAFA_ISOLATED_SECURITY_TEST = "1";
   const sql = createClient({ url: databaseUrl });

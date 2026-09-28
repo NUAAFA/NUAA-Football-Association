@@ -1,3 +1,5 @@
+import { PublicSchedule } from "@/components/competitions/public-schedule";
+import { PublicStandings } from "@/components/competitions/public-standings";
 import Link from "next/link";
 
 import { CompetitionArchiveLayout } from "@/components/competitions/archive/competition-archive-layout";
@@ -110,19 +112,7 @@ export function CoreCompetitionPreviewPage({
             <p>{schedule.summary}</p>
           </div>
           {competition.matches.length ? (
-            <div className="core-competition-record-list">
-              {competition.matches.map((match) => (
-                <article id={`match-${match.id}`} key={match.id}>
-                  <header><span>{match.round || match.stage}</span><strong>{match.statusLabel}</strong></header>
-                  <div className="core-competition-matchup">
-                    <b>{match.homeTeam.name}</b>
-                    <span>{match.status === "completed" && match.homeScore !== null && match.awayScore !== null ? `${match.homeScore} : ${match.awayScore}` : "VS"}</span>
-                    <b>{match.awayTeam.name}</b>
-                  </div>
-                  <p>{match.dateLabel} {match.timeLabel} · {match.venue}</p>
-                </article>
-              ))}
-            </div>
+            <PublicSchedule competitions={[competition]} />
           ) : <div className="core-competition-empty"><strong>当前暂无赛程赛果</strong><p>赛程将在正式发布后显示。</p></div>}
         </div>
       </section>
@@ -133,7 +123,7 @@ export function CoreCompetitionPreviewPage({
             <p>STANDINGS & KNOCKOUT</p>
             <h2 id={`${competition.id}-standings-title`}>积分榜与淘汰赛</h2>
           </div>
-          <p>当前届次积分榜与淘汰赛对阵尚未公布。</p>
+          <PublicStandings tables={competition.standings ?? []} />
           <Link href="/competitions/standings">查看赛事类别与当前届次 →</Link>
         </div>
       </section>

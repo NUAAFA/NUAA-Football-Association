@@ -3,6 +3,7 @@ import { createServer } from "node:net";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { hashPassword } from "../src/lib/referee-security";
 
 type PreparedSmoke = {
   databasePath: string;
@@ -92,6 +93,7 @@ async function stopServer(server: ChildProcess) {
 }
 
 async function main() {
+  const cmsRegression = process.argv.includes("--cms");
   const root = await mkdtemp(path.join(os.tmpdir(), "nuaafa-unified-admin-blockers-"));
   const databasePath = path.join(root, "blockers.db");
   const uploadRoot = path.join(root, "uploads");
@@ -118,6 +120,7 @@ async function main() {
       NUAAFA_UPLOAD_DIR: uploadRoot,
       NUAAFA_CONTENT_SOURCE: "database",
       REFEREE_ADMIN_SESSION_SECRET: "unified-admin-blocker-session-secret-2026",
+      REFEREE_ADMIN_PASSWORD_HASH: cmsRegression ? (await hashPassword(fixture.password)).replaceAll("$", "\\$") : "ops-isolated-legacy-login-disabled",
     };
     const runningServer = spawn(
       process.execPath,
@@ -131,7 +134,7 @@ async function main() {
 
     await runInherited(
       process.execPath,
-      ["--import", "tsx", path.resolve("scripts/test-unified-admin-blockers-http.ts")],
+      ["--import", "tsx", path.resolve(cmsRegression ? "scripts/test-unified-admin-r1-2-http.ts" : "scripts/test-unified-admin-blockers-http.ts")],
       {
         ...serverEnvironment,
         UNIFIED_ADMIN_BLOCKER_BASE_URL: origin,
@@ -143,6 +146,12 @@ async function main() {
         UNIFIED_ADMIN_BLOCKER_REFEREE_ID: fixture.refereeId,
         UNIFIED_ADMIN_BLOCKER_PUBLIC_MEDIA_ID: fixture.coverMediaId,
         UNIFIED_ADMIN_BLOCKER_PRIVATE_MEDIA_ID: fixture.privateMediaId,
+        R1_2_SMOKE_BASE_URL: origin,
+        R1_2_SMOKE_ORIGIN: "https://nuaafa.cn",
+        R1_2_SMOKE_PASSWORD: fixture.password,
+        R1_2_LEGACY_PASSWORD: fixture.password,
+        R1_2_PUBLIC_MEDIA_ID: fixture.coverMediaId,
+        R1_3A_ADMISSION_ID: fixture.admissionId,
       },
     );
   } finally {

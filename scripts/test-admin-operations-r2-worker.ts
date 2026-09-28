@@ -143,6 +143,7 @@ async function main() {
     assert(report.reasonCode === "COURSE_EXAM" && report.explanation === "考试时间冲突" && report.status === "PENDING", "Structured conflict report failed.");
     await r1.resolveAppointmentConflictReport(report.id, "RESOLVED", "已更换安排并关闭", { id: admin.id, role: "SUPER_ADMIN" });
     assert(await verifier.auditLog.count({ where: { action: "APPOINTMENT_CONFLICT_REPORT_RESOLVED", entityId: report.id } }) === 1, "Conflict resolution audit is missing.");
+    await verifier.match.update({ where: { id: match.id }, data: { status: "COMPLETED", kickoff: new Date(Date.now() - 7200000), endAt: new Date(Date.now() - 3600000), homeScore: 0, awayScore: 0 } });
     await service.completeAppointment(match.id, "R2 completed", refereeAuthorization);
     const statistics = await r1.getCompletedRefereeStatistics({ competitionId: competitions[0].id, positionKey: "ASSISTANT_REFEREE_1" });
     assert(statistics.some((item) => item.refereeId === onboarded.id && item.totalMatches === 1 && item.elevenASideCount === 1 && item.assistantRoleCount === 1), "Completed appointment statistics are incorrect.");

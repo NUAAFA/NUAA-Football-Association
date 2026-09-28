@@ -42,13 +42,12 @@ export async function getPublicRefereeDirectory() {
   });
 }
 
-export async function getPublicUpcomingAppointments(now = new Date()) {
+export async function getPublicUpcomingAppointments() {
   return prisma.refereeAppointment.findMany({
     where: {
       status: "PUBLISHED",
       match: {
         status: "SCHEDULED",
-        kickoff: { gt: now },
         isTestData: false,
         competition: { isTestData: false },
       },
@@ -61,10 +60,12 @@ export async function getPublicUpcomingAppointments(now = new Date()) {
 export async function getPublicHistoricalAppointments(now = new Date()) {
   return prisma.refereeAppointment.findMany({
     where: {
-      status: { in: ["PUBLISHED", "COMPLETED"] },
+      status: "COMPLETED",
       match: {
-        status: { not: "CANCELLED" },
+        status: "COMPLETED",
         kickoff: { lte: now },
+        homeScore: { not: null },
+        awayScore: { not: null },
         isTestData: false,
         competition: { isTestData: false },
       },

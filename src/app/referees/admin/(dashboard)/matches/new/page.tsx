@@ -9,7 +9,7 @@ import { getPositionTemplate } from "@/lib/referee-roles";
 
 export default async function NewAdminMatchPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const query = await searchParams;
-  const initialCompetitionId = typeof query.competition === "string" ? query.competition : "";
+  const initialCompetitionId = typeof query.competitionId === "string" ? query.competitionId : typeof query.competition === "string" ? query.competition : "";
   const fromWorkspace = query.from === "workspace";
   const [competitions, units] = await Promise.all([
     prisma.competition.findMany({ include: { teams: { include: { unitAffiliations: { select: { unitId: true } } }, orderBy: { name: "asc" } } }, orderBy: [{ year: "desc" }, { name: "asc" }] }),

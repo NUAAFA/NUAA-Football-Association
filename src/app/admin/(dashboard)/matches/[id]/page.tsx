@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { MatchResultForm } from "@/components/admin/match-result-form";
 import { AdminMatchDangerActions } from "@/components/referees/admin/admin-match-danger-actions";
 import { AdminPanel, appointmentStatusLabels, matchStatusLabels } from "@/components/referees/admin/admin-ui";
 import { prisma } from "@/lib/prisma";
@@ -15,7 +16,7 @@ export default async function UnifiedMatchDetailPage({ params }: { params: Promi
     where: { id },
     select: {
       id: true,
-      stage: true,
+      stage: true, homeScore: true, awayScore: true, homePenaltyScore: true, awayPenaltyScore: true, resultVersion: true, structureStage: { select: { type: true } },
       round: true,
       kickoff: true,
       endAt: true,
@@ -62,6 +63,7 @@ export default async function UnifiedMatchDetailPage({ params }: { params: Promi
         <AdminMatchDangerActions matchId={match.id} matchLabel={matchLabel} protectedReason={deletionProtected ? "该比赛已有报名意向、选派或正式历史记录，不能直接删除。请使用“取消比赛”保留业务历史。" : undefined} />
       </div> : null}
     </section>
+    <AdminPanel title="比赛结果">{canWrite ? <MatchResultForm match={{ id: match.id, homeScore: match.homeScore, awayScore: match.awayScore, homePenaltyScore: match.homePenaltyScore, awayPenaltyScore: match.awayPenaltyScore, resultVersion: match.resultVersion, status: match.status, knockout: match.structureStage?.type === "KNOCKOUT", canConfirm: match.status !== "CANCELLED" && match.kickoff <= new Date() && (!match.endAt || match.endAt <= new Date()) }} /> : <p>{match.homeScore !== null && match.awayScore !== null ? `${match.homeScore}:${match.awayScore}` : "赛果待确认"}</p>}</AdminPanel>
     <AdminPanel title="比赛资料" description="赛事管理员仅维护比赛运营资料；裁判选派位于裁判中心。">
       <dl className="admin-detail-meta">
         <div><dt>报名窗口</dt><dd>{match.applicationWindowStatus}</dd></div>

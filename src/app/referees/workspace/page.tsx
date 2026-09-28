@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { RefreshOnFocus } from "@/components/refresh-on-focus";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { ApplicationWithdrawButton } from "@/components/referees/mvp/application-withdraw-button";
@@ -53,10 +54,10 @@ export default async function RefereeWorkspacePage() {
     prisma.match.count({ where: { status: "SCHEDULED", applicationWindowStatus: "OPEN", applicationDeadline: { gt: now } } }),
   ]);
   const sortedPositions = [...assignedPositions].sort((left, right) => left.appointment.match.kickoff.getTime() - right.appointment.match.kickoff.getTime());
-  const upcomingPositions = sortedPositions.filter((item) => item.appointment.status === "PUBLISHED" && item.appointment.match.kickoff > now);
-  const historicalPositions = sortedPositions.filter((item) => item.appointment.status === "COMPLETED" || item.appointment.match.kickoff <= now).reverse();
+  const upcomingPositions = sortedPositions.filter((item) => item.appointment.status === "PUBLISHED" && item.appointment.match.status === "SCHEDULED");
+  const historicalPositions = sortedPositions.filter((item) => item.appointment.status === "COMPLETED" && item.appointment.match.status === "COMPLETED" && item.appointment.match.kickoff <= now).reverse();
   return <>
-    <SiteHeader />
+    <SiteHeader /><RefreshOnFocus />
     <main className="functional-page" id="main-content">
       <RefereeWorkspaceHero description={`登录账号 ${session.referee.studentId} · 从这里查看报名、正式任务与可执裁时间。`} eyebrow="REFEREE WORKSPACE" name={session.referee.name} publicCode={session.referee.publicCode} title={`${session.referee.name}，欢迎回来`} />
       <RefereeWorkspaceNav />
@@ -67,8 +68,8 @@ export default async function RefereeWorkspacePage() {
         </section>
 
         <section id="official-tasks">
-          <header className="functional-section-heading"><div><p>UPCOMING OFFICIAL DUTIES</p><h2>即将进行的正式任务</h2></div><span>{upcomingPositions.length} 项</span></header>
-          {upcomingPositions.length ? <div className="referee-task-list">{upcomingPositions.map((position, index) => { const version = position.appointment.versions[0]; return <article className={index === 0 ? "is-nearest" : ""} key={position.id}><div><span>{index === 0 ? "最近任务 · " : ""}{position.appointment.match.competition.name}</span><h3>{position.appointment.match.homeTeam.name} vs {position.appointment.match.awayTeam.name}</h3><p>{formatRefereeDateTime(position.appointment.match.kickoff)} · {position.appointment.match.venue}</p></div><strong>{position.label}</strong><RefereeTaskActions appointmentId={position.appointment.id} acknowledgedAt={version?.acknowledgements[0] ? formatRefereeDateTime(version.acknowledgements[0].acknowledgedAt) : null} reportStatus={version?.conflictReports[0]?.status ?? null} /></article>; })}</div> : <div className="functional-empty functional-empty-compact"><strong>暂无即将进行的正式任务</strong><p>只有管理员正式发布且未撤回的选派会显示在这里。</p></div>}
+          <header className="functional-section-heading"><div><p>UPCOMING OFFICIAL DUTIES</p><h2>正式任务 · 待执裁 / 待完赛确认</h2></div><span>{upcomingPositions.length} 项</span></header>
+          {upcomingPositions.length ? <div className="referee-task-list">{upcomingPositions.map((position, index) => { const version = position.appointment.versions[0]; return <article className={index === 0 ? "is-nearest" : ""} key={position.id}><div><span>{index === 0 ? "最近任务 · " : ""}{position.appointment.match.competition.name}</span><h3>{position.appointment.match.homeTeam.name} vs {position.appointment.match.awayTeam.name}</h3><p>{formatRefereeDateTime(position.appointment.match.kickoff)} · {position.appointment.match.venue}</p></div><strong>{position.label}{position.appointment.match.kickoff <= now ? " · 待完赛确认" : ""}</strong><RefereeTaskActions appointmentId={position.appointment.id} acknowledgedAt={version?.acknowledgements[0] ? formatRefereeDateTime(version.acknowledgements[0].acknowledgedAt) : null} reportStatus={version?.conflictReports[0]?.status ?? null} /></article>; })}</div> : <div className="functional-empty functional-empty-compact"><strong>暂无正式任务 · 待执裁 / 待完赛确认</strong><p>只有管理员正式发布且未撤回的选派会显示在这里。</p></div>}
         </section>
 
         <div className="referee-dashboard-secondary">

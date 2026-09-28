@@ -1,0 +1,57 @@
+{
+  "recordedAt": "2026-09-28T12:51:41.135922+00:00",
+  "browser": "Codex In-app Browser via cua_repl",
+  "environment": "isolated smoke.db and upload directory; UI walkthrough on 3188, final public article checked on production build 3187",
+  "content": {
+    "title": "OPS隔离纪律附件验收",
+    "contentId": "cmul77yvd0081el1gzmhxq6jl",
+    "url": "/news/post-a85ce85b-26bf-4160-9ebb-d498dd7f84fc",
+    "uploadedThroughFileChooser": 2,
+    "pdfSizes": [
+      605,
+      605
+    ],
+    "actions": [
+      "new DISCIPLINE with body",
+      "upload two PDF files with explicit PUBLIC",
+      "choose official file",
+      "set labels and reorder",
+      "save draft and reopen",
+      "publish and verify ordered unique attachments after body",
+      "remove second relation and save",
+      "media search shows second unused, formal file used in one content",
+      "choose second from library and publish again"
+    ],
+    "finalPublicBuild": "200, two distinct media links after body; final-published-discipline-1440.png"
+  },
+  "matchForm": {
+    "actions": [
+      "stage/group/round filters persist in URL",
+      "new form contains selected group members only",
+      "save and continue succeeds",
+      "slug/kickoff/teams clear while structure/venue/requirements persist"
+    ],
+    "screenshot": "save-and-continue-1440.png"
+  },
+  "tabs": {
+    "keyboard": "ArrowLeft on selected match tab changed to teams tab, selected aria state/focus and section URL verified"
+  },
+  "directMatchLink": {
+    "scrollWidth": 1440,
+    "target": "2026.11.12 20:52OPS隔离36场-mul8z3nn淘汰赛 · 半决赛合成球队1已安排合成球队2隔离验收球场",
+    "url": "http://127.0.0.1:3187/competitions/ops-36-mul8z3nn?page=2#match-cmul8z45i003tjj1godifooqu",
+    "viewport": 1440,
+    "requested": "/competitions/ops-36-mul8z3nn#match-cmul8z45i003tjj1godifooqu",
+    "targetRendered": true,
+    "screenshot": "match-direct-page-1440.png",
+    "build": "final production build on isolated 3187"
+  },
+  "widths": [
+    1440,
+    1024,
+    768,
+    390,
+    360
+  ],
+  "fullSportsJourney": "real HTTP integration, not entirely clicked through UI; unified human acceptance PENDING"
+}

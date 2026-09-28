@@ -161,17 +161,17 @@ export function AdminCompetitionForm({ competition }: { competition?: AdminCompe
             type="checkbox"
           />
           <span className="admin-competition-feature-copy">
-            <strong>在首页赛事预告中展示</strong>
+            <strong>首页赛事预告候选</strong>
             <small id="homepage-feature-help">
-              开启后，该赛事将显示在官网首页“赛事预告”区域，并自动同步当前赛事状态及下一场公开比赛信息。
+              官网最多展示 2 个赛事，每个赛事显示最近 1 场；系统优先展示近期比赛。勾选候选不保证当前一定占首页。
               {!publicPublished ? " 请先开启“公开发布”后再设置首页展示。" : ""}
             </small>
           </span>
         </label>
       </div>
-      <div className="admin-form-grid">
-        <label><span>公开排序</span><input defaultValue={competition?.publicOrder ?? 0} max={1000} min={-1000} name="publicOrder" required type="number" /></label>
-      </div>
+      <details><summary>高级设置 · 目录与候选次级排序</summary><div className="admin-form-grid">
+        <label><span>高级排序（目录及同时开球 / 空态候选）</span><input defaultValue={competition?.publicOrder ?? 0} max={1000} min={-1000} name="publicOrder" required type="number" /></label>
+      </div></details>
     </section>
 
     <section className="admin-form-section">

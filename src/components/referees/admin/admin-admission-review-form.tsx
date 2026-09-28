@@ -102,6 +102,7 @@ export function AdminAdmissionReviewForm({
       <p aria-live="polite" className="admin-form-message">{message}</p>
       <footer>
         <button className="admin-button admin-button-secondary" onClick={() => void copyCredentials()} type="button">复制登录凭据</button>
+        <Link className="admin-button admin-button-secondary" href="/admin/referees/admissions?status=PENDING">返回待批复队列</Link>
         <Link className="admin-button" href={`/admin/referees/${onboarding.refereeId}`}>进入裁判员档案</Link>
       </footer>
     </section>;

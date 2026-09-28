@@ -57,9 +57,9 @@ async function rowCount(client: Client, table: string) {
 }
 
 async function verifyLegacyClient(root: string, databaseUrl: string) {
-  const legacySchema = await run("git", ["show", "HEAD:prisma/schema.prisma"], process.env, false);
-  assert(!legacySchema.includes("playingFormat"), "HEAD no longer represents the pre-R3 Prisma schema.");
-  assert(!legacySchema.includes("CUSTOM"), "HEAD unexpectedly contains the R3 CUSTOM enum value.");
+  const legacySchema = await readFile(path.resolve("scripts/fixtures/pre-r3-schema.prisma"), "utf8");
+  assert(!legacySchema.includes("playingFormat"), "Fixture no longer represents the pre-R3 Prisma schema.");
+  assert(!legacySchema.includes("CUSTOM"), "Fixture unexpectedly contains the R3 CUSTOM enum value.");
   const cacheRoot = path.join(process.cwd(), "node_modules", ".cache", `nuaafa-legacy-${path.basename(root)}`);
   const outputDirectory = path.join(cacheRoot, "client").replaceAll("\\", "/");
   const schemaPath = path.join(cacheRoot, "legacy-schema.prisma");
