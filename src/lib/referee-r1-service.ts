@@ -9,6 +9,7 @@ import type {
   TeamType,
 } from "@/generated/prisma-v29/client";
 import { prisma } from "@/lib/prisma";
+import { completedAssignmentReviewReason } from "@/lib/referee-completion-evidence";
 import {
   requireAdminServiceAuthorization,
   type AdminServiceAuthorization,
@@ -857,6 +858,35 @@ export async function changeAdminPassword(input: {
       },
     });
   });
+}
+
+// Preserve incomplete legacy archives separately from verified match counts.
+export async function getUnverifiedCompletedAssignments(options: {
+  from?: Date;
+  to?: Date;
+  competitionId?: string;
+  positionKey?: AppointmentPositionKey;
+} = {}) {
+  const now = new Date();
+  const positions = { refereeId: { not: null }, ...(options.positionKey ? { key: options.positionKey } : {}) };
+  const records = await prisma.refereeAppointment.findMany({
+    where: {
+      status: "COMPLETED",
+      positions: { some: positions },
+      match: {
+        ...(options.competitionId ? { competitionId: options.competitionId } : {}),
+        ...((options.from || options.to) ? { kickoff: { ...(options.from ? { gte: options.from } : {}), ...(options.to ? { lt: options.to } : {}) } } : {}),
+        NOT: { status: "COMPLETED", kickoff: { lte: now }, homeScore: { not: null }, awayScore: { not: null } },
+      },
+    },
+    select: {
+      id: true,
+      match: { select: { id: true, status: true, kickoff: true, homeScore: true, awayScore: true, competition: { select: { id: true, name: true } }, homeTeam: { select: { name: true } }, awayTeam: { select: { name: true } } } },
+      positions: { where: positions, select: { key: true, label: true, referee: { select: { id: true, name: true, publicCode: true } } } },
+    },
+    orderBy: { match: { kickoff: "desc" } },
+  });
+  return records.map((record) => ({ ...record, reviewReason: completedAssignmentReviewReason(record.match, now) }));
 }
 
 export async function getCompletedRefereeStatistics(options: {

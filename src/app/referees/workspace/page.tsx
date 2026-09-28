@@ -12,6 +12,7 @@ import { RefereeWorkspaceNav } from "@/components/referees/mvp/referee-workspace
 import { getRefereeMemberSession } from "@/lib/referee-member-auth";
 import { applicationStatusLabels, formatRefereeDateTime } from "@/lib/referee-presenters";
 import { prisma } from "@/lib/prisma";
+import { completedAssignmentReviewReason } from "@/lib/referee-completion-evidence";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/referees/workspace" },
@@ -55,7 +56,7 @@ export default async function RefereeWorkspacePage() {
   ]);
   const sortedPositions = [...assignedPositions].sort((left, right) => left.appointment.match.kickoff.getTime() - right.appointment.match.kickoff.getTime());
   const upcomingPositions = sortedPositions.filter((item) => item.appointment.status === "PUBLISHED" && item.appointment.match.status === "SCHEDULED");
-  const historicalPositions = sortedPositions.filter((item) => item.appointment.status === "COMPLETED" && item.appointment.match.status === "COMPLETED" && item.appointment.match.kickoff <= now).reverse();
+  const historicalPositions = sortedPositions.filter((item) => item.appointment.status === "COMPLETED").reverse();
   return <>
     <SiteHeader /><RefreshOnFocus />
     <main className="functional-page" id="main-content">
@@ -77,7 +78,7 @@ export default async function RefereeWorkspacePage() {
           <section id="profile"><header><p>PROFILE</p><h2>基础个人资料</h2></header><dl><div><dt>姓名 / 学号</dt><dd>{session.referee.name} · {session.referee.studentId}</dd></div><div><dt>学院</dt><dd>{session.referee.college?.name ?? "待管理员确认"}</dd></div><div><dt>裁判资质</dt><dd>{session.referee.refereeLevel || "暂无正式裁判资质"}</dd></div><div><dt>联系方式</dt><dd>{[session.referee.phone, session.referee.qq ? `QQ ${session.referee.qq}` : ""].filter(Boolean).join(" / ") || "未填写"}</dd></div></dl><Link href="/referees/workspace/account">账号与安全 →</Link></section>
         </div>
 
-        <section id="task-history"><header className="functional-section-heading"><div><p>HISTORY</p><h2>历史任务</h2></div><span>{historicalPositions.length} 项</span></header>{historicalPositions.length ? <div className="referee-personal-list">{historicalPositions.map((position) => <article key={position.id}><div><span>{position.appointment.match.competition.name}</span><h3>{position.appointment.match.homeTeam.name} vs {position.appointment.match.awayTeam.name}</h3><p>{formatRefereeDateTime(position.appointment.match.kickoff)}</p></div><strong>{position.label}</strong></article>)}</div> : <div className="functional-empty functional-empty-compact"><strong>暂无历史任务</strong><p>已完成的正式任务会保留在这里。</p></div>}</section>
+        <section id="task-history"><header className="functional-section-heading"><div><p>HISTORY</p><h2>历史任务</h2></div><span>{historicalPositions.length} 项</span></header>{historicalPositions.length ? <div className="referee-personal-list">{historicalPositions.map((position) => <article key={position.id}><div><span>{position.appointment.match.competition.name}</span><h3>{position.appointment.match.homeTeam.name} vs {position.appointment.match.awayTeam.name}</h3><p>{formatRefereeDateTime(position.appointment.match.kickoff)}</p></div><strong>{position.label}</strong>{completedAssignmentReviewReason(position.appointment.match, now) ? <p>旧完成记录 · 完赛事实待核：{completedAssignmentReviewReason(position.appointment.match, now)}</p> : null}</article>)}</div> : <div className="functional-empty functional-empty-compact"><strong>暂无历史任务</strong><p>已完成的正式任务会保留在这里。</p></div>}</section>
       </div></section>
     </main>
     <SiteFooter />
