@@ -1,0 +1,2 @@
+scripts/test-ops-r3-1-legacy-history.ts(26,11): error TS7034: Variable 'fixtures' implicitly has type 'any[]' in some locations where its type cannot be determined.
+scripts/test-ops-r3-1-legacy-history.ts(33,47): error TS7005: Variable 'fixtures' implicitly has an 'any[]' type.

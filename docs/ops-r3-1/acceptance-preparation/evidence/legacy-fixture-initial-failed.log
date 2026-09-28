@@ -1,0 +1,54 @@
+PrismaClientValidationError: 
+Invalid `db.refereeAppointment.create()` invocation in
+/Users/xianghanwang/Documents/Codex/NUAAFA/scripts/test-ops-r3-1-legacy-history.ts:30:67
+
+  27 for (const [slug, status, label] of [["ops-legacy-completed-no-score", "COMPLETED", "原比赛已完成"], ["ops-legacy-scheduled-completed-appointment", "SCHEDULED", "原比赛仍已安排"]] as const) {
+  28   const match = await db.match.upsert({ where: { slug }, update: {}, create: { slug, competitionId: competition.id, stage: `旧档案${label}`, kickoff: new Date(Date.now() - 7 * 86400000), homeTeamId: teams[0].id, awayTeamId: teams[1].id, venue: "仅隔离历史验收", status, isTestData: true } });
+  29   let appointment = await db.refereeAppointment.findUnique({ where: { matchId: match.id } });
+→ 30   if (!appointment) appointment = await db.refereeAppointment.create({
+         data: {
+           matchId: "cmulpai1f0001fb1gaiv18x4s",
+           status: "COMPLETED",
+           revision: 2,
+           publishedAt: new Date("2026-09-21T20:29:10.225Z"),
+           completedAt: new Date("2026-09-21T22:29:10.225Z"),
+           publicationNote: "合成旧完成档案；比分原本缺失",
+           positions: {
+             create: {
+               key: "REFEREE",
+               label: "历史裁判员",
+               refereeId: "cmul6nhmh001qzz1gyme0eyfh",
+               sortOrder: 0
+             }
+           },
+           versions: {
+             create: [
+               {
+                 revision: 1,
+                 status: "PUBLISHED",
+                 snapshot: {
+                   fixture: "restored-legacy"
+                 }
+               },
+               {
+                 revision: 2,
+                 status: "COMPLETED",
+                 snapshot: {
+                   fixture: "restored-legacy"
+                 }
+               }
+             ]
+           }
+         }
+       })
+
+Argument `snapshot`: Invalid value provided. Expected String, provided Object.
+    at ar (/Users/xianghanwang/Documents/Codex/NUAAFA/src/generated/prisma-v29/runtime/client.js:14:1374)
+    at Jr.handleRequestError (/Users/xianghanwang/Documents/Codex/NUAAFA/src/generated/prisma-v29/runtime/client.js:69:7929)
+    at Jr.handleAndLogRequestError (/Users/xianghanwang/Documents/Codex/NUAAFA/src/generated/prisma-v29/runtime/client.js:69:7581)
+    at Jr.request (/Users/xianghanwang/Documents/Codex/NUAAFA/src/generated/prisma-v29/runtime/client.js:69:7288)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async a (/Users/xianghanwang/Documents/Codex/NUAAFA/src/generated/prisma-v29/runtime/client.js:103:6862)
+    at async main (/Users/xianghanwang/Documents/Codex/NUAAFA/scripts/test-ops-r3-1-legacy-history.ts:30:39) {
+  clientVersion: '7.9.1'
+}

@@ -1,0 +1,16 @@
+{
+  "checkedAt": "2026-09-28T20:54:53.535Z",
+  "productCommit": "abe10bf25c36a98ba0ae4d11026ec22f25ceaa73",
+  "browser": "Codex In-app Browser via cua_repl",
+  "mode": "production build on isolated 3187; prior synthetic member login through isolated dev 3188",
+  "screenshots": [
+    "legacy-admin-history.png",
+    "legacy-member-history.png",
+    "legacy-statistics.png",
+    "legacy-statistics-counts.png"
+  ],
+  "width": 505,
+  "height": 731,
+  "observation": "Two old no-score records visible in admin and personal history; statistics retains two pending archives and zero verified matches. All screenshots are single viewport captures.",
+  "humanAcceptance": "PENDING"
+}

@@ -1,0 +1,10 @@
+{
+  "recordedAt": "2026-09-28T20:53:14.632Z",
+  "baseline": "4f594af0dc4f8d8d7e7eff96b0d702d81962e446",
+  "startBranch": "codex/ops-r3-1",
+  "startHead": "b5fe6e6084aa7d5ecd7e5007941564da0e5d10b4",
+  "startGitStatus": "clean",
+  "reviewScope": "delivery review and legacy history visibility only",
+  "humanAcceptance": "PENDING",
+  "productionRelease": "NOT PERFORMED"
+}

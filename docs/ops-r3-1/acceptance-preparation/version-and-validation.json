@@ -1,0 +1,148 @@
+{
+  "recordedAt": "2026-09-28T20:56:59.406Z",
+  "baseline": "4f594af0dc4f8d8d7e7eff96b0d702d81962e446",
+  "startHead": "b5fe6e6084aa7d5ecd7e5007941564da0e5d10b4",
+  "branch": "codex/ops-r3-1",
+  "validatedProductCommit": "abe10bf25c36a98ba0ae4d11026ec22f25ceaa73",
+  "buildId": "M1UPe_fojVgFvlXh-uCib",
+  "buildManifestSha256": "32e7d012d01aa021fe77a24d67849839ac52dc91d18b818417d706156c62917d",
+  "commands": [
+    {
+      "command": "npm run test:referee-r1",
+      "log": "test-referee-r1.log",
+      "commit": "a1e36283381177a7fb97335d214ea1ecf2b851d0",
+      "exitCode": 0,
+      "status": "PASS",
+      "logModifiedAt": "2026-09-28T20:35:12.028Z"
+    },
+    {
+      "command": "npm run test:referee-flow",
+      "log": "test-referee-flow.log",
+      "commit": "a1e36283381177a7fb97335d214ea1ecf2b851d0",
+      "exitCode": 0,
+      "status": "PASS",
+      "logModifiedAt": "2026-09-28T20:35:16.020Z"
+    },
+    {
+      "command": "TZ=Europe/London npx --no-install tsx scripts/test-ops-r3-1.ts",
+      "log": "ops-integration.log",
+      "commit": "a1e36283381177a7fb97335d214ea1ecf2b851d0",
+      "exitCode": 0,
+      "status": "PASS",
+      "logModifiedAt": "2026-09-28T20:35:13.580Z"
+    },
+    {
+      "command": "npm run lint",
+      "log": "lint.log",
+      "commit": "a1e36283381177a7fb97335d214ea1ecf2b851d0",
+      "exitCode": 0,
+      "status": "PASS",
+      "logModifiedAt": "2026-09-28T20:35:11.122Z"
+    },
+    {
+      "command": "npm run check:unicode",
+      "log": "check-unicode.log",
+      "commit": "a1e36283381177a7fb97335d214ea1ecf2b851d0",
+      "exitCode": 0,
+      "status": "PASS",
+      "logModifiedAt": "2026-09-28T20:35:47.216Z"
+    },
+    {
+      "command": "node scripts/start-ops-r3-1-acceptance.mjs --build",
+      "log": "build.log",
+      "commit": "abe10bf25c36a98ba0ae4d11026ec22f25ceaa73",
+      "exitCode": 0,
+      "status": "PASS",
+      "logModifiedAt": "2026-09-28T20:52:32.406Z"
+    },
+    {
+      "command": "npx --no-install tsc --noEmit",
+      "log": "typecheck.log",
+      "commit": "abe10bf25c36a98ba0ae4d11026ec22f25ceaa73",
+      "exitCode": 0,
+      "status": "PASS",
+      "logModifiedAt": "2026-09-28T20:53:41.795Z"
+    },
+    {
+      "command": "npx --no-install eslint 'src/app/referees/admin/(dashboard)/referees/[id]/page.tsx'",
+      "log": "final-page-lint.log",
+      "commit": "abe10bf25c36a98ba0ae4d11026ec22f25ceaa73",
+      "exitCode": 0,
+      "status": "PASS",
+      "logModifiedAt": "2026-09-28T20:52:28.556Z"
+    },
+    {
+      "command": "OPS_HISTORY_VERSION=abe10bf25c36a98ba0ae4d11026ec22f25ceaa73 npx --no-install tsx scripts/test-ops-r3-1-legacy-history.ts",
+      "log": "legacy-history-after.log",
+      "commit": "abe10bf25c36a98ba0ae4d11026ec22f25ceaa73",
+      "exitCode": 0,
+      "status": "PASS",
+      "logModifiedAt": "2026-09-28T20:53:41.764Z"
+    },
+    {
+      "command": "npm run check:unicode (all staged delivery files)",
+      "exitCode": 0,
+      "status": "PASS",
+      "log": "final-unicode.log",
+      "commit": "documentation delivery staged after abe10bf",
+      "logModifiedAt": "2026-09-28T20:57:38.282Z"
+    }
+  ],
+  "oldEvidence": {
+    "storedInCommit": "b5fe6e6084aa7d5ecd7e5007941564da0e5d10b4",
+    "scope": "Original implementation-era logs and screenshots, generated before that commit; no embedded source commit or original BUILD_ID. Preserved as historical evidence, not attributed to a final-HEAD rerun.",
+    "testMetadata": "../evidence/regression-results.json",
+    "finalValidation": "../evidence/final-validation.json"
+  },
+  "afterFinalProductChecks": "Documentation, evidence, CSV BOM removal and Next dev generated AGENTS block only. Final delivery HEAD and clean git status are recorded after the documentation commit in the external evidence bundle final-version.json.",
+  "humanAcceptance": "PENDING",
+  "productionRelease": "NOT PERFORMED",
+  "initialFailedAttempts": [
+    {
+      "log": "legacy-fixture-initial-failed.log",
+      "exitCode": 1,
+      "reason": "Prisma snapshot required string; fixture setup repaired without touching old match facts."
+    },
+    {
+      "log": "typescript-initial.log",
+      "exitCode": 2,
+      "reason": "New test array needed explicit type; final build/typecheck passed."
+    },
+    {
+      "log": "check-unicode-initial-failed.log",
+      "exitCode": 1,
+      "reason": "Existing acceptance CSV BOM removed; repeated check passed."
+    },
+    {
+      "command": "git diff --cached --check",
+      "exitCode": 2,
+      "reason": "README Markdown hard-line-break trailing spaces removed before final recheck"
+    }
+  ],
+  "services": {
+    "production": {
+      "url": "http://127.0.0.1:3187",
+      "command": "node scripts/start-ops-r3-1-acceptance.mjs",
+      "purpose": "compiled read checks; localhost write origin is rejected by existing production policy"
+    },
+    "interactive": {
+      "url": "http://127.0.0.1:3188",
+      "command": "node scripts/start-ops-r3-1-acceptance.mjs --dev",
+      "purpose": "actual local human workflow, using existing local-development origin policy"
+    }
+  },
+  "isolation": "existing strict start helper, same disposable smoke.db and isolated uploads; no guard bypass; no personal or production database migration",
+  "migration": "No migration added by legacy-history correction; original additive migration retained; rechecked on isolated integration database only",
+  "staticChecks": {
+    "humanChecklistCheckedItems": 0,
+    "gitDiffCachedCheck": {
+      "exitCode": 0,
+      "executed": true
+    }
+  },
+  "evidenceCredentialScan": {
+    "checkedTextFiles": 84,
+    "findings": 0,
+    "scope": "known isolated passwords/session secrets, credential-valued fields and scrypt hashes; paths are sanitized when packaging"
+  }
+}

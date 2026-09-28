@@ -1,0 +1,11 @@
+{
+  "checkedAt": "2026-09-28T20:57:38.339Z",
+  "strictFixturePathsPresent": true,
+  "accountsFileMode": "600",
+  "environmentFileMode": "600",
+  "listeners": "COMMAND   PID         USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME\nnode    17528 <LOCAL_USER>   12u  IPv4 0x810bcaa990b9948c      0t0  TCP 127.0.0.1:3187 (LISTEN)\nnode    17531 <LOCAL_USER>   13u  IPv4 0x2fb62640724c8412      0t0  TCP 127.0.0.1:3188 (LISTEN)\n",
+  "productionUrl": "http://127.0.0.1:3187",
+  "interactiveUrl": "http://127.0.0.1:3188",
+  "humanAcceptance": "PENDING",
+  "productionRelease": "NOT PERFORMED"
+}

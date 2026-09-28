@@ -1,0 +1,8 @@
+Starting with isolated OPS database and uploads.
+▲ Next.js 16.3.4 (Turbopack)
+- Local:         http://127.0.0.1:3188
+- Network:       http://127.0.0.1:3188
+- Environments: .env.local
+✓ Ready in 152ms
+✓ Running next.config.ts took 11ms
+

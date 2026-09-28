@@ -92,3 +92,7 @@ regression-results.json 保留5次既有脚本早期失败，最后每项0；其
 ## 明确未执行
 
 统一人工签收、真实足球中国导出兼容、生产数据库/文件诊断、真实生产备份恢复演练、生产migration、push/merge/deploy均 NOT RUN / NOT PERFORMED。不是实现阻塞项；按任务边界停在人工验收。自动抽签、排赛、晋级和API同步 OUT OF SCOPE。
+
+## 统一人工验收准备复核
+
+以上保留原实施阶段测试结果，不表示全部检查在最后 HEAD 重跑。2026-09-28 交付复核发现旧完成历史可见性回归，已作窄修复并补跑受影响检查；版本对应、失败尝试、最终构建与页面证据见 [复核报告](acceptance-preparation/README.md)。最终版本以脱敏证据包中的 final-version.json 为准。HUMAN ACCEPTANCE: PENDING；PRODUCTION RELEASE: NOT PERFORMED。

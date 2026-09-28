@@ -1,0 +1,6 @@
+
+> nuaa-football-association@0.1.0 check:unicode
+> node scripts/check-unicode-safety.mjs
+
+docs/ops-r3-1/evidence/acceptance-36-matches.csv:1:1 U+FEFF byte-order mark
+Found 1 unsafe Unicode character(s).

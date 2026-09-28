@@ -1,0 +1,178 @@
+Building with isolated OPS database and uploads.
+
+> nuaa-football-association@0.1.0 build
+> next build
+
+▲ Next.js 16.3.4 (Turbopack)
+- Environments: .env.local
+✓ Running next.config.ts took 9ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 1137ms
+  Running TypeScript ...
+  Finished TypeScript in 2.1s ...
+  Collecting page data using 9 workers ...
+  Generating static pages using 9 workers (0/74) ...
+  Generating static pages using 9 workers (18/74) 
+  Generating static pages using 9 workers (36/74) 
+  Generating static pages using 9 workers (55/74) 
+✓ Generating static pages using 9 workers (74/74) in 242ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ○ /_not-found
+├ ƒ /admin
+├ ƒ /admin/appointments
+├ ƒ /admin/appointments/[id]
+├ ƒ /admin/competitions
+├ ƒ /admin/competitions/[id]
+├ ƒ /admin/competitions/[id]/edit
+├ ƒ /admin/competitions/import
+├ ƒ /admin/competitions/new
+├ ƒ /admin/conflicts
+├ ƒ /admin/content/news
+├ ƒ /admin/content/news/[id]
+├ ƒ /admin/content/news/[id]/preview
+├ ƒ /admin/content/news/new
+├ ƒ /admin/login
+├ ƒ /admin/matches
+├ ƒ /admin/matches/[id]
+├ ƒ /admin/matches/[id]/edit
+├ ƒ /admin/matches/new
+├ ƒ /admin/media
+├ ƒ /admin/organizations
+├ ƒ /admin/referees
+├ ƒ /admin/referees/[id]
+├ ƒ /admin/referees/admissions
+├ ƒ /admin/referees/admissions/[id]
+├ ƒ /admin/referees/availability
+├ ƒ /admin/referees/new
+├ ƒ /admin/statistics
+├ ƒ /admin/system/admins
+├ ƒ /admin/system/audit
+├ ƒ /admin/team-directory
+├ ƒ /api/admin/competitions/[id]/structure
+├ ƒ /api/admin/competitions/import/columns
+├ ƒ /api/admin/competitions/import/commit
+├ ƒ /api/admin/competitions/import/preview
+├ ƒ /api/admin/competitions/import/templates/[type]
+├ ƒ /api/admin/content/posts
+├ ƒ /api/admin/content/posts/[id]
+├ ƒ /api/admin/matches/[id]/result
+├ ƒ /api/admin/media
+├ ƒ /api/admin/media/[id]
+├ ƒ /api/admin/system/admin-accounts
+├ ƒ /api/admin/team-directory
+├ ƒ /api/admin/team-directory/teams
+├ ƒ /api/admin/team-directory/teams/[id]
+├ ƒ /api/content/posts
+├ ƒ /api/content/posts/[slug]
+├ ƒ /api/health
+├ ƒ /api/referees/account/password
+├ ƒ /api/referees/account/profile
+├ ƒ /api/referees/admin/account/password
+├ ƒ /api/referees/admin/accounts
+├ ƒ /api/referees/admin/accounts/[id]
+├ ƒ /api/referees/admin/admin-accounts
+├ ƒ /api/referees/admin/admission-applications
+├ ƒ /api/referees/admin/admission-applications/[id]
+├ ƒ /api/referees/admin/affiliation-units
+├ ƒ /api/referees/admin/applications
+├ ƒ /api/referees/admin/applications/[id]
+├ ƒ /api/referees/admin/appointments/[matchId]
+├ ƒ /api/referees/admin/availability
+├ ƒ /api/referees/admin/colleges
+├ ƒ /api/referees/admin/competitions
+├ ƒ /api/referees/admin/competitions/[id]
+├ ƒ /api/referees/admin/conflict-reports/[id]
+├ ƒ /api/referees/admin/exports/[kind]
+├ ƒ /api/referees/admin/login
+├ ƒ /api/referees/admin/logout
+├ ƒ /api/referees/admin/matches
+├ ƒ /api/referees/admin/matches/[id]
+├ ƒ /api/referees/admin/team-affiliations
+├ ƒ /api/referees/admin/teams
+├ ƒ /api/referees/admin/teams/[id]
+├ ƒ /api/referees/admission-applications
+├ ƒ /api/referees/applications
+├ ƒ /api/referees/applications/[id]
+├ ƒ /api/referees/appointments/[id]/acknowledge
+├ ƒ /api/referees/appointments/[id]/conflict
+├ ƒ /api/referees/availability
+├ ƒ /api/referees/login
+├ ƒ /api/referees/logout
+├ ○ /apple-icon.png
+├ ○ /association
+├ ƒ /competitions
+├ ƒ /competitions/[slug]
+├ ○ /competitions/2026-mens-intercollege-cup
+├ ○ /competitions/2026-womens-intercollege-cup
+├ ○ /competitions/arbitration
+├ ○ /competitions/cross-campus
+├ ○ /competitions/current
+├ ○ /competitions/files
+├ ○ /competitions/history
+├ ƒ /competitions/schedule
+├ ○ /competitions/scorers
+├ ƒ /competitions/standings
+├ ƒ /health
+├ ○ /icon.png
+├ ○ /join
+├ ○ /media
+├ ƒ /media/[id]
+├ ƒ /news
+├ ƒ /news/[slug]
+├ ○ /news/demo-detail
+├ ○ /opengraph-image
+├ ○ /participation
+├ ○ /participation/event-guide
+├ ○ /participation/join-association
+├ ○ /participation/join-media
+├ ○ /participation/referee-guide
+├ ○ /participation/team-manager-guide
+├ ○ /referees
+├ ƒ /referees/admin
+├ ƒ /referees/admin/admins
+├ ƒ /referees/admin/affiliations
+├ ƒ /referees/admin/audit-log
+├ ƒ /referees/admin/availability
+├ ƒ /referees/admin/conflicts
+├ ƒ /referees/admin/login
+├ ƒ /referees/admin/matches
+├ ƒ /referees/admin/matches/[id]
+├ ƒ /referees/admin/matches/[id]/edit
+├ ƒ /referees/admin/matches/competitions
+├ ƒ /referees/admin/matches/competitions/[id]/edit
+├ ƒ /referees/admin/matches/competitions/new
+├ ƒ /referees/admin/matches/new
+├ ƒ /referees/admin/referees
+├ ƒ /referees/admin/referees/[id]
+├ ƒ /referees/admin/referees/new
+├ ƒ /referees/admin/statistics
+├ ƒ /referees/assignments
+├ ƒ /referees/assignments/[id]/print
+├ ƒ /referees/directory
+├ ƒ /referees/history
+├ ƒ /referees/login
+├ ƒ /referees/open-matches
+├ ƒ /referees/open-matches/[slug]
+├ ○ /referees/recruitment
+├ ○ /referees/resources/competition-rules
+├ ○ /referees/resources/football-laws
+├ ○ /referees/resources/training
+├ ○ /referees/resources/work-files
+├ ƒ /referees/workspace
+├ ƒ /referees/workspace/account
+├ ƒ /referees/workspace/availability
+├ ○ /robots.txt
+├ ƒ /rss.xml
+├ ƒ /sitemap.xml
+└ ƒ /teams
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
