@@ -1,0 +1,35 @@
+
+> nuaa-football-association@0.1.0 test:competition-import:http
+> tsx scripts/test-competition-import-http-runtime.ts
+
+▲ Next.js 16.3.4
+- Local:         http://127.0.0.1:61775
+- Network:       http://127.0.0.1:61775
+✓ Ready in 70ms
+✓ Running next.config.ts took 24ms
+PASS super login: 200
+PASS content login: 200
+PASS competition login: 200
+PASS referee login: 200
+PASS super import page: 200
+PASS competition import page: 200
+PASS content import page denied
+PASS referee import page denied
+PASS template unauthenticated: 401
+PASS template COMPETITION_ADMIN: 200
+PASS template SUPER_ADMIN: 200
+PASS template CONTENT_EDITOR denied: 403
+PASS template REFEREE_ADMIN denied: 403
+PASS preview unauthenticated: 401
+PASS preview CONTENT_EDITOR direct API bypass denied: 403
+PASS preview REFEREE_ADMIN direct API bypass denied: 403
+PASS preview bad Origin: 403
+PASS team CSV preview competition: 200
+PASS team CSV preview super: 200
+PASS team CSV commit COMPETITION_ADMIN: 201
+PASS team CSV second commit SUPER_ADMIN: 201
+PASS match Paste preview: 200
+PASS match Paste commit: 201
+PASS match Paste second commit: 201
+PASS oversized import: 413
+R1-3B real HTTP import page, RBAC, Origin, CSV, Paste, commit and idempotency smoke passed.

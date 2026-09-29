@@ -232,23 +232,26 @@ export async function storeMediaAssetUpload(input: { fileName: string; mimeType:
 }
 
 export async function mediaUsage(db: Prisma.TransactionClient = prisma) {
-  const posts = await db.contentPost.findMany({ select: { id: true, title: true, status: true, content: true, coverMediaId: true, discipline: { select: { officialMediaId: true } }, attachments: { select: { mediaAssetId: true } } } });
-  const usage = new Map<string, Map<string, { id: string; title: string; status: string; ways: string[] }>>();
+  const posts = await db.contentPost.findMany({ select: { id: true, title: true, type: true, status: true, content: true, coverMediaId: true, discipline: { select: { officialMediaId: true } }, attachments: { select: { mediaAssetId: true } } } });
+  const usage = new Map<string, Map<string, { id: string; title: string; status: string; type: string; ways: string[] }>>();
   for (const post of posts) {
-    const add = (id: string | null | undefined, way: string) => { if (!id) return; const map = usage.get(id) ?? new Map(); const row = map.get(post.id) ?? { id: post.id, title: post.title, status: post.status, ways: [] }; if (!row.ways.includes(way)) row.ways.push(way); map.set(post.id, row); usage.set(id, map); };
+    const add = (id: string | null | undefined, way: string) => { if (!id) return; const map = usage.get(id) ?? new Map(); const row = map.get(post.id) ?? { id: post.id, title: post.title, status: post.status, type: post.type, ways: [] }; if (!row.ways.includes(way)) row.ways.push(way); map.set(post.id, row); usage.set(id, map); };
     add(post.coverMediaId, "封面"); add(post.discipline?.officialMediaId, "正式文件");
     for (const a of post.attachments) add(a.mediaAssetId, "附件");
     for (const id of getStructuredContentMediaIds(post.content)) add(id, "正文图片");
   }
   return usage;
 }
-export async function getAdminMediaPage(input: { actor: UnifiedAdminActor; page?: number; visibility?: MediaVisibility; mimeType?: string; category?: string; query?: string }) {
+export async function getAdminMediaPage(input: { actor: UnifiedAdminActor; page?: number; visibility?: MediaVisibility; mimeType?: string; category?: string; query?: string; usage?: "used" | "unused" }) {
   assertUnifiedAdminPermission(input.actor, "media:read");
   const pageSize = 20;
   const imageMimes = ["image/jpeg", "image/png", "image/webp"];
   const base: Prisma.MediaAssetWhereInput = { ...(input.visibility ? { visibility: input.visibility } : {}), ...(input.query?.trim() ? { OR: [{ originalFilename: { contains: input.query.trim() } }, { altText: { contains: input.query.trim() } }] } : {}) };
-  const where: Prisma.MediaAssetWhereInput = { ...base, ...(input.mimeType ? { mimeType: input.mimeType } : input.category === "images" ? { mimeType: { in: imageMimes } } : input.category === "files" ? { mimeType: "application/pdf" } : {}) };
-  const [total, categories, usage] = await Promise.all([prisma.mediaAsset.count({ where }), prisma.mediaAsset.groupBy({ by: ["mimeType"], where: base, _count: true }), mediaUsage()]);
+  const usage = await mediaUsage();
+  const usageIds = [...usage.keys()];
+  const usedWhere: Prisma.MediaAssetWhereInput = input.usage === "used" ? { id: { in: usageIds } } : input.usage === "unused" ? { id: { notIn: usageIds } } : {};
+  const where: Prisma.MediaAssetWhereInput = { ...base, ...usedWhere, ...(input.mimeType ? { mimeType: input.mimeType } : input.category === "images" ? { mimeType: { in: imageMimes } } : input.category === "files" ? { mimeType: "application/pdf" } : {}) };
+  const [total, categories] = await Promise.all([prisma.mediaAsset.count({ where }), prisma.mediaAsset.groupBy({ by: ["mimeType"], where: { ...base, ...usedWhere }, _count: true })]);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const page = Math.min(totalPages, Math.max(1, input.page ?? 1));
   const rows = await prisma.mediaAsset.findMany({ where, select: { id: true, originalFilename: true, mimeType: true, size: true, visibility: true, altText: true, storageKey: true, createdAt: true, uploadedByAdmin: { select: { displayName: true } } }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], skip: (page - 1) * pageSize, take: pageSize });

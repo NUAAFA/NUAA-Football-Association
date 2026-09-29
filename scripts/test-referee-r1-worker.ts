@@ -71,6 +71,7 @@ async function main() {
   await applyMigration(raw, "20260922120000_public_competition_true_dynamic_r3");
   await applyMigration(raw, "20260923120000_dynamic_public_team_directory_r1");
   await applyMigration(raw, "20260928090000_ops_r3_1");
+  await applyMigration(raw, "20260929090000_ops_r3_1_1");
   raw.close();
 
   const verifier = new PrismaClient({ adapter: new PrismaLibSql({ url }) });
@@ -94,6 +95,7 @@ async function main() {
     });
     assert(legacyReferee.id === "legacy-referee", "增量 migration 改变了既有裁判 ID。");
     assert(legacyMatch.id === "legacy-match", "增量 migration 改变了既有比赛 ID。");
+    assert(legacyMatch.matchNumber === null, "增量 migration 不得推测历史比赛场序。");
     assert(legacyAppointment.id === "legacy-appointment", "增量 migration 改变了既有选派 ID。");
     assert(
       legacyAppointment.positions.some((item) => item.id === "legacy-position") &&

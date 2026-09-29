@@ -10,7 +10,7 @@ export const COMPETITION_IMPORT_XLSX_MAX_WORKSHEETS = 8;
 export const COMPETITION_IMPORT_XLSX_MAX_CELLS = (COMPETITION_IMPORT_MAX_ROWS + 1) * COMPETITION_IMPORT_MAX_COLUMNS;
 
 export type CompetitionImportType = "TEAM" | "MATCH";
-export type CompetitionImportInputMethod = "CSV" | "XLSX" | "PASTE";
+export type CompetitionImportInputMethod = "CSV" | "XLSX" | "PASTE" | "DOCX";
 export type CompetitionImportAction =
   | "CREATE"
   | "REUSE_EXISTING"
@@ -26,6 +26,7 @@ export type CompetitionImportParsedRow = {
 };
 
 export type CompetitionImportInput = {
+  referenceRows?: CompetitionImportParsedRow[];
   competitionId: string;
   importType: CompetitionImportType;
   inputMethod: CompetitionImportInputMethod;
@@ -73,6 +74,7 @@ export type CompetitionImportSummary = {
 };
 
 export type CompetitionImportPreview = {
+  referenceRows?: CompetitionImportParsedRow[];
   publicImpact: boolean;
   planHash: string;
   competition: { id: string; name: string; slug: string };

@@ -231,6 +231,7 @@ model TeamDirectorySettings {
 }
 
 model Match {
+  matchNumber       Int?
   stageId           String?
   groupId           String?
   roundId           String?
@@ -275,6 +276,7 @@ model Match {
   positionRequirements    MatchPositionRequirement[]
 
   @@unique([source, externalMatchId])
+  @@unique([competitionId, matchNumber])
   @@index([competitionId, kickoff])
   @@index([applicationWindowStatus, applicationDeadline])
 }

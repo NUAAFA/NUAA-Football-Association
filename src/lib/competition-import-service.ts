@@ -1,3 +1,4 @@
+import { isKnockoutPlaceholder, validMatchNumber } from "@/lib/competition-match-number";
 import { createHash } from "node:crypto";
 
 import type { Prisma, TeamType } from "@/generated/prisma-v29/client";
@@ -29,6 +30,7 @@ type LoadedTeam = {
 };
 
 type LoadedMatch = {
+  matchNumber: number | null;
   stageId: string | null; groupId: string | null; roundId: string | null;
   id: string;
   slug: string;
@@ -53,6 +55,8 @@ type TeamPlan = {
 };
 
 type MatchPlan = {
+  matchNumber: number | null;
+  note: string;
   stageId: string | null; groupId: string | null; roundId: string | null;
   preview: CompetitionImportPreviewRow;
   homeTeam: string;
@@ -262,8 +266,9 @@ function makePreview(
   plannedTeamCreates: number,
 ): CompetitionImportPreview {
   return {
+    referenceRows: input.referenceRows,
     publicImpact: Boolean(competition.publicPublished && !competition.isTestData),
-    planHash: createHash("sha256").update(JSON.stringify({ inputHash: input.inputHash, publicImpact: Boolean(competition.publicPublished && !competition.isTestData), rows })).digest("hex"),
+    planHash: createHash("sha256").update(JSON.stringify({ inputHash: input.inputHash, publicImpact: Boolean(competition.publicPublished && !competition.isTestData), rows, referenceRows: input.referenceRows })).digest("hex"),
     competition,
     importType: input.importType,
     inputMethod: input.inputMethod,
@@ -313,6 +318,7 @@ async function analyzeTeamImport(
     const errors: CompetitionImportIssue[] = [];
     const warnings: CompetitionImportIssue[] = [];
     const name = readText(row.values, "name", "球队名称", 80, errors);
+    if (isKnockoutPlaceholder(name)) errors.push(issue("name", "PLACEHOLDER_TEAM", "占位描述不能作为真实球队。"));
     const teamType = parseTeamType(row.values.teamType, errors);
     const externalTeamId = readText(row.values, "externalTeamId", "外部球队 ID", 120, errors, false) || null;
     const preview: CompetitionImportPreviewRow = {
@@ -385,6 +391,7 @@ function matchDifferences(existing: LoadedMatch, plan: MatchPlan) {
   compare("homeTeam", comparisonKey(existing.homeTeam.name), comparisonKey(plan.homeTeam));
   compare("awayTeam", comparisonKey(existing.awayTeam.name), comparisonKey(plan.awayTeam));
   compare("kickoff", existing.kickoff.toISOString(), plan.kickoff.toISOString());
+  if (plan.matchNumber !== null) compare("matchNumber", existing.matchNumber?.toString() ?? null, String(plan.matchNumber));
   compare("venue", existing.venue.trim(), plan.venue);
   compare("stage", existing.stage.trim(), plan.stage);
   compare("stageId", existing.stageId, plan.stageId); compare("groupId", existing.groupId, plan.groupId); compare("roundId", existing.roundId, plan.roundId);
@@ -401,6 +408,7 @@ function inputMatchDifferences(existing: MatchPlan, imported: MatchPlan) {
   const compare = (field: string, first: string | null, second: string | null) => {
     if (first !== second) differences[field] = { existing: first, imported: second };
   };
+  compare("matchNumber", existing.matchNumber?.toString() ?? null, imported.matchNumber?.toString() ?? null);
   compare("venue", existing.venue, imported.venue);
   compare("stage", existing.stage, imported.stage);
   compare("stageId", existing.stageId, imported.stageId); compare("groupId", existing.groupId, imported.groupId); compare("roundId", existing.roundId, imported.roundId);
@@ -426,6 +434,10 @@ async function analyzeMatchImport(
   for (const row of input.rows) {
     const errors: CompetitionImportIssue[] = [];
     const warnings: CompetitionImportIssue[] = [];
+    const rawNumber = displayCell(row.values.matchNumber).trim();
+    const matchNumber = rawNumber ? Number(rawNumber) : null;
+    if (!validMatchNumber(matchNumber) || rawNumber && !/^\d+$/.test(rawNumber)) errors.push(issue("matchNumber", "INVALID_MATCH_NUMBER", "场序须为 1–99999 的整数。"));
+    const note = readText(row.values, "note", "备注", 500, errors, false);
     const homeTeam = readText(row.values, "homeTeam", "主队", 80, errors);
     const awayTeam = readText(row.values, "awayTeam", "客队", 80, errors);
     const kickoff = parseCompetitionImportDate(row.values.kickoff, "kickoff", "开球时间", errors);
@@ -433,11 +445,12 @@ async function analyzeMatchImport(
     const venue = readText(row.values, "venue", "场地", 120, errors);
     const stage = readText(row.values, "stage", "阶段", 80, errors);
     const round = readText(row.values, "round", "轮次", 80, errors, false) || null;
-    const groupName = readText(row.values, "group", "分组", 80, errors, false);
+    let groupName = readText(row.values, "group", "分组", 80, errors, false);
     const findStage = structures.filter((s) => row.values.stageId ? s.id === displayCell(row.values.stageId) : s.name === stage);
     const selectedStage = findStage.length === 1 ? findStage[0] : undefined;
     const groups = selectedStage?.groups.filter((g) => row.values.groupId ? g.id === displayCell(row.values.groupId) : g.name === groupName) ?? [];
     const selectedGroup = groups.length === 1 ? groups[0] : undefined;
+    if (selectedGroup && row.values.groupId) groupName = selectedGroup.name;
     const rounds = selectedStage?.rounds.filter((r) => (!r.groupId || r.groupId === selectedGroup?.id) && (row.values.roundId ? r.id === displayCell(row.values.roundId) : r.name === round)) ?? [];
     const selectedRound = rounds.length === 1 ? rounds[0] : undefined;
     if ((structures.length || row.values.stageId || groupName || row.values.groupId || row.values.roundId) && !selectedStage) errors.push(issue("stage", "STRUCTURE_UNMATCHED", "阶段未匹配；请先建立结构并核对准确名称或 ID。"));
@@ -448,6 +461,11 @@ async function analyzeMatchImport(
       const members = new Set(selectedGroup.members.map((m) => m.teamId));
       if (![homeTeam, awayTeam].every((n) => { const t = existingByTeamName.get(comparisonKey(n)); return t && members.has(t.id); })) errors.push(issue("group", "GROUP_TEAM_MISMATCH", "主客队必须是已确定的本组成员，不能自动建队或归组。"));
     }
+    if ([homeTeam, awayTeam].some(isKnockoutPlaceholder)) errors.push(issue("team", "PLACEHOLDER_TEAM", "淘汰赛占位描述不能创建真实球队或比赛；请人工选择真实球队。"));
+    if (input.inputMethod === "DOCX" || selectedStage?.type === "KNOCKOUT") {
+      for (const name of [homeTeam, awayTeam]) if (!existingByTeamName.has(comparisonKey(name))) errors.push(issue("team", "REAL_TEAM_REQUIRED", `“${name}”未匹配当前赛事真实球队；不会自动建队。`));
+    }
+    if (input.inputMethod === "DOCX" && (stage !== "小组赛" || selectedStage?.type !== "GROUP")) errors.push(issue("stage", "DOCX_GROUP_ONLY", "DOCX 只提交已匹配的小组赛，淘汰赛仅作参考。"));
     const stageId = selectedStage?.id ?? null, groupId = selectedGroup?.id ?? null, roundId = selectedRound?.id ?? null;
     const externalMatchId = readText(row.values, "externalMatchId", "外部比赛 ID", 120, errors, false) || null;
     if (homeTeam && awayTeam && comparisonKey(homeTeam) === comparisonKey(awayTeam)) {
@@ -463,6 +481,8 @@ async function analyzeMatchImport(
       rowNumber: row.rowNumber,
       raw: rawSummary(row.values),
       normalized: {
+        matchNumber: matchNumber === null ? null : String(matchNumber), note,
+        date: displayCell(row.values.date), time: displayCell(row.values.time),
         competitionId: competition.id,
         homeTeam: homeTeam || null,
         awayTeam: awayTeam || null,
@@ -484,7 +504,7 @@ async function analyzeMatchImport(
       slug: slug || undefined,
     };
     preliminary.push({
-      preview,
+      preview, matchNumber, note,
       homeTeam,
       awayTeam,
       kickoff: kickoff ?? new Date(0),
@@ -506,7 +526,7 @@ async function analyzeMatchImport(
       where: { competitionId: competition.id },
       select: {
         id: true, slug: true, competitionId: true, stageId: true, groupId: true, roundId: true, stage: true, kickoff: true, endAt: true,
-        venue: true, round: true, source: true, externalMatchId: true,
+        venue: true, round: true, source: true, externalMatchId: true, matchNumber: true,
         homeTeam: { select: { id: true, name: true } },
         awayTeam: { select: { id: true, name: true } },
       },
@@ -516,7 +536,7 @@ async function analyzeMatchImport(
           where: { source: "MANUAL", externalMatchId: { in: requestedExternalIds } },
           select: {
             id: true, slug: true, competitionId: true, stageId: true, groupId: true, roundId: true, stage: true, kickoff: true, endAt: true,
-            venue: true, round: true, source: true, externalMatchId: true,
+            venue: true, round: true, source: true, externalMatchId: true, matchNumber: true,
             homeTeam: { select: { id: true, name: true } },
             awayTeam: { select: { id: true, name: true } },
           },
@@ -527,7 +547,7 @@ async function analyzeMatchImport(
           where: { slug: { in: requestedSlugs } },
           select: {
             id: true, slug: true, competitionId: true, stageId: true, groupId: true, roundId: true, stage: true, kickoff: true, endAt: true,
-            venue: true, round: true, source: true, externalMatchId: true,
+            venue: true, round: true, source: true, externalMatchId: true, matchNumber: true,
             homeTeam: { select: { id: true, name: true } },
             awayTeam: { select: { id: true, name: true } },
           },
@@ -537,12 +557,19 @@ async function analyzeMatchImport(
   const existingByNaturalKey = new Map(competitionMatches.map((match) => [naturalMatchKey(match.kickoff, match.homeTeam.name, match.awayTeam.name), match]));
   const existingByExternalId = new Map(externalMatches.flatMap((match) => match.externalMatchId ? [[match.externalMatchId, match] as const] : []));
   const existingBySlug = new Map(slugMatches.map((match) => [match.slug, match]));
+  const existingByNumber = new Map(competitionMatches.filter((m) => m.matchNumber !== null).map((m) => [m.matchNumber!, m]));
+  const seenNumber = new Map<number, number>();
   const seenNatural = new Map<string, MatchPlan>();
   const seenExternal = new Map<string, MatchPlan>();
   const plannedTeamRows = new Map<string, { name: string; rowNumber: number }>();
 
   for (const plan of preliminary) {
     if (plan.preview.errors.length) continue;
+    if (plan.matchNumber !== null) {
+      const previous = seenNumber.get(plan.matchNumber);
+      if (previous !== undefined) { plan.preview.errors.push(issue("matchNumber", "DUPLICATE_MATCH_NUMBER", `场序与第 ${previous} 行重复。`)); plan.preview.action = "CONFLICT"; continue; }
+      seenNumber.set(plan.matchNumber, plan.preview.rowNumber);
+    }
     const naturalKey = naturalMatchKey(plan.kickoff, plan.homeTeam, plan.awayTeam);
     const duplicateNatural = seenNatural.get(naturalKey);
     const duplicateExternal = plan.externalMatchId ? seenExternal.get(plan.externalMatchId) : undefined;
@@ -583,7 +610,8 @@ async function analyzeMatchImport(
 
     const existing = (plan.externalMatchId ? existingByExternalId.get(plan.externalMatchId) : undefined)
       ?? existingBySlug.get(plan.slug)
-      ?? existingByNaturalKey.get(naturalKey);
+      ?? existingByNaturalKey.get(naturalKey)
+      ?? (plan.matchNumber !== null ? existingByNumber.get(plan.matchNumber) : undefined);
     if (existing) {
       const differences = matchDifferences(existing, plan);
       if (Object.keys(differences).length) {
@@ -692,6 +720,7 @@ export async function commitCompetitionImport(
           await assertMatchStructure(tx, { competitionId: input.competitionId, stageId: plan.stageId, groupId: plan.groupId, roundId: plan.roundId, homeTeamId: homeTeam.id, awayTeamId: awayTeam.id });
           await tx.match.create({
             data: {
+              matchNumber: plan.matchNumber, internalNote: plan.note || null,
               slug: plan.slug,
               competitionId: input.competitionId,
               stage: plan.stage, stageId: plan.stageId, groupId: plan.groupId, roundId: plan.roundId,

@@ -146,6 +146,9 @@ function readEntry(buffer: Buffer, entry: ZipEntry, centralDirectoryOffset: numb
   const dataOffset = offset + 30 + fileNameLength + extraLength;
   const dataEnd = dataOffset + entry.compressedSize;
   if (
+    buffer.toString("utf8", offset + 30, offset + 30 + fileNameLength) !== entry.path
+    || localFlags !== entry.flags
+    ||
     (localFlags & 0x1) !== 0
     || localCompressionMethod !== entry.compressionMethod
     || dataOffset > centralDirectoryOffset
@@ -169,6 +172,25 @@ function readEntry(buffer: Buffer, entry: ZipEntry, centralDirectoryOffset: numb
   }
   if (content.byteLength !== entry.uncompressedSize) invalidWorkbook();
   return content;
+}
+
+// Reuse the same bounded ZIP reader for a specific OOXML part; never extract to disk.
+export function readCompetitionImportWordXml(buffer: Buffer) {
+  if (buffer.length > COMPETITION_IMPORT_MAX_FILE_BYTES) resourceLimit("DOCX 文件不能超过 5 MB。");
+  const { entries, centralDirectoryOffset } = readCentralDirectory(buffer);
+  let total = 0;
+  for (const entry of entries) {
+    total += entry.uncompressedSize;
+    if (total > COMPETITION_IMPORT_XLSX_MAX_UNCOMPRESSED_BYTES || entry.uncompressedSize > COMPETITION_IMPORT_XLSX_MAX_XML_ENTRY_BYTES || ratio(entry.uncompressedSize, entry.compressedSize) > COMPETITION_IMPORT_XLSX_MAX_COMPRESSION_RATIO) resourceLimit("DOCX 解压大小或压缩比超出限制。");
+    if (![0, 8].includes(entry.compressionMethod)) invalidWorkbook("DOCX ZIP 压缩方式不受支持。");
+    if (/vbaProject/i.test(entry.path)) invalidWorkbook("不支持含宏的 Word 文件。");
+  }
+  const document = entries.find((e) => e.path === "word/document.xml");
+  const types = entries.find((e) => e.path === "[Content_Types].xml");
+  if (!document || !types) invalidWorkbook("文件不是包含 Word 正文的 DOCX。");
+  const contentTypes = readEntry(buffer, types, centralDirectoryOffset).toString("utf8");
+  if (!contentTypes.includes("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml")) invalidWorkbook("不支持此 Word 文档类型。");
+  return readEntry(buffer, document, centralDirectoryOffset);
 }
 
 function columnNumber(reference: string) {

@@ -5,7 +5,7 @@ import { PrismaClient } from '../src/generated/prisma-v29/client';
 import { strToU8, zipSync } from 'fflate';
 import { formatBeijingDateTimeInput } from '../src/lib/beijing-datetime';
 async function main() {
- const info = JSON.parse(await readFile('docs/ops-r3-1/evidence/acceptance-environment.json','utf8'));
+ const info = JSON.parse(await readFile(process.env.NUAAFA_OPS_ACCEPTANCE_ENV_FILE || 'docs/ops-r3-1/evidence/acceptance-environment.json','utf8'));
  assert(info.root.includes('nuaafa-ops-acceptance-')); const db = new PrismaClient({adapter:new PrismaLibSql({url:`file:${info.databasePath}`})});
  const accounts = JSON.parse(await readFile(info.root+'/accounts.json','utf8')); const origin=process.argv[2] ?? info.origin, mutationOrigin=process.argv[2] ? origin : "https://nuaafa.cn";
  const proof: Record<string,unknown> = { origin, startedAt:new Date().toISOString() };
@@ -80,7 +80,7 @@ async function main() {
  await request(`/api/referees/admin/competitions/${id}`,'PATCH',{...Object.fromEntries(Object.entries(cp).filter(([k])=>k!== 'slug')),publicPublished:false,homepageFeatured:false},compCookie);assert.equal((await fetch(origin+`/competitions/${slug}`)).status,404);assert(!(await html('/competitions/schedule')).includes(cp.name));
  await request(`/api/referees/admin/competitions/${id}`,'PATCH',{...Object.fromEntries(Object.entries(cp).filter(([k])=>k!== 'slug')),publicPublished:true,homepageFeatured:true},compCookie);
  proof['HTTP-journey']='PASS';proof['IMP-01']='36 CSV/XLSX/paste previews, zero writes, one atomic commit, duplicate zero';proof['PUB-01/02/03/05/06']='PASS';proof['REF/RES/TAB/QUAL']='PASS';proof.competitionId=id;proof.slug=slug;proof.matchId=match.id;proof.semiId=semiId;proof.finishedAt=new Date().toISOString();
- await writeFile('docs/ops-r3-1/evidence/ops-http.json',JSON.stringify(proof,null,2));console.log(JSON.stringify(proof,null,2));
+ await writeFile(process.env.NUAAFA_OPS_HTTP_EVIDENCE_FILE || 'docs/ops-r3-1/evidence/ops-http.json',JSON.stringify(proof,null,2));console.log(JSON.stringify(proof,null,2));
  await writeFile(info.root+'/journey.json',JSON.stringify({id,slug,groups,stage,knockout,semiId,matchId:match.id},null,2));
  void superCookie;
  } finally {await db.$disconnect();}

@@ -36,7 +36,8 @@ function counts(value: unknown) {
 
 function inputFromBody(body: Record<string, unknown>) {
   return {
-    slug: readShortText(body.slug, "页面标识", 80),
+    matchNumber: body.matchNumber === undefined ? undefined : body.matchNumber === null || body.matchNumber === "" ? null : readInteger(body.matchNumber, "场序", 1, 99999),
+      slug: readShortText(body.slug, "页面标识", 80),
     competitionId: readShortText(body.competitionId, "赛事", 64),
     stageId: body.stageId === undefined ? undefined : readShortText(body.stageId, "阶段", 64, false) || null,
     groupId: body.groupId === undefined ? undefined : readShortText(body.groupId, "分组", 64, false) || null,
@@ -103,6 +104,7 @@ export async function POST(
     });
     if (!source) throw new RefereeServiceError("比赛不存在。", 404);
     const copied = await createMatch({
+      matchNumber: body.matchNumber === undefined ? undefined : body.matchNumber === null || body.matchNumber === "" ? null : readInteger(body.matchNumber, "场序", 1, 99999),
       slug: readShortText(body.slug, "新页面标识", 80),
       competitionId: source.competitionId,
       stage: readShortText(body.stage, "新比赛名称或轮次", 80),

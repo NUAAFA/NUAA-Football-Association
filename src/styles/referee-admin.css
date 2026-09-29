@@ -613,3 +613,46 @@
 .ops-attachment-row > button:disabled { opacity: .45; cursor: default; }
 .ops-attachment-row > button:focus-visible { outline: 2px solid var(--admin-blue); outline-offset: 2px; }
 .admin-panel-body { min-width: 0; }
+
+/* OPS-R3.1.1: dense management rows, with independently scrollable detail surfaces. */
+.ops-media-table { table-layout: fixed; min-width: 760px; }
+.ops-media-table th:nth-child(1) { width: 36%; }
+.ops-media-table th:nth-child(2) { width: 13%; }
+.ops-media-table th:nth-child(3) { width: 22%; }
+.ops-media-table th:nth-child(4) { width: 16%; }
+.ops-media-table th:nth-child(5) { width: 13%; }
+.ops-media-table td { vertical-align: middle; }
+.ops-media-table td > strong, .ops-media-table td > small { display: block; }
+.ops-media-table td button:not(.admin-button), .ops-availability-table td button, .ops-candidate-row button { border: 0; color: var(--admin-blue); background: transparent; cursor: pointer; font: inherit; font-weight: 700; }
+.ops-media-file { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.ops-media-file img, .ops-file-icon { flex: 0 0 56px; width: 56px; height: 48px; object-fit: cover; border: 1px solid var(--admin-line); border-radius: 5px; }
+.ops-file-icon { display: grid; place-items: center; color: var(--admin-blue); background: #e8eef7; font-size: 12px; font-weight: 900; }
+.ops-media-file > div { min-width: 0; }
+.ops-media-file strong { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ops-media-file small { display: block; }
+.ops-media-alt { display: -webkit-box !important; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.ops-media-actions { position: relative; }
+.ops-media-actions summary { color: var(--admin-blue); cursor: pointer; }
+.ops-media-actions[open] { z-index: 2; }
+.ops-media-actions .admin-button { white-space: nowrap; margin-top: 7px; }
+.ops-media-detail, .ops-availability-detail { padding: 18px; }
+.ops-media-way-counts { display: flex; flex-wrap: wrap; gap: 7px; margin: 12px 0; }
+.ops-media-way-counts span { padding: 6px 10px; border: 1px solid var(--admin-line); border-radius: 6px; color: var(--admin-blue); background: #f3f6fa; font-size: 12px; }
+.ops-detail-scroll { max-height: min(55vh, 460px); overflow-y: auto; overscroll-behavior: contain; }
+.ops-detail-scroll > div { border-top: 1px solid var(--admin-line); padding: 10px 0; }
+.ops-detail-scroll strong, .ops-detail-scroll small { display: block; }
+.ops-detail-scroll a { color: var(--admin-blue); }
+.ops-availability-table { min-width: 700px; }
+.ops-availability-table td > small { display: block; }
+.ops-availability-record { display: grid; gap: 4px; }
+.ops-availability-record > button { justify-self: start; color: var(--admin-blue); border: 0; background: transparent; cursor: pointer; }
+.ops-docx-completion, .ops-knockout-candidates { margin: 16px 0; padding: 16px; border: 1px solid var(--admin-line); border-radius: 8px; background: #f8fafc; }
+.ops-docx-completion > p, .ops-knockout-candidates > p { margin: 7px 0 12px; color: var(--admin-muted); }
+.ops-docx-table { min-width: 900px; }
+.ops-docx-table input, .ops-docx-table select { min-width: 110px; max-width: 170px; padding: 7px; border: 1px solid var(--admin-line); border-radius: 5px; background: white; font: inherit; }
+.ops-docx-table td:first-child { min-width: 160px; }
+.ops-docx-table td:first-child small { display: block; }
+.ops-docx-completion > button { margin-top: 12px; }
+.ops-candidate-row { display: grid; gap: 5px; padding: 9px 0; border-top: 1px solid var(--admin-line); }
+.ops-candidate-row > div { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+@media (max-width: 760px) { .ops-media-table { min-width: 720px; } .ops-media-detail, .ops-availability-detail { padding: 12px; } .ops-docx-completion, .ops-knockout-candidates { padding: 10px; } }

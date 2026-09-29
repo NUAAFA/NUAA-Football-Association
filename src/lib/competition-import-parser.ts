@@ -18,6 +18,8 @@ import {
   inspectCompetitionImportXlsx,
 } from "@/lib/competition-import-xlsx-security";
 
+import { parseCompetitionImportDocx, completeDocxRows } from "@/lib/competition-import-docx";
+
 const multipartAllowanceBytes = 256 * 1024;
 
 const headerAliases: Record<CompetitionImportType, Record<string, readonly string[]>> = {
@@ -35,6 +37,7 @@ const headerAliases: Record<CompetitionImportType, Record<string, readonly strin
     stage: ["stage", "阶段", "比赛阶段"],
     group: ["group", "分组", "小组"],
     stageId: ["stageid", "阶段id"], groupId: ["groupid", "分组id"], roundId: ["roundid", "轮次id"],
+    matchNumber: ["matchnumber", "场序", "场次编号"],
     round: ["round", "轮次"],
     externalMatchId: ["externalmatchid", "external match id", "external_match_id", "外部比赛id", "外部比赛 ID"],
   },
@@ -322,7 +325,7 @@ function readImportType(value: string): CompetitionImportType {
 }
 
 function readInputMethod(value: string): CompetitionImportInputMethod {
-  if (value === "CSV" || value === "XLSX" || value === "PASTE") return value;
+  if (value === "CSV" || value === "XLSX" || value === "PASTE" || value === "DOCX") return value;
   throw new CompetitionImportParseError("输入方式无效。");
 }
 
@@ -372,7 +375,9 @@ export async function readCompetitionImportRequest(request: Request): Promise<Co
   if (!mapping || Array.isArray(mapping) || typeof mapping !== "object" || Object.keys(mapping).length > 32 || Object.entries(mapping).some(([k, v]) => k.length > 2048 || typeof v !== "string" || ![...Object.keys(headerAliases[importType]), "ignore"].includes(v))) throw new CompetitionImportParseError("对应列设置无效。");
   const inspect = form.get("inspect") === "true";
   let bytes: Uint8Array;
-  let parsed: { rows: CompetitionImportParsedRow[]; inputWarnings: string[]; columns: string[]; samples: string[][] };
+  let edits: unknown = {};
+  try { edits = JSON.parse(String(form.get("docxEdits") ?? "{}")); } catch { throw new CompetitionImportParseError("Word 补全数据无效。"); }
+  let parsed: { referenceRows?: CompetitionImportParsedRow[]; rows: CompetitionImportParsedRow[]; inputWarnings: string[]; columns: string[]; samples: string[][] };
   if (inputMethod === "PASTE") {
     const content = readFormString(form, "content");
     bytes = new TextEncoder().encode(content);
@@ -386,7 +391,7 @@ export async function readCompetitionImportRequest(request: Request): Promise<Co
     if (file.size > COMPETITION_IMPORT_MAX_FILE_BYTES) {
       throw new CompetitionImportParseError("导入文件不能超过 5 MB。", 413);
     }
-    const expectedExtension = inputMethod === "CSV" ? ".csv" : ".xlsx";
+    const expectedExtension = inputMethod === "CSV" ? ".csv" : inputMethod === "DOCX" ? ".docx" : ".xlsx";
     if (!file.name.toLocaleLowerCase("en-US").endsWith(expectedExtension)) {
       throw new CompetitionImportParseError(`请选择 ${expectedExtension} 文件。`, 415);
     }
@@ -399,6 +404,10 @@ export async function readCompetitionImportRequest(request: Request): Promise<Co
         throw new CompetitionImportParseError("CSV 文件必须使用 UTF-8 编码。", 415);
       }
       parsed = parseCompetitionImportCsv(content, importType, mapping, inspect);
+    } else if (inputMethod === "DOCX") {
+      if (importType !== "MATCH") throw new CompetitionImportParseError("DOCX 仅用于赛程导入。");
+      parsed = parseCompetitionImportDocx(Buffer.from(bytes));
+      parsed.rows = completeDocxRows(parsed.rows, edits);
     } else {
       parsed = await parseCompetitionImportXlsx(Buffer.from(bytes), importType, mapping, inspect);
     }
@@ -408,8 +417,9 @@ export async function readCompetitionImportRequest(request: Request): Promise<Co
     competitionId,
     importType,
     inputMethod,
-    inputHash: createHash("sha256").update(fingerprint({ competitionId, importType, inputMethod, bytes })).update(JSON.stringify(Object.entries(mapping).sort())).digest("hex"),
+    inputHash: createHash("sha256").update(fingerprint({ competitionId, importType, inputMethod, bytes })).update(JSON.stringify(Object.entries(mapping).sort())).update(JSON.stringify(parsed.rows)).digest("hex"),
     expectedPlanHash: typeof form.get("planHash") === "string" ? String(form.get("planHash")) : undefined,
+    referenceRows: parsed.referenceRows,
     columns: parsed.columns, samples: parsed.samples,
     rows: parsed.rows,
     inputWarnings: parsed.inputWarnings,

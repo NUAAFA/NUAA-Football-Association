@@ -1,3 +1,4 @@
+import { isKnockoutPlaceholder, validMatchNumber } from "@/lib/competition-match-number";
 import type {
   AdminRole,
   AssignmentEligibility,
@@ -607,6 +608,7 @@ export async function reviewApplication(
 }
 
 export async function createMatch(input: {
+  matchNumber?: number | null;
   slug: string;
   competitionId: string;
   stageId?: string | null;
@@ -629,6 +631,7 @@ export async function createMatch(input: {
   positionCounts: Partial<Record<AppointmentPositionKey, number>>;
 }, actor?: AdminActor) {
   if (input.status === "COMPLETED") throw new RefereeServiceError("请通过确认赛果入口标记比赛完赛。", 409);
+  if (!validMatchNumber(input.matchNumber)) throw new RefereeServiceError("场序须为 1–99999 的整数。");
   if (input.homeTeamId === input.awayTeamId) {
     throw new RefereeServiceError("比赛双方不能相同。");
   }
@@ -653,9 +656,11 @@ export async function createMatch(input: {
   if (!teamIds.has(input.homeTeamId) || !teamIds.has(input.awayTeamId)) {
     throw new RefereeServiceError("比赛球队不属于所选赛事。");
   }
+  if (competition.teams.filter((t) => [input.homeTeamId, input.awayTeamId].includes(t.id)).some((t) => isKnockoutPlaceholder(t.name))) throw new RefereeServiceError("请人工选择真实球队，不可使用淘汰赛占位球队。");
   await assertMatchStructure(prisma, input);
   const match = await prisma.match.create({
     data: {
+      matchNumber: input.matchNumber ?? null,
       slug: input.slug,
       competitionId: input.competitionId,
       stage: input.stage,
@@ -707,12 +712,15 @@ export async function createMatchFromSelections(
     throw new RefereeServiceError("开放报名时，截止时间须晚于当前时间且早于开球时间。");
   }
   if (input.status === "COMPLETED") throw new RefereeServiceError("请通过确认赛果入口标记比赛完赛。", 409);
+  if (!validMatchNumber(input.matchNumber)) throw new RefereeServiceError("场序须为 1–99999 的整数。");
   return prisma.$transaction(async (tx) => {
     const competition = await tx.competition.findUnique({
       where: { id: input.competitionId },
       select: { id: true, format: true },
     });
     if (!competition) throw new RefereeServiceError("赛事不存在。", 404);
+    const selectedStage = input.stageId ? await tx.competitionStage.findUnique({ where: { id: input.stageId } }) : null;
+    if (selectedStage?.type === "KNOCKOUT" && (![input.homeTeamSelection, input.awayTeamSelection].every((value) => value.startsWith("team:")))) throw new RefereeServiceError("淘汰赛只能手工选择当前赛事真实球队。", 409);
     if (input.applicationWindowStatus === "OPEN") assertPositionTemplateConfigured(competition.format);
     const home = await resolveCompetitionTeamSelection(tx, {
       competitionId: input.competitionId,
@@ -722,12 +730,14 @@ export async function createMatchFromSelections(
       competitionId: input.competitionId,
       selection: input.awayTeamSelection,
     });
+    if ([home.team.name, away.team.name].some(isKnockoutPlaceholder)) throw new RefereeServiceError("淘汰赛占位描述不能作为真实球队。", 409);
     if (home.team.id === away.team.id) {
       throw new RefereeServiceError("比赛双方不能相同。");
     }
     await assertMatchStructure(tx, { ...input, homeTeamId: home.team.id, awayTeamId: away.team.id });
     const match = await tx.match.create({
       data: {
+        matchNumber: input.matchNumber,
         slug: input.slug,
         competitionId: input.competitionId,
         stage: input.stage,
@@ -774,6 +784,7 @@ export async function updateMatch(
   if (!existing) throw new RefereeServiceError("比赛不存在。", 404);
   if (input.status === "COMPLETED" && (existing.status !== "COMPLETED" || input.kickoff > new Date() || (input.endAt && input.endAt > new Date()) || existing.homeScore === null || existing.awayScore === null)) throw new RefereeServiceError("请通过确认赛果入口标记比赛完赛，未来比赛不能结束。", 409);
   if (existing.status === "COMPLETED" && (input.status !== existing.status || input.homeTeamId !== existing.homeTeamId || input.awayTeamId !== existing.awayTeamId || input.competitionId !== existing.competitionId)) throw new RefereeServiceError("已确认赛果的比赛不可更换参赛球队或状态，请使用赛果更正。", 409);
+  if (!validMatchNumber(input.matchNumber)) throw new RefereeServiceError("场序须为 1–99999 的整数。");
   if (input.homeTeamId === input.awayTeamId) {
     throw new RefereeServiceError("比赛双方不能相同。");
   }
@@ -798,6 +809,7 @@ export async function updateMatch(
   if (!teamIds.has(input.homeTeamId) || !teamIds.has(input.awayTeamId)) {
     throw new RefereeServiceError("比赛球队不属于所选赛事。");
   }
+  if (competition.teams.filter((t) => [input.homeTeamId, input.awayTeamId].includes(t.id)).some((t) => isKnockoutPlaceholder(t.name))) throw new RefereeServiceError("请人工选择真实球队，不可使用淘汰赛占位球队。");
   const match = await prisma.$transaction(async (tx) => {
     const current = await tx.match.findUnique({ where: { id } });
     if (!current) throw new RefereeServiceError("比赛不存在。", 404);
@@ -811,6 +823,7 @@ export async function updateMatch(
     const updated = await tx.match.update({
       where: { id },
       data: {
+        matchNumber: input.matchNumber,
         slug: input.slug,
         competitionId: input.competitionId,
         stage: input.stage,

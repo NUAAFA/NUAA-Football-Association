@@ -1,0 +1,10 @@
+
+> nuaa-football-association@0.1.0 lint
+> eslint
+
+
+/Users/xianghanwang/Documents/Codex/NUAAFA/scripts/test-ops-r3-1-1.ts
+  42:15  warning  'i' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+✖ 1 problem (0 errors, 1 warning)
+

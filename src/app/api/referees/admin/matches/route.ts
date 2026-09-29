@@ -33,6 +33,7 @@ export async function POST(request: Request) {
     const legacyHomeTeamId = readShortText(body.homeTeamId, "主队", 64, false);
     const legacyAwayTeamId = readShortText(body.awayTeamId, "客队", 64, false);
     const match = await createMatchFromSelections({
+      matchNumber: body.matchNumber === undefined ? undefined : body.matchNumber === null || body.matchNumber === "" ? null : readInteger(body.matchNumber, "场序", 1, 99999),
       slug: readShortText(body.slug, "页面标识", 80),
       competitionId: readShortText(body.competitionId, "赛事", 64),
       stageId: body.stageId === undefined ? undefined : readShortText(body.stageId, "阶段", 64, false) || null,

@@ -1,0 +1,5 @@
+
+> nuaa-football-association@0.1.0 test:competition-import
+> tsx scripts/test-competition-import.ts
+
+R1-3B competition import parser, reconciliation, dry-run, atomicity, race and idempotency tests passed.

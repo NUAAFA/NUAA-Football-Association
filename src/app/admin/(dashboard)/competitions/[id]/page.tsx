@@ -70,7 +70,7 @@ export default async function CompetitionWorkspacePage({ params, searchParams }:
           ? "该赛事已有参赛球队、比赛、公开发布或其他正式数据，不能直接删除。请保留历史并逐项核对。"
           : undefined,
       }}
-      matches={competition.matches.map((match) => ({ id: match.id, matchup: `${match.homeTeam.name} vs ${match.awayTeam.name}`, kickoff: formatRefereeDateTime(match.kickoff), venue: match.venue, status: match.status, stage: match.structureStage?.name ?? match.stage, group: match.structureGroup?.name, round: match.structureRound?.name ?? match.round ?? "", score: match.homeScore !== null && match.awayScore !== null ? `${match.homeScore}:${match.awayScore}` : "" }))}
+      matches={competition.matches.map((match) => ({ matchNumber: match.matchNumber, id: match.id, matchup: `${match.homeTeam.name} vs ${match.awayTeam.name}`, kickoff: formatRefereeDateTime(match.kickoff), venue: match.venue, status: match.status, stage: match.structureStage?.name ?? match.stage, group: match.structureGroup?.name, round: match.structureRound?.name ?? match.round ?? "", score: match.homeScore !== null && match.awayScore !== null ? `${match.homeScore}:${match.awayScore}` : "" }))}
       teams={competition.teams.map((team) => ({ id: team.id, name: team.name, teamType: team.teamType, unitIds: team.unitAffiliations.map((item) => item.unitId), matchCount: team._count.homeMatches + team._count.awayMatches }))}
       units={units}
     />

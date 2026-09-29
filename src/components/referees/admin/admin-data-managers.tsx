@@ -33,12 +33,32 @@ function MissingCompetitionState() {
   </div>;
 }
 
-export function AvailabilityManager({ records, referees }: {
-  records: Array<{ id: string; refereeId: string; referee: string; kind: string; competitionFormat: string | null; startAt: string; endAt: string; note: string }>;
+type AvailabilityRecord = { id: string; refereeId: string; kind: string; startAt: string; endAt: string; competitionFormat: string | null; note: string | null };
+type AvailabilityRow = { id: string; referee: { id: string; name: string; publicCode: string }; recordCount: number; filledDays: number; availableDays: number; unavailableDays: number; availableRecords: number; unavailableRecords: number; updatedAt: string | null; dateRecords: AvailabilityRecord[] };
+function timeLabel(value: string) { return new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(value)); }
+function availabilityLabel(record: AvailabilityRecord) {
+  const start = new Date(record.startAt), end = new Date(record.endAt);
+  const allDay = timeLabel(record.startAt) === "00:00" && timeLabel(record.endAt) === "00:00" && end.getTime() - start.getTime() >= 86400000;
+  return `${record.kind === "AVAILABLE" ? "可执裁" : "不可执裁"} · ${allDay ? "全天" : `${timeLabel(record.startAt)}–${timeLabel(record.endAt)}`}`;
+}
+export function AvailabilityManager({ items, referees, date, kind }: {
+  items: AvailabilityRow[];
   referees: Array<{ id: string; label: string }>;
+  date: string;
+  kind: "" | "AVAILABLE" | "UNAVAILABLE";
 }) {
   const { message, run } = useOperation();
   const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<AvailabilityRow | null>(null);
+  const [detail, setDetail] = useState<{ records: AvailabilityRecord[]; total: number; page: number; totalPages: number } | null>(null);
+  const [detailError, setDetailError] = useState("");
+  async function loadDetail(referee: AvailabilityRow, page: number) {
+    setSelected(referee); setDetailError("");
+    try {
+      const r = await fetch(`/api/referees/admin/availability/${referee.id}?${new URLSearchParams({ date, kind, page: String(page) })}`);
+      const d = await r.json(); if (!r.ok) throw new Error(d.error ?? "读取失败。"); setDetail(d);
+    } catch (e) { setDetailError(e instanceof Error ? e.message : "读取失败。"); }
+  }
   async function create(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -50,11 +70,12 @@ export function AvailabilityManager({ records, referees }: {
   }
   return <>
     <p aria-live="polite" className="admin-form-message">{message}</p>
-    <div className="admin-table-scroll"><table className="admin-data-table">
-      <thead><tr><th>裁判员</th><th>类型</th><th>制式</th><th>开始</th><th>结束</th><th>说明</th><th>操作</th></tr></thead>
-      <tbody>{records.map((item) => <tr key={item.id}><td><strong>{item.referee}</strong></td><td><span className="admin-status-badge" data-status={item.kind}>{item.kind === "AVAILABLE" ? "可执裁" : "不可执裁"}</span></td><td>{item.competitionFormat === null ? "均可" : item.competitionFormat === "ELEVEN_A_SIDE" ? "十一人制" : item.competitionFormat === "FUTSAL" ? "五人制" : "无预设模板"}</td><td>{item.startAt}</td><td>{item.endAt}</td><td>{item.note || "—"}</td><td><div className="admin-table-actions"><button onClick={() => run(() => api("/api/referees/admin/availability", "DELETE", { id: item.id, refereeId: item.refereeId }), "记录已删除。")} type="button">删除</button></div></td></tr>)}</tbody>
+    <div className="admin-table-scroll"><table className="admin-data-table ops-availability-table">
+      <thead><tr><th>裁判员</th>{date ? <th>当日可执裁情况</th> : <><th>已填写日期</th><th>可执裁</th><th>不可执裁</th><th>最近更新</th></>}<th>操作</th></tr></thead>
+      <tbody>{items.map((item) => <tr key={item.id}><td><strong>{item.referee.name}</strong><small>{item.referee.publicCode}</small></td>{date ? <td>{item.dateRecords.map((record) => <small key={record.id}>{availabilityLabel(record)}{record.note ? ` · ${record.note}` : ""}</small>)}</td> : <><td>{item.filledDays} 天<small>{item.recordCount} 条时间记录</small></td><td>{item.availableDays} 天</td><td>{item.unavailableDays} 天</td><td>{item.updatedAt ? new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", dateStyle: "short", timeStyle: "short" }).format(new Date(item.updatedAt)) : "—"}</td></>}<td><button type="button" onClick={() => void loadDetail(item, 1)}>查看详情</button></td></tr>)}</tbody>
     </table></div>
     <button className="admin-floating-create" onClick={() => setOpen(true)} type="button">+ 代录时间</button>
+    {selected ? <div aria-modal="true" className="admin-modal-backdrop" role="dialog" aria-label={`${selected.referee.name}可执裁时间`}><div className="admin-modal"><header><div><span>AVAILABILITY</span><h2>{selected.referee.name} · 可执裁时间</h2></div><button aria-label="关闭" onClick={() => { setSelected(null); setDetail(null); }} type="button">×</button></header><div className="ops-availability-detail"><strong>共 {detail?.total ?? selected.recordCount} 条时间记录</strong>{detailError ? <p>{detailError}</p> : null}<div className="ops-detail-scroll">{detail?.records.map((record) => <div className="ops-availability-record" key={record.id}><strong>{new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", year: "numeric", month: "long", day: "numeric" }).format(new Date(record.startAt))}</strong><span>{availabilityLabel(record)}</span><small>{record.competitionFormat === "FUTSAL" ? "五人制" : record.competitionFormat === "ELEVEN_A_SIDE" ? "十一人制" : "均可"}{record.note ? ` · ${record.note}` : ""}</small><button type="button" onClick={() => void run(async () => { await api("/api/referees/admin/availability", "DELETE", { id: record.id, refereeId: record.refereeId }); await loadDetail(selected, detail?.page ?? 1); }, "记录已删除。")}>删除</button></div>)}</div>{detail ? <div className="admin-pagination"><button disabled={detail.page <= 1} type="button" onClick={() => void loadDetail(selected, detail.page - 1)}>上一页</button><span>{detail.page} / {detail.totalPages}</span><button disabled={detail.page >= detail.totalPages} type="button" onClick={() => void loadDetail(selected, detail.page + 1)}>下一页</button></div> : null}</div></div></div> : null}
     {open ? <div aria-modal="true" className="admin-modal-backdrop" role="dialog"><div className="admin-modal">
       <header><div><span>AVAILABILITY</span><h2>管理员代录可执裁时间</h2></div><button aria-label="关闭" onClick={() => setOpen(false)} type="button">×</button></header>
       <form className="admin-form" onSubmit={create}><div className="admin-form-grid">

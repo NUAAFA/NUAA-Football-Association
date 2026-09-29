@@ -1,0 +1,5 @@
+
+> nuaa-football-association@0.1.0 test:security-csv
+> tsx scripts/test-security-csv.ts
+
+F-002 CSV formula neutralization tests passed.

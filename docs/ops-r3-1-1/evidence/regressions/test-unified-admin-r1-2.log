@@ -1,0 +1,110 @@
+
+> nuaa-football-association@0.1.0 test:unified-admin-r1-2
+> tsx scripts/test-unified-admin-r1-2.ts
+
+{
+  "structuredJson": {
+    "valid": true,
+    "unknownNode": "rejected",
+    "unknownMark": "rejected",
+    "dangerousLink": "rejected",
+    "malformed": "rejected",
+    "oversized": "rejected",
+    "deep": "rejected"
+  },
+  "publicContent": {
+    "total": 30,
+    "pinned": 5,
+    "normal": 25,
+    "pages": [
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3
+    ],
+    "noDuplicateOrOmission": true,
+    "listDtoExcludesContentAndIds": true,
+    "detail404NoLeak": true,
+    "featuredIndependent": true
+  },
+  "streamingMedia": {
+    "jpg": true,
+    "pdf20Mb": true,
+    "oversize": "rejected",
+    "timeout": "rejected-and-cleaned",
+    "concurrencyMaximum": 2,
+    "interruptedCleanup": true,
+    "stagingCleanup": true,
+    "signatureCleanup": true,
+    "writeFailureNoRow": true,
+    "dbFailureNoFile": true,
+    "orphanScan": true
+  },
+  "staticMigration": {
+    "entries": 12,
+    "media": 11,
+    "dryRun": true,
+    "idempotent": true,
+    "duplicateSlugDetected": true,
+    "missingMediaBlocked": true,
+    "checksumReconciled": true,
+    "coverRelationshipReconciled": true,
+    "officialPdfRelationshipReconciled": true
+  },
+  "legacyRbacMatrix": "4 roles verified at permission resolver",
+  "combinedBackup": {
+    "manifestFormat": 3,
+    "missingDbRejected": true,
+    "orphanRejected": true,
+    "checksumMismatchRejected": true,
+    "existingDestinationRejected": true,
+    "restore": {
+      "backupProfile": "MODERN_UNIFIED",
+      "sourceManagedUploadsState": "PRESENT",
+      "integrityCheck": "ok",
+      "foreignKeyViolations": 0,
+      "mediaAssetCount": 17,
+      "uploadFileCount": 17,
+      "rowCounts": {
+        "Competition": 0,
+        "Team": 0,
+        "Match": 0,
+        "Referee": 0,
+        "RefereeApplication": 0,
+        "RefereeAppointment": 0,
+        "AppointmentVersion": 0,
+        "RefereeAvailability": 0,
+        "RefereePositionCapability": 0,
+        "RefereeAdmissionApplication": 0,
+        "ContentPost": 45,
+        "MediaAsset": 17,
+        "AdminAccount": 0,
+        "AuditLog": 39
+      },
+      "sourceRowCounts": {
+        "Competition": 0,
+        "Team": 0,
+        "Match": 0,
+        "Referee": 0,
+        "RefereeApplication": 0,
+        "RefereeAppointment": 0,
+        "AppointmentVersion": 0,
+        "RefereeAvailability": 0,
+        "RefereePositionCapability": 0,
+        "RefereeAdmissionApplication": 0,
+        "ContentPost": 45,
+        "MediaAsset": 17,
+        "AdminAccount": 0,
+        "AuditLog": 39
+      }
+    },
+    "restoredContentPosts": 45
+  },
+  "isolatedRoot": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-r1-2-sdIW9z"
+}

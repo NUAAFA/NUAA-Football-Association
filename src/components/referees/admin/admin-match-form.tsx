@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import type { KnockoutCandidatePage } from "@/lib/competition-knockout-candidates";
 import { adminTabKeyboard } from "@/lib/admin-tab-keyboard";
 import { matchStatusLabels } from "@/components/referees/admin/admin-ui";
 
@@ -23,6 +24,7 @@ export type OrganizationUnitOption = {
 };
 export type AdminMatchRecord = {
   stageId?: string | null; groupId?: string | null; roundId?: string | null;
+  matchNumber?: number | null;
   id: string; slug: string; competitionId: string; stage: string; kickoff: string; endAt: string;
   venue: string; round: string; source: string; externalMatchId: string; homeTeamId: string; awayTeamId: string;
   status: string; applicationWindowStatus: string; applicationDeadline: string; publicNote: string;
@@ -35,6 +37,7 @@ function payload(form: FormData, definitions: PositionDefinition[]) {
   return {
     stageId: formText(form, "stageId") || null, groupId: formText(form, "groupId") || null, roundId: formText(form, "roundId") || null,
     structureChangeReason: formText(form, "structureChangeReason"),
+    matchNumber: formText(form, "matchNumber") ? Number(formText(form, "matchNumber")) : null,
     slug: formText(form, "slug"), competitionId: formText(form, "competitionId"), stage: formText(form, "stage"),
     kickoff: formText(form, "kickoff"), endAt: formText(form, "endAt"), venue: formText(form, "venue"),
     round: formText(form, "round"), source: formText(form, "source") || "MANUAL", externalMatchId: formText(form, "externalMatchId"),
@@ -71,6 +74,9 @@ export function AdminMatchForm({
   const [stageId, setStageId] = useState(match?.stageId ?? query.get("stageId") ?? "");
   const [groupId, setGroupId] = useState(match?.groupId ?? query.get("groupId") ?? "");
   const [roundId, setRoundId] = useState(match?.roundId ?? query.get("roundId") ?? "");
+  const [candidates, setCandidates] = useState<KnockoutCandidatePage | null>(null);
+  const [sourceRound, setSourceRound] = useState("");
+  const [candidatePage, setCandidatePage] = useState(1);
   const [qualified, setQualified] = useState<Record<string, string>>({});
   const [structures, setStructures] = useState<Array<{ id: string; name: string; type: string; groups: Array<{ id: string; name: string; members: Array<{ teamId: string }> }>; rounds: Array<{ id: string; name: string; groupId: string | null }> }>>([]);
   const [busy, setBusy] = useState(false);
@@ -86,6 +92,12 @@ export function AdminMatchForm({
   const competition = competitions.find((item) => item.id === competitionId);
   useEffect(() => { if (!competitionId) return; let live = true; fetch(`/api/admin/competitions/${competitionId}/structure`).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "结构读取失败"); if (live) { setStructures(d.stages); setQualified(Object.fromEntries(d.tables.flatMap((t: { group: { name: string }; qualifiedTeamIds: string[] }) => t.qualifiedTeamIds.map((id, i) => [id, `${t.group.name}第${i + 1}位 · 人工确认出线`])))); } }).catch((e) => { if (live) setMessage(e.message); }); return () => { live = false; }; }, [competitionId]);
   const selectedStage = structures.find((s) => s.id === stageId), selectedGroup = selectedStage?.groups.find((g) => g.id === groupId);
+  useEffect(() => {
+    if (!competitionId || selectedStage?.type !== "KNOCKOUT") return;
+    const controller = new AbortController();
+    fetch(`/api/admin/competitions/${competitionId}/candidates?${new URLSearchParams({ roundId: sourceRound, page: String(candidatePage) })}`, { signal: controller.signal }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "候选读取失败"); setCandidates(d); }).catch((e) => { if (!controller.signal.aborted) setMessage(e.message); });
+    return () => controller.abort();
+  }, [competitionId, selectedStage?.type, sourceRound, candidatePage]);
   const completedStructureChange = match?.status === "COMPLETED" && (stageId !== (match.stageId ?? "") || groupId !== (match.groupId ?? "") || roundId !== (match.roundId ?? ""));
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -114,7 +126,7 @@ export function AdminMatchForm({
     if (!response.ok) throw new Error(result.error ?? "保存失败。");
     const id = match?.id ?? result.matchId ?? result.id;
     const continueCreating = submitter?.value === "continue";
-    if (continueCreating && !match) { const form = formElement; for (const name of ["slug", "kickoff", "endAt", "externalMatchId", "applicationDeadline", "cancellationReason", "publicNote", "internalNote"]) { const field = form.elements.namedItem(name) as HTMLInputElement | null; if (field) field.value = ""; } const status = form.elements.namedItem("status") as HTMLSelectElement | null; if (status) status.value = "SCHEDULED"; setHomeTeamSelection(""); setAwayTeamSelection(""); setMessage("已保存，继续创建；阶段、组、轮次、场地和岗位配置保留。"); }
+    if (continueCreating && !match) { const form = formElement; for (const name of ["slug", "matchNumber", "kickoff", "endAt", "externalMatchId", "applicationDeadline", "cancellationReason", "publicNote", "internalNote"]) { const field = form.elements.namedItem(name) as HTMLInputElement | null; if (field) field.value = ""; } const status = form.elements.namedItem("status") as HTMLSelectElement | null; if (status) status.value = "SCHEDULED"; setHomeTeamSelection(""); setAwayTeamSelection(""); setMessage("已保存，继续创建；阶段、组、轮次、场地和岗位配置保留。"); }
     else router.push(id ? `/admin/matches/${id}` : "/admin/matches");
     router.refresh();
     } catch (e) { setMessage(e instanceof Error ? e.message : "保存失败。"); } finally { setBusy(false); }
@@ -139,6 +151,7 @@ export function AdminMatchForm({
     if (!competition) return <option value="">请先选择赛事</option>;
     return <>
       <option value="">请选择球队</option>
+      {selectedStage?.type === "KNOCKOUT" ? <optgroup label="已人工确认出线球队">{competition.teams.filter((t) => qualified[t.id]).map((t) => <option key={t.id} value={`team:${t.id}`}>{qualified[t.id]} · {t.name}</option>)}</optgroup> : null}
       {competition.teams.length ? <optgroup label="当前赛事参赛球队">{competition.teams.filter((t) => !groupId || selectedGroup?.members.some((m) => m.teamId === t.id)).map((team) => <option key={team.id} value={`team:${team.id}`}>{team.name}{selectedStage?.type === "KNOCKOUT" && qualified[team.id] ? `（${qualified[team.id]}）` : ""}</option>)}</optgroup> : null}
     </>;
   }
@@ -147,6 +160,7 @@ export function AdminMatchForm({
       <nav aria-label="比赛表单分区" className="admin-tabs" role="tablist" onKeyDown={adminTabKeyboard}><button id="match-tab-basic" aria-controls="match-panel-basic" tabIndex={tab === "basic" ? 0 : -1} aria-selected={tab === "basic"} onClick={() => setTab("basic")} role="tab" type="button">比赛信息</button><button id="match-tab-assignment" aria-controls="match-panel-assignment" tabIndex={tab === "assignment" ? 0 : -1} aria-selected={tab === "assignment"} onClick={() => setTab("assignment")} role="tab" type="button">报名与岗位</button><button id="match-tab-notes" aria-controls="match-panel-notes" tabIndex={tab === "notes" ? 0 : -1} aria-selected={tab === "notes"} onClick={() => setTab("notes")} role="tab" type="button">说明与来源</button></nav>
       <section className="admin-form-section" id="match-panel-basic" role="tabpanel" aria-labelledby="match-tab-basic" hidden={tab !== "basic"}><header><h2>比赛信息</h2><p>维护赛程、双方、场地与当前比赛状态。</p></header><div className="admin-form-grid admin-form-grid-3">
         <label><span>所属赛事</span>{match || lockCompetition ? <><div className="admin-form-readonly"><strong>{competition?.name ?? "赛事不存在"}</strong><small>{competition?.playingFormat ?? "比赛制式待确认"}</small></div><input name="competitionId" type="hidden" value={competitionId} /></> : <><select name="competitionId" onChange={(event) => { setCompetitionId(event.target.value); setHomeTeamSelection(""); setAwayTeamSelection(""); setStageId(""); setGroupId(""); setRoundId(""); }} required value={competitionId}><option value="">请选择赛事</option>{competitions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><small>选择赛事后再选择参赛球队。</small></>}</label>
+        <label><span>场序（可选）</span><input defaultValue={match?.matchNumber ?? ""} name="matchNumber" min={1} max={99999} type="number" /><small>同一赛事内唯一，历史场次可留空。</small></label>
         <label><span>页面标识</span><input defaultValue={match?.slug} name="slug" required /></label>
         <label><span>正式阶段</span><select name="stageId" value={stageId} onChange={(e) => { setStageId(e.target.value); setGroupId(""); setRoundId(""); setHomeTeamSelection(""); setAwayTeamSelection(""); }}><option value="">旧记录 / 未结构化</option>{structures.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>{selectedStage?.type === "GROUP" ? <label><span>小组</span><select name="groupId" required value={groupId} onChange={(e) => { setGroupId(e.target.value); setRoundId(""); setHomeTeamSelection(""); setAwayTeamSelection(""); }}><option value="">选择小组</option>{selectedStage.groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label> : <input name="groupId" value="" type="hidden" />}{selectedStage ? <label><span>正式轮次</span><select name="roundId" value={roundId} onChange={(e) => setRoundId(e.target.value)}><option value="">暂不指定</option>{selectedStage.rounds.filter((r) => !r.groupId || r.groupId === groupId).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label> : <input name="roundId" value="" type="hidden" />}
         <label><span>阶段文字（保留历史）</span><input defaultValue={match?.stage} name="stage" required={!stageId} /></label>
@@ -159,7 +173,13 @@ export function AdminMatchForm({
         <label><span>比赛状态</span><select defaultValue={match?.status ?? "SCHEDULED"} name="status">{Object.entries(matchStatusLabels).filter(([value]) => value !== "COMPLETED" || match?.status === "COMPLETED").map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         <label><span>取消原因</span><input defaultValue={match?.cancellationReason} name="cancellationReason" /></label>
         {completedStructureChange ? <label className="admin-form-span-2"><span>已完赛比赛重新归类原因（必填）</span><textarea name="structureChangeReason" required maxLength={500} /><small>重新归类会重新计算相关组积分，并使原排名、出线依据待复核；历史文字、比分和选派记录保留。</small><span><input name="confirmStructureChange" type="checkbox" required />我已核对归类及积分影响</span></label> : null}
-      </div></section>
+      </div>{selectedStage?.type === "KNOCKOUT" ? <div className="ops-knockout-candidates">
+        <h3>人工确认真实对阵</h3><p>主客队由管理员选择。候选来自人工确认出线和已完成比赛；双回合总胜负需另行核对。</p>
+        <label><span>参考上一轮比赛</span><select value={sourceRound} onChange={(e) => { setSourceRound(e.target.value); setCandidatePage(1); }}><option value="">全部已完赛场次</option>{structures.flatMap((s) => s.rounds.map((r) => <option key={r.id} value={r.id}>{s.name} · {r.name}</option>))}</select></label>
+        <div className="ops-detail-scroll">{candidates?.items.map((m) => <div className="ops-candidate-row" key={m.id}><strong>{m.label} · {m.round || m.stage}</strong>{[["胜者", m.winner], ["负者", m.loser]].map(([label, team]) => { const t = team as { id: string; name: string } | null; return t ? <div key={String(label)}><span>{String(label)}：{t.name}</span><button type="button" onClick={() => setHomeTeamSelection(`team:${t.id}`)}>选为主队</button><button type="button" onClick={() => setAwayTeamSelection(`team:${t.id}`)}>选为客队</button></div> : <small key={String(label)}>平局，未确定{String(label)}</small>; })}</div>)}</div>
+        {candidates ? <div className="admin-pagination"><button type="button" disabled={candidatePage <= 1} onClick={() => setCandidatePage((p) => p - 1)}>上一页</button><span>{candidates.page} / {candidates.totalPages}</span><button type="button" disabled={candidatePage >= candidates.totalPages} onClick={() => setCandidatePage((p) => p + 1)}>下一页</button></div> : null}
+        <label><span><input type="checkbox" required />我已核对并确认本场真实主客队</span></label>
+      </div> : null}</section>
       <section className="admin-form-section" id="match-panel-assignment" role="tabpanel" aria-labelledby="match-tab-assignment" hidden={tab !== "assignment"}><header><h2>报名与岗位</h2><p>岗位名称由当前比赛制式模板集中维护。</p></header><div className="admin-form-grid">
         <label><span>报名窗口</span><select defaultValue={match?.applicationWindowStatus ?? "CLOSED"} name="applicationWindowStatus"><option value="CLOSED">关闭</option><option disabled={competition?.format === "CUSTOM"} value="OPEN">开放</option></select>{competition?.format === "CUSTOM" ? <small>该赛事暂未配置对应的裁判岗位模板，不能开放裁判报名。</small> : null}</label>
         <label><span>报名截止</span><input defaultValue={match?.applicationDeadline} name="applicationDeadline" type="datetime-local" /></label>

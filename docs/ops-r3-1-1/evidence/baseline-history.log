@@ -1,0 +1,60 @@
+{
+  "checkedAt": "2026-09-28T23:00:37.230Z",
+  "applicationVersion": "b5fe6e6084aa7d5ecd7e5007941564da0e5d10b4",
+  "phase": "AFTER",
+  "fixture": {
+    "competitionId": "cmulpai140000fb1gzcr2yhce",
+    "refereeId": "cmul6nhmh001qzz1gyme0eyfh",
+    "records": [
+      {
+        "matchId": "cmulpai1f0001fb1gaiv18x4s",
+        "appointmentId": "cmulpe3uq0000ib1g4lpzvlt9",
+        "label": "原比赛已完成"
+      },
+      {
+        "matchId": "cmulpe3ux0004ib1gomos08c4",
+        "appointmentId": "cmulpe3uz0005ib1gvmavymnl",
+        "label": "原比赛仍已安排"
+      }
+    ]
+  },
+  "adminHistoryVisible": true,
+  "adminHistoryVisibleRecords": 2,
+  "memberHistoryReviewLabels": 2,
+  "memberHistoryVisibleRecords": 2,
+  "statisticsReviewVisible": true,
+  "verifiedStatisticsMatches": 0,
+  "unverifiedRecords": 2,
+  "originalFacts": [
+    {
+      "matchId": "cmulpai1f0001fb1gaiv18x4s",
+      "appointmentId": "cmulpe3uq0000ib1g4lpzvlt9",
+      "label": "原比赛已完成",
+      "match": {
+        "status": "COMPLETED",
+        "homeScore": null,
+        "awayScore": null,
+        "resultVersion": 0,
+        "resultConfirmedAt": null
+      },
+      "versions": 2,
+      "audits": 0
+    },
+    {
+      "matchId": "cmulpe3ux0004ib1gomos08c4",
+      "appointmentId": "cmulpe3uz0005ib1gvmavymnl",
+      "label": "原比赛仍已安排",
+      "match": {
+        "status": "SCHEDULED",
+        "homeScore": null,
+        "awayScore": null,
+        "resultVersion": 0,
+        "resultConfirmedAt": null
+      },
+      "versions": 2,
+      "audits": 0
+    }
+  ],
+  "originalFactsPreserved": true
+}
+PASS legacy records remain visible without fabricated scores or confirmed-count inflation.
