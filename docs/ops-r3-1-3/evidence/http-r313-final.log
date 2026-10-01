@@ -1,0 +1,5 @@
+
+> nuaa-football-association@0.1.0 test:ops-r3-1-3:http
+> tsx scripts/test-ops-r3-1-3-http.ts
+
+PASS HTTP: auth/RBAC/CSRF/cross-competition, precheck zero writes, atomic mixed block, explicit safe collection, duplicate no second audit, tentative schedule persists without kickoff

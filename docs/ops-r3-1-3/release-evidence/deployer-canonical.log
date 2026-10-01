@@ -1,0 +1,33 @@
+
+> nuaa-football-association@0.1.0 test:deployer
+> node scripts/test-deployer.mjs
+
+[deployer-test] canonical deployer bash -n
+[deployer-test] isolated harness bash -n
+[deployer-test] isolated A-V deployer matrix
+To /private/tmp/nuaafa-deployer-test.FWjxSKdK/remote.git
+ * [new branch]      main -> main
+To /private/tmp/nuaafa-deployer-test.FWjxSKdK/remote.git
+   6b1727e..e928f17  main -> main
+Cloning into '/private/tmp/nuaafa-deployer-test.FWjxSKdK/stage-success/releases/6b1727e8cd4f949c5741c89bc6ddb1d4166a5502'...
+done.
+HEAD is now at 6b1727e old release
+Cloning into '/private/tmp/nuaafa-deployer-test.FWjxSKdK/stage-success/releases/.staging-e928f1767f29a50078bc6fd2a2be6f5539a312bd-24547'...
+done.
+From /private/tmp/nuaafa-deployer-test.FWjxSKdK/remote
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e928f17 reviewed release
+mv: illegal option -- T
+usage: mv [-f | -i | -n] [-hv] source target
+       mv [-f | -i | -n] [-v] source ... directory
+DEPLOYER TEST FAILURE: stage unexpectedly failed
+file:///Users/xianghanwang/Documents/Codex/NUAAFA/scripts/test-deployer.mjs:42
+  if (code !== 0) throw new Error(`${label} exited ${code}.`);
+                        ^
+
+Error: isolated A-V deployer matrix exited 1.
+    at runBash (file:///Users/xianghanwang/Documents/Codex/NUAAFA/scripts/test-deployer.mjs:42:25)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async file:///Users/xianghanwang/Documents/Codex/NUAAFA/scripts/test-deployer.mjs:47:1
+
+Node.js v24.21.0

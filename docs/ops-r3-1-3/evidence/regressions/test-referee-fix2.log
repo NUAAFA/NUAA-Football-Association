@@ -1,0 +1,27 @@
+
+> nuaa-football-association@0.1.0 test:referee-fix2
+> tsx scripts/test-referee-fix2.ts
+
+{
+  "futsalFourthReferee": true,
+  "qualificationOptions": true,
+  "capabilityThreeStates": true,
+  "gap30NoWarning": true,
+  "gap9AdjacentWarning": true,
+  "gap10NoWarning": true,
+  "gap11NoWarning": true,
+  "gap5AdjacentWarning": true,
+  "zeroGapWarning": true,
+  "matchOverlap": true,
+  "missingEndNotInferred": true,
+  "directOrganizationConflict": true,
+  "shuyuanCompositionConflict": true,
+  "jointTeamConflict": true,
+  "freeformWithoutAffiliation": true,
+  "pastedImportDeduplicates": true,
+  "csvImport": true,
+  "publicDtoBoundary": true,
+  "colleges": 23,
+  "shuyuan": 4,
+  "allShuyuanRelations": true
+}

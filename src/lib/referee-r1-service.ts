@@ -495,46 +495,11 @@ export async function deleteTeamSafely(
   id: string,
   authorization: AdminServiceAuthorization<"competitions:write">,
 ) {
-  const actor = requireAdminServiceAuthorization(authorization, "competitions:write");
-  return prisma.$transaction(async (tx) => {
-    const team = await tx.team.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        name: true,
-        teamType: true,
-        competition: { select: { id: true, name: true } },
-        _count: { select: { homeMatches: true, awayMatches: true } },
-      },
-    });
-    if (!team) throw new RefereeServiceError("球队不存在。", 404);
-    const matchCount = team._count.homeMatches + team._count.awayMatches;
-    if (matchCount > 0) {
-      throw new RefereeServiceError(
-        `球队“${team.name}”已被 ${matchCount} 场比赛引用，不能删除。请保留正式赛程历史。`,
-        409,
-      );
-    }
-    await tx.team.delete({ where: { id: team.id } });
-    await tx.auditLog.create({
-      data: {
-        actorType: "ADMIN",
-        actorId: actor.id,
-        action: "TEAM_DELETED",
-        entityType: "Team",
-        entityId: team.id,
-        summary: `删除球队 ${team.name}`,
-        metadata: JSON.stringify({
-          deletedAt: new Date().toISOString(),
-          teamName: team.name,
-          teamType: team.teamType,
-          competitionId: team.competition.id,
-          competitionName: team.competition.name,
-        }),
-      },
-    });
-    return { id: team.id, name: team.name, competitionId: team.competition.id };
-  });
+  const team = await prisma.team.findUnique({ where: { id }, select: { competitionId: true, name: true } });
+  if (!team) throw new RefereeServiceError("球队不存在。", 404);
+  const { removeCompetitionTeams } = await import("@/lib/competition-team-removal");
+  await removeCompetitionTeams(team.competitionId, [id], "误添加", authorization);
+  return { id, name: team.name, competitionId: team.competitionId };
 }
 
 export async function saveRefereeAvailability(input: {
@@ -951,7 +916,7 @@ export async function getCompletedRefereeStatistics(options: {
     recent: Array<{ appointmentId: string; matchup: string; kickoff: Date; position: string }>;
   }>();
   for (const position of positions) {
-    if (!position.refereeId || !position.referee) continue;
+    if (!position.refereeId || !position.referee || !position.appointment.match.kickoff) continue;
     const row = byReferee.get(position.refereeId) ?? {
       refereeId: position.refereeId,
       publicCode: position.referee.publicCode,

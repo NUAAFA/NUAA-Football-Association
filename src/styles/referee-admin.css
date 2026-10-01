@@ -656,3 +656,60 @@
 .ops-candidate-row { display: grid; gap: 5px; padding: 9px 0; border-top: 1px solid var(--admin-line); }
 .ops-candidate-row > div { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 @media (max-width: 760px) { .ops-media-table { min-width: 720px; } .ops-media-detail, .ops-availability-detail { padding: 12px; } .ops-docx-completion, .ops-knockout-candidates { padding: 10px; } }
+
+/* OPS-R3.1.2: group directories wrap at any group count. */
+.ops-grouping { min-width: 0; }
+.ops-group-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; margin-block: 16px; }
+.ops-group-grid article { min-width: 0; padding: 14px; border: 1px solid #d7dde4; border-radius: 10px; overflow-wrap: anywhere; }
+.ops-group-grid label, .ops-search { display: grid; gap: 6px; margin-block: 8px; }
+.ops-group-grid input, .ops-search input { width: 100%; min-width: 0; box-sizing: border-box; }
+.ops-group-name { text-align: left; overflow-wrap: anywhere; max-width: 100%; }
+.ops-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 16px; background: #10203099; }
+.ops-modal { width: min(980px, 100%); max-height: 90dvh; overflow: auto; background: white; min-width: 0; }
+.ops-grouping .admin-filter-bar > label { min-width: 0; max-width: 100%; }
+.ops-grouping select, .ops-grouping input { max-width: 100%; }
+/* OPS-R3.1.3: reuse the existing admin palette and controls. */
+.ops-workspace-dialog { width: min(960px, calc(100vw - 24px)); max-height: 88dvh; margin: auto; padding: 0; overflow: auto; border: 1px solid #dbe2ec; }
+.ops-workspace-dialog::backdrop { background: rgb(15 23 42 / 55%); }
+.ops-team-layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 20px; }
+.ops-group-directory { display: flex; flex-direction: column; gap: 8px; align-self: start; }
+.ops-group-directory label { display: grid; gap: 4px; }
+.ops-group-directory > div { display: flex; gap: 4px; }
+.ops-group-directory button { text-align: left; padding: 8px; border: 1px solid #dbe2ec; border-radius: 8px; background: white; }
+.ops-group-directory button[aria-pressed="true"] { background: #e8eef8; color: #173864; font-weight: 700; }
+.ops-team-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 4px; border-bottom: 1px solid #e5eaf0; }
+.ops-team-row label { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ops-team-row small { display: block; color: #64748b; }
+.ops-team-row details { flex-shrink: 0; }
+.ops-team-row details button { display: block; margin-top: 8px; }
+.ops-selection-bar { padding: 12px; background: #f1f5f9; border-radius: 10px; }
+.ops-grouping { padding: 0 20px 20px; }
+.ops-workspace-dialog .ops-grouping { padding: 0; }
+@media (max-width: 768px) { .ops-team-layout { grid-template-columns: minmax(0, 1fr); } .ops-group-directory { max-height: 200px; overflow: auto; } .ops-grouping { padding: 0 12px 12px; } .ops-selection-bar { flex-wrap: wrap; } }
+.ops-group-directory input { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; }
+.ops-grouping > .admin-filter-bar > button { flex: 0 0 auto; }
+.ops-team-row summary { cursor: pointer; color: #264b7a; padding: 6px 10px; border: 1px solid #dbe2ec; border-radius: 6px; }
+.admin-import-workflow label > input:not([type="checkbox"]), .admin-import-workflow label > select { max-width: 100%; min-height: 38px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px; }
+.admin-import-table pre { max-width: 500px; overflow: auto; }
+
+.ops-match-actions > a + a, .ops-match-actions > button + a, .ops-match-actions > form + a { margin-left: 10px; }
+
+@media (max-width: 600px) {
+  .admin-workspace-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; }
+  .admin-workspace-tabs [role="tab"] { width: 100%; min-width: 0; padding: 12px 6px; white-space: normal; }
+  .ops-group-directory { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 240px; }
+  .ops-group-directory > label, .ops-group-directory > nav { grid-column: 1 / -1; }
+  .ops-group-directory > div { flex-wrap: wrap; }
+}
+
+@media (max-width: 600px) {
+  .ops-import-mapping table, .ops-import-mapping tbody, .ops-import-mapping tr, .ops-import-mapping td { display: block; width: 100%; min-width: 0; }
+  .ops-import-mapping thead { display: none; }
+  .ops-import-mapping tr { padding: 10px 0; border-bottom: 1px solid #dbe2ec; }
+  .ops-import-mapping td { padding: 8px 0; border: 0; }
+  .ops-import-mapping td::before { display: block; color: #64748b; font-size: 12px; margin-bottom: 4px; }
+  .ops-import-mapping td:nth-child(1)::before { content: "文件队名 / 影响场次"; }
+  .ops-import-mapping td:nth-child(2)::before { content: "推荐对应"; }
+  .ops-import-mapping td:nth-child(3)::before { content: "确认真实球队"; }
+  .ops-import-mapping select { max-width: 100%; width: 100%; }
+}

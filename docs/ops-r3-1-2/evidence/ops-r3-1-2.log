@@ -1,0 +1,13 @@
+
+> nuaa-football-association@0.1.0 test:ops-r3-1-2
+> tsx scripts/test-ops-r3-1-2.ts
+
+PASS GROUP-01: 12 groups create/order/read, scoped unique names
+PASS GROUP-02/03: 72 teams bulk assign/remove/move, one membership per stage
+PASS GROUP-04: independent memberships in different stages
+PASS GROUP-05/06/07: H/L dynamic matching, M unmatched without creation, exact mismatch names
+PASS PENDING: import/idempotency/manual create, service and DB guards, no conflicts, lightweight schedule
+PASS GROUP-09: official fixtures block dangerous membership changes
+PASS GROUP-10: measured SQL queries 10 for 12 groups, 10 for 17 groups
+PASS DOCX parser: H/L and custom group names from actual OOXML
+ISOLATED_FIXTURE=/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-ops-r312-Gcm2VQ

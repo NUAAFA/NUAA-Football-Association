@@ -1,0 +1,17 @@
+
+> nuaa-football-association@0.1.0 test:referee-match-deletion
+> tsx scripts/test-referee-match-deletion.ts
+
+{
+  "unusedMatchRemoved": true,
+  "listAndCompetitionCountUpdated": true,
+  "competitionAndTeamsPreserved": true,
+  "unrelatedMatchPreserved": true,
+  "publishedAndVersionHistoryProtected": true,
+  "completedMatchAndStatisticsSourceProtected": true,
+  "cancelledMatchPreserved": true,
+  "auditIncludesAdminMatchReasonAndTime": true,
+  "adminOnlyAndSameOriginApi": true,
+  "directProtectedServiceCallRejected": true,
+  "twoStepDangerConfirmation": true
+}

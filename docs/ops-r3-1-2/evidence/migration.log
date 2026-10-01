@@ -1,0 +1,1 @@
+PASS MIGRATION: legacy schedule, scores, result versions, tasks, memberships unchanged; all triggers and FK integrity preserved

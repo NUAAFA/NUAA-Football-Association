@@ -1,0 +1,24 @@
+[
+  {
+    "command": "npm run test:unified-admin-blockers:http -- --cms",
+    "code": 0,
+    "log": "media-content-http-final.log",
+    "verification": "Completed exec session exit 0"
+  },
+  {
+    "command": "OPS_HISTORY_ENV_FILE=docs/ops-r3-1-3/evidence/legacy-acceptance-environment.json OPS_HISTORY_EVIDENCE_DIR=docs/ops-r3-1-3/evidence OPS_HISTORY_VERSION=OPS-R3.1.3-worktree npx --no-install tsx scripts/test-ops-r3-1-legacy-history.ts",
+    "code": 0,
+    "log": "legacy-history-final.log",
+    "verification": "Completed exec session exit 0"
+  },
+  {
+    "command": "npm run test:ops-r3-1-3; npm run lint; npx --no-install tsc --noEmit",
+    "code": 0,
+    "logs": [
+      "ops-r3-1-3-final.log",
+      "lint-final.log",
+      "typecheck-final.log"
+    ],
+    "verification": "Completed exec session exit 0 after final ranking and 110-team cases; all PASS lines inspected"
+  }
+]

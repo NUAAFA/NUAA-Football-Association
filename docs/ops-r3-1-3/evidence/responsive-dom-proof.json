@@ -1,0 +1,162 @@
+[
+  {
+    "width": 1440,
+    "section": "overview",
+    "dialogs": 0,
+    "pageWidth": 1440,
+    "viewport": 1440,
+    "visiblePanel": "workspace-tab-overview"
+  },
+  {
+    "width": 1440,
+    "section": "teams",
+    "dialogs": 0,
+    "pageWidth": 1440,
+    "viewport": 1440,
+    "visiblePanel": "workspace-tab-teams"
+  },
+  {
+    "width": 1440,
+    "section": "matches",
+    "dialogs": 0,
+    "pageWidth": 1440,
+    "viewport": 1440,
+    "visiblePanel": "workspace-tab-matches"
+  },
+  {
+    "width": 1440,
+    "section": "standings",
+    "dialogs": 0,
+    "pageWidth": 1440,
+    "viewport": 1440,
+    "visiblePanel": "workspace-tab-standings"
+  },
+  {
+    "width": 1024,
+    "section": "overview",
+    "dialogs": 0,
+    "pageWidth": 1024,
+    "viewport": 1024,
+    "visiblePanel": "workspace-tab-overview"
+  },
+  {
+    "width": 1024,
+    "section": "teams",
+    "dialogs": 0,
+    "pageWidth": 1024,
+    "viewport": 1024,
+    "visiblePanel": "workspace-tab-teams"
+  },
+  {
+    "width": 1024,
+    "section": "matches",
+    "dialogs": 0,
+    "pageWidth": 1024,
+    "viewport": 1024,
+    "visiblePanel": "workspace-tab-matches"
+  },
+  {
+    "width": 1024,
+    "section": "standings",
+    "dialogs": 0,
+    "pageWidth": 1024,
+    "viewport": 1024,
+    "visiblePanel": "workspace-tab-standings"
+  },
+  {
+    "width": 768,
+    "section": "overview",
+    "dialogs": 0,
+    "pageWidth": 768,
+    "viewport": 768,
+    "visiblePanel": "workspace-tab-overview"
+  },
+  {
+    "width": 768,
+    "section": "teams",
+    "dialogs": 0,
+    "pageWidth": 768,
+    "viewport": 768,
+    "visiblePanel": "workspace-tab-teams"
+  },
+  {
+    "width": 768,
+    "section": "matches",
+    "dialogs": 0,
+    "pageWidth": 768,
+    "viewport": 768,
+    "visiblePanel": "workspace-tab-matches"
+  },
+  {
+    "width": 768,
+    "section": "standings",
+    "dialogs": 0,
+    "pageWidth": 768,
+    "viewport": 768,
+    "visiblePanel": "workspace-tab-standings"
+  },
+  {
+    "width": 390,
+    "section": "overview",
+    "dialogs": 0,
+    "pageWidth": 390,
+    "viewport": 390,
+    "visiblePanel": "workspace-tab-overview"
+  },
+  {
+    "width": 390,
+    "section": "teams",
+    "dialogs": 0,
+    "pageWidth": 390,
+    "viewport": 390,
+    "visiblePanel": "workspace-tab-teams"
+  },
+  {
+    "width": 390,
+    "section": "matches",
+    "dialogs": 0,
+    "pageWidth": 390,
+    "viewport": 390,
+    "visiblePanel": "workspace-tab-matches"
+  },
+  {
+    "width": 390,
+    "section": "standings",
+    "dialogs": 0,
+    "pageWidth": 390,
+    "viewport": 390,
+    "visiblePanel": "workspace-tab-standings"
+  },
+  {
+    "width": 360,
+    "section": "overview",
+    "dialogs": 0,
+    "pageWidth": 360,
+    "viewport": 360,
+    "visiblePanel": "workspace-tab-overview"
+  },
+  {
+    "width": 360,
+    "section": "teams",
+    "dialogs": 0,
+    "pageWidth": 360,
+    "viewport": 360,
+    "visiblePanel": "workspace-tab-teams"
+  },
+  {
+    "width": 360,
+    "section": "matches",
+    "dialogs": 0,
+    "pageWidth": 360,
+    "viewport": 360,
+    "visiblePanel": "workspace-tab-matches"
+  },
+  {
+    "width": 360,
+    "section": "standings",
+    "dialogs": 0,
+    "pageWidth": 360,
+    "viewport": 360,
+    "visiblePanel": "workspace-tab-standings"
+  }
+]

@@ -1,0 +1,19 @@
+{
+  "prisma/migrations/20260722013757_init_referee_center/migration.sql": "1589849243a5eb38854b4015451311902546efb2665a475ec2233ba666d115b8",
+  "prisma/migrations/20260723124500_add_referee_sessions/migration.sql": "8f7d0cce36625dcdcbf7c513ace3df4705740e0de35b1a82a248fa30d3ca1ae9",
+  "prisma/migrations/20260730090000_referee_operations_v24/migration.sql": "f9a05130ae5333f66c0e1d39782595c4938b8de7d753e9d0ec0de73a6b9e796e",
+  "prisma/migrations/20260819120000_referee_admin_r1/migration.sql": "03a1478598974d78412f710c5c14fda6f76d2c042c46f047758ae6cc9d8d2f1a",
+  "prisma/migrations/20260820120000_referee_business_model_fix2/migration.sql": "5560d9b278e13fd09ae31fdc5f6172b52b2dc6a80de38dea22a759ab1d1b7e00",
+  "prisma/migrations/20260820160000_referee_acceptance_fix3/migration.sql": "86ef1830d4160a4d010768b9bfa3763924e4867292b9480c440e5fcb394b010a",
+  "prisma/migrations/20260823091228_unified_admin_r1_foundation/migration.sql": "93b0cb1a2254e80c553cb0f078885732c7809d716c98e7a17d67aa84a2533a8b",
+  "prisma/migrations/20260823160000_referee_admission_application_intake/migration.sql": "b00ddf247c2398658da90ac7d16faeb83207133c6eb4d36be46029cd2a09d6d3",
+  "prisma/migrations/20260824120000_referee_admission_eligibility/migration.sql": "3294dda53b8eb406dc13207e8fee0f7bc247c63d87120f7d74374d4be91d1168",
+  "prisma/migrations/20260913120000_public_competition_dynamic_r1/migration.sql": "9fe0f84bf59e9d28baf42185da5f1ccbabc72a00cc496b254753290c6d067273",
+  "prisma/migrations/20260914210000_admin_operations_r2/migration.sql": "70d945d52fd8ade49a39a8a06b3c8a51c547c79e3df8c8629d7fa9a4a910d8e0",
+  "prisma/migrations/20260922120000_public_competition_true_dynamic_r3/migration.sql": "e66406a77b1d8e138fecfced90e99c5a5cc56388676067fd757dacae4295b37c",
+  "prisma/migrations/20260923120000_dynamic_public_team_directory_r1/migration.sql": "c198822e068474512ad83a548eb0d87d5c9c9c7b09ec08c6a5e40488067c8945",
+  "prisma/migrations/20260928090000_ops_r3_1/migration.sql": "c111bc382b08aaf15871bc90c2d8c1ea3a3ff3c97d8eb60012af00e42b1b1e42",
+  "prisma/migrations/20260929090000_ops_r3_1_1/migration.sql": "d45e7de7efbef60f170ac13a0f6b3a4f844c56cf1cd3060b648ecf0bb8eeff51",
+  "prisma/migrations/20261001090000_ops_r3_1_2/migration.sql": "6a2864e28bc0f2ab5d15955fcedb7310a7e195dd6102556bd01f2d6db169d14c",
+  "prisma/migrations/20261001120000_ops_r3_1_3/migration.sql": "1a565a27bb57165d2a9e7ec533ff2d3815bcba9544a4b24d9e491265b8b6fa8c"
+}

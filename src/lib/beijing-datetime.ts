@@ -1,4 +1,4 @@
-import { RefereeApiInputError } from "@/lib/referee-api";
+import { RefereeApiInputError } from "@/lib/referee-api-input-error";
 
 const beijingPartsFormatter = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Asia/Shanghai",
@@ -58,7 +58,8 @@ export function parseBeijingDateTime(value: unknown, label: string) {
   return parsed;
 }
 
-export function formatBeijingDateTime(value: Date) {
+export function formatBeijingDateTime(value: Date | null) {
+  if (!value) return { dateLabel: "时间待定", timeLabel: "时间待定", dateTimeLabel: "时间待定" };
   const parts = beijingParts(value);
   const dateLabel = `${parts.year}.${parts.month}.${parts.day}`;
   const timeLabel = `${parts.hour}:${parts.minute}`;

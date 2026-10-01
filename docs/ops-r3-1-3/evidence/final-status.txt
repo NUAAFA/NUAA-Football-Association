@@ -1,0 +1,72 @@
+ M docs/ops-r3-1/evidence/ops-integration.json
+ M package.json
+ M prisma/schema.prisma
+ M scripts/test-competition-import-worker.ts
+ M scripts/test-ops-r3-1-1.ts
+ M scripts/test-ops-r3-1-legacy-history.ts
+ M scripts/test-referee-r1-3a-worker.ts
+ M scripts/test-referee-r1-worker.ts
+ M src/app/admin/(dashboard)/competitions/[id]/page.tsx
+ M src/app/admin/(dashboard)/matches/[id]/page.tsx
+ M src/app/api/admin/competitions/[id]/structure/route.ts
+ M src/app/api/referees/admin/matches/[id]/route.ts
+ M src/app/api/referees/admin/matches/route.ts
+ M src/app/referees/admin/(dashboard)/conflicts/page.tsx
+ M src/app/referees/admin/(dashboard)/matches/[id]/edit/page.tsx
+ M src/app/referees/admin/(dashboard)/matches/[id]/page.tsx
+ M src/app/referees/assignments/page.tsx
+ M src/app/referees/history/page.tsx
+ M src/app/referees/open-matches/[slug]/page.tsx
+ M src/app/referees/open-matches/page.tsx
+ M src/app/referees/workspace/page.tsx
+ M src/components/admin/competition-import-manager.tsx
+ M src/components/admin/competition-structure-manager.tsx
+ M src/components/competitions/public-schedule.tsx
+ M src/components/competitions/public-standings.tsx
+ M src/components/referees/admin/admin-competition-workspace.tsx
+ M src/components/referees/admin/admin-match-form.tsx
+ M src/components/referees/admin/admin-matches-page.tsx
+ M src/lib/beijing-datetime.ts
+ M src/lib/competition-import-docx.ts
+ M src/lib/competition-import-parser.ts
+ M src/lib/competition-import-service.ts
+ M src/lib/competition-import-types.ts
+ M src/lib/competition-structure-service.ts
+ M src/lib/public-competition-service.ts
+ M src/lib/referee-api.ts
+ M src/lib/referee-completion-evidence.ts
+ M src/lib/referee-conflicts.ts
+ M src/lib/referee-presenters.ts
+ M src/lib/referee-public.ts
+ M src/lib/referee-r1-service.ts
+ M src/lib/referee-service.ts
+ M src/styles/functional-pages.css
+ M src/styles/referee-admin.css
+ M src/types/competition-center.ts
+?? docs/ops-r3-1-2/
+?? docs/ops-r3-1-3/
+?? prisma/migrations/20261001090000_ops_r3_1_2/
+?? prisma/migrations/20261001120000_ops_r3_1_3/
+?? scripts/prepare-ops-r3-1-2-browser.ts
+?? scripts/prepare-ops-r3-1-3-browser.ts
+?? scripts/test-ops-r3-1-2-http.ts
+?? scripts/test-ops-r3-1-2-migration.py
+?? scripts/test-ops-r3-1-2-regressions.mjs
+?? scripts/test-ops-r3-1-2.ts
+?? scripts/test-ops-r3-1-3-http.ts
+?? scripts/test-ops-r3-1-3-migration.py
+?? scripts/test-ops-r3-1-3-regressions.mjs
+?? scripts/test-ops-r3-1-3.ts
+?? scripts/verify-ops-r3-1-3.mjs
+?? src/app/api/admin/competitions/[id]/teams/
+?? src/app/api/admin/matches/[id]/schedule/
+?? src/app/api/admin/matches/[id]/tentative/
+?? src/components/admin/match-scheduling-form.tsx
+?? src/components/admin/match-tentative-form.tsx
+?? src/components/admin/team-grouping-manager.tsx
+?? src/components/admin/workspace-dialog.tsx
+?? src/lib/competition-import-matching.ts
+?? src/lib/competition-team-removal.ts
+?? src/lib/match-scheduling-service.ts
+?? src/lib/match-scheduling.ts
+?? src/lib/referee-api-input-error.ts

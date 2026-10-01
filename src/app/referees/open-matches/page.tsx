@@ -17,7 +17,7 @@ export default async function OpenRefereeMatchesPage() {
   const [matches, session] = await Promise.all([
     prisma.match.findMany({
       where: {
-        status: "SCHEDULED",
+        status: "SCHEDULED", kickoff: { not: null }, venue: { not: null },
         applicationWindowStatus: "OPEN",
         applicationDeadline: { gt: new Date() },
         isTestData: false,

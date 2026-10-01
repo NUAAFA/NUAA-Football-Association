@@ -1,0 +1,26 @@
+
+> nuaa-football-association@0.1.0 test:deployer
+> node scripts/test-deployer.mjs
+
+[deployer-test] canonical deployer bash -n
+[deployer-test] isolated harness bash -n
+[deployer-test] isolated A-V deployer matrix
+To /var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.tq4Wu6HQ9x/remote.git
+ * [new branch]      main -> main
+To /var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.tq4Wu6HQ9x/remote.git
+   9060813..5c4ed79  main -> main
+Cloning into '/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.tq4Wu6HQ9x/stage-success/releases/9060813edbca097da352dca201103e56918449f8'...
+done.
+HEAD is now at 9060813 old release
+STOP: release root path is not canonical: /var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.tq4Wu6HQ9x/stage-success/releases
+DEPLOYER TEST FAILURE: stage unexpectedly failed
+file:///Users/xianghanwang/Documents/Codex/NUAAFA/scripts/test-deployer.mjs:42
+  if (code !== 0) throw new Error(`${label} exited ${code}.`);
+                        ^
+
+Error: isolated A-V deployer matrix exited 1.
+    at runBash (file:///Users/xianghanwang/Documents/Codex/NUAAFA/scripts/test-deployer.mjs:42:25)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async file:///Users/xianghanwang/Documents/Codex/NUAAFA/scripts/test-deployer.mjs:47:1
+
+Node.js v24.21.0

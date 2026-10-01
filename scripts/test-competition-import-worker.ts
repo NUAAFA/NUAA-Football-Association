@@ -243,7 +243,7 @@ async function main() {
     const matchCommit = await service.commitCompetitionImport(validMatches, competitionAuthorization);
     assert(matchCommit.createdTeams === 1 && matchCommit.createdMatches === 2, "Match commit summary mismatch.");
     const persistedMatch = await verifier.match.findUniqueOrThrow({ where: { source_externalMatchId: { source: "MANUAL", externalMatchId: "MATCH-001" } } });
-    assert(persistedMatch.kickoff.toISOString() === "2026-10-25T10:30:00.000Z", "Persisted kickoff timezone mismatch.");
+    assert(persistedMatch.kickoff!.toISOString() === "2026-10-25T10:30:00.000Z", "Persisted kickoff timezone mismatch.");
     assert(persistedMatch.status === "SCHEDULED" && persistedMatch.applicationWindowStatus === "CLOSED" && persistedMatch.applicationDeadline === null, "Imported match safety defaults failed.");
     const matchCommitAgain = await service.commitCompetitionImport(validMatches, competitionAuthorization);
     assert(matchCommitAgain.createdTeams === 0 && matchCommitAgain.createdMatches === 0 && matchCommitAgain.skippedMatches === 2, "Match re-import was not idempotent.");

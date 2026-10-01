@@ -72,6 +72,8 @@ async function main() {
   await applyMigration(raw, "20260923120000_dynamic_public_team_directory_r1");
   await applyMigration(raw, "20260928090000_ops_r3_1");
   await applyMigration(raw, "20260929090000_ops_r3_1_1");
+  await applyMigration(raw, "20261001090000_ops_r3_1_2");
+  await applyMigration(raw, "20261001120000_ops_r3_1_3");
   raw.close();
 
   const verifier = new PrismaClient({ adapter: new PrismaLibSql({ url }) });
@@ -224,12 +226,12 @@ async function main() {
     await r1.setTeamAffiliations("legacy-home", [college.id], superActor);
 
     const kickoff = legacyMatch.kickoff;
-    const targetEnd = new Date(kickoff.getTime() + 120 * 60_000);
+    const targetEnd = new Date(kickoff!.getTime() + 120 * 60_000);
     await verifier.match.update({ where: { id: legacyMatch.id }, data: { endAt: targetEnd } });
     await r1.saveRefereeAvailability({
       refereeId: legacyReferee.id,
-      startAt: new Date(kickoff.getTime() + 30 * 60_000),
-      endAt: new Date(kickoff.getTime() + 60 * 60_000),
+      startAt: new Date(kickoff!.getTime() + 30 * 60_000),
+      endAt: new Date(kickoff!.getTime() + 60 * 60_000),
       kind: "UNAVAILABLE",
       note: "课程冲突",
       actor: { type: "REFEREE", id: legacyReferee.id },
@@ -239,8 +241,8 @@ async function main() {
       slug: "r1-overlap-match",
       competitionId: "legacy-competition",
       stage: "重叠验证",
-      kickoff: new Date(kickoff.getTime() + 60 * 60_000),
-      endAt: new Date(kickoff.getTime() + 180 * 60_000),
+      kickoff: new Date(kickoff!.getTime() + 60 * 60_000),
+      endAt: new Date(kickoff!.getTime() + 180 * 60_000),
       venue: "重叠测试场地",
       homeTeamId: "legacy-home",
       awayTeamId: "legacy-away",

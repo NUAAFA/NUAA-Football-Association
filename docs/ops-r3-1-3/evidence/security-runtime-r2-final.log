@@ -1,0 +1,31 @@
+
+> nuaa-football-association@0.1.0 test:security-runtime-r2
+> tsx scripts/test-security-runtime-r2.ts
+
+PASS admin nonexistent: exactly one equivalent KDF verification
+PASS admin active wrong password: exactly one equivalent KDF verification
+PASS admin inactive: exactly one equivalent KDF verification
+PASS admin unusable hash: exactly one equivalent KDF verification
+PASS referee nonexistent: exactly one equivalent KDF verification
+PASS referee active wrong password: exactly one equivalent KDF verification
+PASS referee inactive: exactly one equivalent KDF verification
+PASS referee missing hash: exactly one equivalent KDF verification
+F-005 deterministic KDF invocation and valid-login regressions passed.
+PASS row limit: 413 导入行数不能超过 5000 行。
+PASS column limit: 413 导入列数不能超过 32 列。
+PASS cell character limit: 413 单个导入单元格不能超过 2048 个字符。
+PASS normal XLSX: {"zipEntries":5,"worksheets":1,"compressedEntryBytes":993,"totalUncompressedBytes":1783,"compressionRatio":1.8,"totalCells":4,"maximumRow":2,"maximumColumn":2}
+PASS XLSX compressed file bytes: 413 Excel 压缩文件不能超过 5 MB。
+PASS XLSX high compression ratio: 413 Excel ZIP 单条目压缩比不能超过 120:1。
+PASS XLSX underdeclared parser XML: 415 Excel 文件 ZIP 结构无效或不受支持。
+PASS XLSX declared uncompressed total: 413 Excel ZIP 解压后总大小不能超过 16 MB。
+PASS XLSX declared worksheet XML size: 413 Excel XML 单条目解压后不能超过 8 MB。
+PASS XLSX ZIP entry count: 413 Excel ZIP 条目不能超过 128 个。
+PASS XLSX row dimension: 413 Excel 工作表行号不能超过 5001（含表头）。
+PASS XLSX column dimension: 413 Excel 工作表列数不能超过 32 列。
+PASS XLSX cell count: 413 Excel 单元格总数不能超过 160032 个。
+PASS missing Content-Length preflight: 411 导入请求必须提供有效的 Content-Length。
+PASS invalid Content-Length preflight: 400 导入请求的 Content-Length 无效。
+PASS zero Content-Length preflight: 400 导入请求的 Content-Length 无效。
+PASS declared body above limit preflight: 413 导入文件不能超过 5 MB。
+F-010 deterministic multipart, CSV and XLSX resource-boundary regressions passed.

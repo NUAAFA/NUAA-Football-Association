@@ -5,7 +5,8 @@ const dateTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
   hour: "2-digit", minute: "2-digit", hour12: false,
 });
 
-export function formatRefereeDateTime(value: Date) {
+export function formatRefereeDateTime(value: Date | null) {
+  if (!value) return "时间待定";
   return dateTimeFormatter.format(value).replaceAll("/", "-");
 }
 

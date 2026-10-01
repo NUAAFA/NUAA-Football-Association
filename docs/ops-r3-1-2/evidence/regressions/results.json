@@ -1,0 +1,158 @@
+[
+  {
+    "command": "npm run test:competition-import",
+    "code": 0,
+    "startedAt": "2026-10-01T12:04:54.119Z",
+    "finishedAt": "2026-10-01T12:04:54.880Z"
+  },
+  {
+    "command": "npm run test:competition-import:http",
+    "code": 0,
+    "startedAt": "2026-10-01T12:04:54.880Z",
+    "finishedAt": "2026-10-01T12:04:56.324Z"
+  },
+  {
+    "command": "npm run test:unified-admin-r1",
+    "code": 0,
+    "startedAt": "2026-10-01T12:04:56.324Z",
+    "finishedAt": "2026-10-01T12:04:57.031Z"
+  },
+  {
+    "command": "npm run test:unified-admin-r1-2",
+    "code": 0,
+    "startedAt": "2026-10-01T12:04:57.031Z",
+    "finishedAt": "2026-10-01T12:04:57.947Z"
+  },
+  {
+    "command": "npm run test:unified-admin-rbac",
+    "code": 0,
+    "startedAt": "2026-10-01T12:04:57.947Z",
+    "finishedAt": "2026-10-01T12:04:58.732Z"
+  },
+  {
+    "command": "npm run test:referee-flow",
+    "code": 0,
+    "startedAt": "2026-10-01T12:04:58.732Z",
+    "finishedAt": "2026-10-01T12:05:03.460Z"
+  },
+  {
+    "command": "npm run test:referee-r1",
+    "code": 0,
+    "startedAt": "2026-10-01T12:05:03.460Z",
+    "finishedAt": "2026-10-01T12:05:04.198Z"
+  },
+  {
+    "command": "npm run test:referee-r1-3a",
+    "code": 0,
+    "startedAt": "2026-10-01T12:05:04.198Z",
+    "finishedAt": "2026-10-01T12:05:05.202Z"
+  },
+  {
+    "command": "npm run test:referee-fix2",
+    "code": 0,
+    "startedAt": "2026-10-01T12:05:05.202Z",
+    "finishedAt": "2026-10-01T12:05:06.031Z"
+  },
+  {
+    "command": "npm run test:referee-fix3",
+    "code": 0,
+    "startedAt": "2026-10-01T12:05:06.031Z",
+    "finishedAt": "2026-10-01T12:05:06.683Z"
+  },
+  {
+    "command": "npm run test:referee-fix5",
+    "code": 0,
+    "startedAt": "2026-10-01T12:05:06.683Z",
+    "finishedAt": "2026-10-01T12:05:07.321Z"
+  },
+  {
+    "command": "npm run test:admin-operations-r2",
+    "code": 0,
+    "startedAt": "2026-10-01T12:05:07.321Z",
+    "finishedAt": "2026-10-01T12:05:08.132Z"
+  },
+  {
+    "command": "npm run test:admin-operations-r2.1",
+    "code": 0,
+    "startedAt": "2026-10-01T12:05:08.132Z",
+    "finishedAt": "2026-10-01T12:05:08.740Z"
+  },
+  {
+    "command": "npm run test:referee-r1-3a:migration:fresh",
+    "code": 0,
+    "startedAt": "2026-10-01T12:05:08.741Z",
+    "finishedAt": "2026-10-01T12:05:09.771Z"
+  },
+  {
+    "command": "npm run test:unified-admin-migration",
+    "code": 0,
+    "startedAt": "2026-10-01T12:05:09.772Z",
+    "finishedAt": "2026-10-01T12:05:10.084Z"
+  },
+  {
+    "command": "npm run test:admin-operations-r2:migration",
+    "code": 0,
+    "startedAt": "2026-10-01T12:05:10.084Z",
+    "finishedAt": "2026-10-01T12:05:10.450Z"
+  },
+  {
+    "command": "npm run test:security-csv",
+    "code": 0,
+    "startedAt": "2026-10-01T12:05:10.450Z",
+    "finishedAt": "2026-10-01T12:05:10.608Z"
+  },
+  {
+    "command": "npm run test:security-admission",
+    "code": 0,
+    "startedAt": "2026-10-01T12:05:10.608Z",
+    "finishedAt": "2026-10-01T12:05:11.188Z"
+  },
+  {
+    "command": "npm run test:security-appointments",
+    "code": 0,
+    "startedAt": "2026-10-01T12:05:11.189Z",
+    "finishedAt": "2026-10-01T12:05:11.908Z"
+  },
+  {
+    "command": "npm run test:security-api-errors",
+    "code": 0,
+    "startedAt": "2026-10-01T12:05:11.909Z",
+    "finishedAt": "2026-10-01T12:05:12.100Z"
+  },
+  {
+    "command": "npm run test:team-directory-r1",
+    "code": 0,
+    "startedAt": "2026-10-01T12:05:12.100Z",
+    "finishedAt": "2026-10-01T12:05:13.827Z"
+  },
+  {
+    "command": "npm run test:team-directory-r1-1",
+    "code": 0,
+    "startedAt": "2026-10-01T12:05:13.828Z",
+    "finishedAt": "2026-10-01T12:05:14.917Z"
+  },
+  {
+    "command": "npm run test:public-competition-dynamic",
+    "code": 0,
+    "startedAt": "2026-10-01T12:05:14.917Z",
+    "finishedAt": "2026-10-01T12:05:16.988Z"
+  },
+  {
+    "command": "npm run test:public-competition-dynamic:http",
+    "code": 0,
+    "startedAt": "2026-10-01T12:05:16.988Z",
+    "finishedAt": "2026-10-01T12:05:18.850Z"
+  },
+  {
+    "command": "npm run check:unicode",
+    "code": 0,
+    "startedAt": "2026-10-01T12:05:18.850Z",
+    "finishedAt": "2026-10-01T12:05:18.990Z"
+  },
+  {
+    "command": "npm run lint",
+    "code": 0,
+    "startedAt": "2026-10-01T12:05:18.991Z",
+    "finishedAt": "2026-10-01T12:05:24.704Z"
+  }
+]

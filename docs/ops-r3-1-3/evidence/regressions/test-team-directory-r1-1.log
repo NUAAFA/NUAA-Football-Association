@@ -1,0 +1,5 @@
+
+> nuaa-football-association@0.1.0 test:team-directory-r1-1
+> tsx scripts/test-team-directory-r1-1.ts
+
+Team Directory R1.1 Organization, multi-Team, joint, custom, bulk, status, RBAC, audit, publication and privacy: PASS

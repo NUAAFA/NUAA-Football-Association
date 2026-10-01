@@ -1,0 +1,107 @@
+[
+  {
+    "command": "npm run build",
+    "log": "build-final.log",
+    "code": 0,
+    "startedAt": "2026-10-01T19:01:54.502Z",
+    "finishedAt": "2026-10-01T19:01:59.661Z"
+  },
+  {
+    "command": "npm run lint",
+    "log": "lint-final.log",
+    "code": 0,
+    "startedAt": "2026-10-01T19:01:59.662Z",
+    "finishedAt": "2026-10-01T19:02:05.167Z"
+  },
+  {
+    "command": "npm run check:unicode",
+    "log": "unicode-final.log",
+    "code": 0,
+    "startedAt": "2026-10-01T19:02:05.167Z",
+    "finishedAt": "2026-10-01T19:02:05.291Z"
+  },
+  {
+    "command": "npx --no-install tsc --noEmit",
+    "log": "typecheck-final.log",
+    "code": 0,
+    "startedAt": "2026-10-01T19:02:05.292Z",
+    "finishedAt": "2026-10-01T19:02:06.212Z"
+  },
+  {
+    "command": "git diff --check",
+    "log": "diff-check-final.log",
+    "code": 0,
+    "startedAt": "2026-10-01T19:02:06.212Z",
+    "finishedAt": "2026-10-01T19:02:06.230Z"
+  },
+  {
+    "command": "python3 scripts/test-ops-r3-1-3-migration.py",
+    "log": "r313-migration.log",
+    "code": 0,
+    "startedAt": "2026-10-01T19:02:06.230Z",
+    "finishedAt": "2026-10-01T19:02:06.371Z"
+  },
+  {
+    "command": "npm run test:ops-r3-1-3",
+    "log": "ops-r3-1-3-final.log",
+    "code": 0,
+    "startedAt": "2026-10-01T19:02:06.371Z",
+    "finishedAt": "2026-10-01T19:02:07.328Z"
+  },
+  {
+    "command": "npm run test:ops-r3-1-3:http",
+    "log": "http-r313-final.log",
+    "code": 0,
+    "startedAt": "2026-10-01T19:02:07.703Z",
+    "finishedAt": "2026-10-01T19:02:08.110Z"
+  },
+  {
+    "command": "npx --no-install tsx scripts/test-ops-r3-1.ts",
+    "log": "ops-r3-1-final.log",
+    "code": 0,
+    "startedAt": "2026-10-01T19:02:08.112Z",
+    "finishedAt": "2026-10-01T19:02:09.906Z"
+  },
+  {
+    "command": "npx --no-install tsx scripts/test-ops-r3-1-1.ts",
+    "log": "ops-r3-1-1-final.log",
+    "code": 0,
+    "startedAt": "2026-10-01T19:02:09.906Z",
+    "finishedAt": "2026-10-01T19:02:10.781Z"
+  },
+  {
+    "command": "node scripts/test-ops-r3-1-3-regressions.mjs",
+    "log": "regression-run-final.log",
+    "code": 0,
+    "startedAt": "2026-10-01T19:02:10.781Z",
+    "finishedAt": "2026-10-01T19:02:41.740Z"
+  },
+  {
+    "command": "npm run test:security-runtime-r2",
+    "log": "security-runtime-r2-final.log",
+    "code": 0,
+    "startedAt": "2026-10-01T19:02:41.741Z",
+    "finishedAt": "2026-10-01T19:02:42.399Z"
+  },
+  {
+    "command": "npm run test:security-http",
+    "log": "security-http-final.log",
+    "code": 0,
+    "startedAt": "2026-10-01T19:02:42.400Z",
+    "finishedAt": "2026-10-01T19:02:48.161Z"
+  },
+  {
+    "command": "npm run test:unified-admin-blockers:http",
+    "log": "media-content-blockers-final.log",
+    "code": 0,
+    "startedAt": "2026-10-01T19:02:48.161Z",
+    "finishedAt": "2026-10-01T19:02:49.835Z"
+  },
+  {
+    "command": "npm run test:unified-admin-blockers:http -- --cms",
+    "log": "media-content-http-final.log",
+    "code": 0,
+    "startedAt": "2026-10-01T19:02:49.835Z",
+    "finishedAt": "2026-10-01T19:02:52.417Z"
+  }
+]

@@ -45,7 +45,7 @@ export type CoreCompetitionLinkSet = {
 export type CompetitionNextMatch =
   | {
       state: "pending";
-      label: "赛程待发布";
+      label: "赛程待发布" | "待排期";
       summary: string;
       dateLabel: string;
       venue: string;
@@ -136,12 +136,13 @@ export type PublicCompetitionTeam = {
 };
 
 export type PublicCompetitionMatch = {
+  matchNumber?: number | null;
   group?: string | null; stageOrder?: number; groupOrder?: number; roundOrder?: number; homePenaltyScore?: number | null; awayPenaltyScore?: number | null;
   id: string;
   slug: string;
   stage: string;
   round: string | null;
-  kickoff: Date;
+  kickoff: Date | null;
   dateLabel: string;
   timeLabel: string;
   venue: string;

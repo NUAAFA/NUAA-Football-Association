@@ -1,0 +1,285 @@
+
+> nuaa-football-association@0.1.0 test:production-hardening
+> tsx scripts/test-production-hardening.ts
+
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": SQLite database "r1-3c-ops-08ff78b1-5cd6-447b-913a-9580ce126e22.db" at "file:./prisma/r1-3c-ops-08ff78b1-5cd6-447b-913a-9580ce126e22.db"
+
+SQLite database r1-3c-ops-08ff78b1-5cd6-447b-913a-9580ce126e22.db created at file:./prisma/r1-3c-ops-08ff78b1-5cd6-447b-913a-9580ce126e22.db
+
+17 migrations found in prisma/migrations
+
+Applying migration `20260722013757_init_referee_center`
+Applying migration `20260723124500_add_referee_sessions`
+Applying migration `20260730090000_referee_operations_v24`
+Applying migration `20260819120000_referee_admin_r1`
+Applying migration `20260820120000_referee_business_model_fix2`
+Applying migration `20260820160000_referee_acceptance_fix3`
+Applying migration `20260823091228_unified_admin_r1_foundation`
+Applying migration `20260823160000_referee_admission_application_intake`
+Applying migration `20260824120000_referee_admission_eligibility`
+Applying migration `20260913120000_public_competition_dynamic_r1`
+Applying migration `20260914210000_admin_operations_r2`
+Applying migration `20260922120000_public_competition_true_dynamic_r3`
+Applying migration `20260923120000_dynamic_public_team_directory_r1`
+Applying migration `20260928090000_ops_r3_1`
+Applying migration `20260929090000_ops_r3_1_1`
+Applying migration `20261001090000_ops_r3_1_2`
+Applying migration `20261001120000_ops_r3_1_3`
+
+The following migration(s) have been applied:
+
+migrations/
+  └─ 20260722013757_init_referee_center/
+    └─ migration.sql
+  └─ 20260723124500_add_referee_sessions/
+    └─ migration.sql
+  └─ 20260730090000_referee_operations_v24/
+    └─ migration.sql
+  └─ 20260819120000_referee_admin_r1/
+    └─ migration.sql
+  └─ 20260820120000_referee_business_model_fix2/
+    └─ migration.sql
+  └─ 20260820160000_referee_acceptance_fix3/
+    └─ migration.sql
+  └─ 20260823091228_unified_admin_r1_foundation/
+    └─ migration.sql
+  └─ 20260823160000_referee_admission_application_intake/
+    └─ migration.sql
+  └─ 20260824120000_referee_admission_eligibility/
+    └─ migration.sql
+  └─ 20260913120000_public_competition_dynamic_r1/
+    └─ migration.sql
+  └─ 20260914210000_admin_operations_r2/
+    └─ migration.sql
+  └─ 20260922120000_public_competition_true_dynamic_r3/
+    └─ migration.sql
+  └─ 20260923120000_dynamic_public_team_directory_r1/
+    └─ migration.sql
+  └─ 20260928090000_ops_r3_1/
+    └─ migration.sql
+  └─ 20260929090000_ops_r3_1_1/
+    └─ migration.sql
+  └─ 20261001090000_ops_r3_1_2/
+    └─ migration.sql
+  └─ 20261001120000_ops_r3_1_3/
+    └─ migration.sql
+
+All migrations have been successfully applied.
+{
+  "combinedBackup": {
+    "formatVersion": 3,
+    "backupId": "nuaafa-20260823T010000Z-04503b20733f",
+    "completionMarker": true,
+    "manifestChecksumBinding": true,
+    "databaseIntegrity": "ok",
+    "foreignKeyViolations": 0,
+    "postDatabaseFailureRejected": true,
+    "preCompletionFailureRejected": true,
+    "corruptionRejected": true,
+    "existingRestoreDestinationRejected": true,
+    "stagedUploadCorruptionRejectedBeforePublish": true,
+    "stagingOutsideAllowlistRejected": true,
+    "databaseUploadsOverlapRejected": true,
+    "sourceTargetOverlapRejected": true,
+    "symlinkDestinationRejected": true
+  },
+  "legacyBackupBridge": {
+    "formatVersion": 4,
+    "profile": "LEGACY_PRE_ENABLEMENT",
+    "migrations": [
+      "20260722013757_init_referee_center",
+      "20260723124500_add_referee_sessions",
+      "20260730090000_referee_operations_v24"
+    ],
+    "schemaCapabilities": {
+      "protectedTablesPresent": [
+        "Competition",
+        "Team",
+        "Match",
+        "Referee",
+        "RefereeApplication",
+        "RefereeAppointment",
+        "AppointmentVersion",
+        "AuditLog"
+      ],
+      "protectedTablesAbsent": [
+        "RefereeAvailability",
+        "RefereePositionCapability",
+        "RefereeAdmissionApplication",
+        "ContentPost",
+        "MediaAsset",
+        "AdminAccount"
+      ],
+      "managedUploadsState": "ABSENT",
+      "protectedRowCounts": {
+        "Competition": 1,
+        "Team": 2,
+        "Match": 1,
+        "Referee": 1,
+        "RefereeApplication": 1,
+        "RefereeAppointment": 1,
+        "AppointmentVersion": 1,
+        "AuditLog": 1
+      }
+    },
+    "verifiedCounts": {
+      "Competition": 1,
+      "Team": 2,
+      "Match": 1,
+      "Referee": 1,
+      "RefereeApplication": 1,
+      "RefereeAppointment": 1,
+      "AppointmentVersion": 1,
+      "AuditLog": 1
+    },
+    "restoreVerified": true,
+    "absentAndEmptyUploadsExplicit": true,
+    "corruptDatabaseRejected": true,
+    "invalidManifestRejected": true,
+    "missingCompletionRejected": true,
+    "capabilityMismatchRejected": true,
+    "modernDefaultRemainedStrict": true
+  },
+  "retention": {
+    "dryRun": true,
+    "malformedRejected": true,
+    "unknownPreserved": true,
+    "symlinkRejected": true,
+    "incompleteRejected": true,
+    "isolatedApplyDeleted": 2
+  },
+  "orphanMonitoring": {
+    "exitCodeContract": {
+      "clean": 0,
+      "anomaly": 2,
+      "scannerFailure": 3
+    },
+    "report": {
+      "scannedAtUtc": "2026-08-24T00:00:00.000Z",
+      "databaseRecordCount": 2,
+      "physicalFileCount": 2,
+      "anomalyCount": 5,
+      "counts": {
+        "DB_RECORD_MISSING_FILE": 1,
+        "DB_RECORD_FILE_SIZE_MISMATCH": 0,
+        "FILE_WITHOUT_DB_RECORD": 1,
+        "STALE_STAGING_FILE": 1,
+        "INVALID_STORAGE_PATH": 2
+      },
+      "anomalies": [
+        {
+          "classification": "DB_RECORD_MISSING_FILE",
+          "severity": "CRITICAL",
+          "pathOrStorageKey": "2026/08/20000000-0000-0000-0000-000000000002.pdf",
+          "recommendedAction": "Restore the file from a verified combined backup or escalate for manual reconciliation.",
+          "detail": "MediaAsset exists but its physical file is missing."
+        },
+        {
+          "classification": "FILE_WITHOUT_DB_RECORD",
+          "severity": "HIGH",
+          "pathOrStorageKey": "2026/08/30000000-0000-0000-0000-000000000003.pdf",
+          "recommendedAction": "Reconcile provenance manually; do not delete automatically.",
+          "detail": "Physical stored file exists without a MediaAsset record."
+        },
+        {
+          "classification": "INVALID_STORAGE_PATH",
+          "severity": "CRITICAL",
+          "pathOrStorageKey": "unexpected.txt",
+          "recommendedAction": "Investigate the unexpected storage entry manually; do not delete automatically.",
+          "detail": "Physical entry does not satisfy the frozen media storage-key contract."
+        },
+        {
+          "classification": "INVALID_STORAGE_PATH",
+          "severity": "CRITICAL",
+          "pathOrStorageKey": "unsafe-link",
+          "recommendedAction": "Investigate manually; do not follow or delete automatically.",
+          "detail": "Symbolic links are not permitted in media storage."
+        },
+        {
+          "classification": "STALE_STAGING_FILE",
+          "severity": "WARNING",
+          "pathOrStorageKey": ".staging/stale.upload",
+          "recommendedAction": "Confirm no upload is active, then use a separate explicitly authorized cleanup operation.",
+          "detail": "Staging file age is at least 3600000 ms."
+        }
+      ]
+    },
+    "automaticDeletion": false
+  },
+  "capacity": {
+    "inputs": {
+      "databaseBytes": 745472,
+      "uploadBytes": 15,
+      "retentionCount": 14
+    },
+    "currentDatasetEstimate": 745487,
+    "perBackupEstimate": 1831338,
+    "retentionEstimate": 25638732,
+    "backupStagingOverhead": 2014472,
+    "restoreWorkspaceOverhead": 820036,
+    "temporaryPeak": 2834508,
+    "safetyReserve": 5694648,
+    "recommendedMinimumFreeSpace": 34167888,
+    "thresholds": {
+      "warningPercent": 20,
+      "criticalPercent": 10
+    }
+  },
+  "diskPreflight": {
+    "target": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-r1-3c-ops-2TI0zv",
+    "checkedAt": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-r1-3c-ops-2TI0zv",
+    "filesystemKey": "16777232",
+    "freeBytes": 894558425088,
+    "totalBytes": 994610155520,
+    "freePercent": 89.94060840051536
+  },
+  "uploadProvisioning": {
+    "frozenContract": {
+      "path": "/srv/nuaafa/shared/uploads",
+      "owner": "nuaafa",
+      "group": "nuaafa",
+      "mode": "0700"
+    },
+    "pathTraversalRejected": true,
+    "localReadOnlyVerification": {
+      "configuredPath": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-r1-3c-ops-2TI0zv/uploads",
+      "isDirectory": true,
+      "applicationUserReadWrite": true,
+      "unexpectedOtherAccessAbsent": null,
+      "staging": {
+        "path": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-r1-3c-ops-2TI0zv/uploads/.staging",
+        "existingDirectory": true,
+        "creatableFromWritableRoot": true
+      },
+      "pathTraversalRejected": true,
+      "disk": {
+        "target": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-r1-3c-ops-2TI0zv/uploads",
+        "checkedAt": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-r1-3c-ops-2TI0zv/uploads",
+        "filesystemKey": "16777232",
+        "freeBytes": 894558425088,
+        "totalBytes": 994610155520,
+        "freePercent": 89.94060840051536
+      },
+      "ownership": {
+        "platform": "non-linux",
+        "owner": "nuaafa",
+        "group": "nuaafa",
+        "mode": "0700",
+        "enforced": false
+      }
+    }
+  },
+  "operationalTemplates": {
+    "combinedRoot": "/srv/nuaafa/shared/backups/unified",
+    "parentDbOnlyBackupRootExcluded": true,
+    "retentionCountProposed": 14,
+    "timerProposed": {
+      "onCalendar": "03:00 Asia/Shanghai",
+      "randomizedDelay": "30m",
+      "persistent": true
+    }
+  }
+}

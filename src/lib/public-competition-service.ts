@@ -2,7 +2,7 @@ import "server-only";
 
 import type { CompetitionStatus, Prisma } from "@/generated/prisma-v29/client";
 import { formatBeijingDateTime, formatBeijingWindow } from "@/lib/beijing-datetime";
-import { getGroupStandings } from "@/lib/competition-structure-service";
+import { getCompetitionGroupStandings } from "@/lib/competition-structure-service";
 import { prisma } from "@/lib/prisma";
 import { isAllowedCompetitionRegistrationUrl } from "@/lib/referee-competition-input";
 import type {
@@ -48,6 +48,7 @@ const publicCompetitionSelect = {
     select: {
       id: true,
       slug: true,
+      matchNumber: true,
       stage: true,
       structureStage: { select: { name: true, sortOrder: true } }, structureGroup: { select: { name: true, sortOrder: true } }, structureRound: { select: { name: true, sortOrder: true } }, homePenaltyScore: true, awayPenaltyScore: true,
       round: true,
@@ -105,7 +106,7 @@ function legacyPlayingFormat(format: PublicCompetitionRow["format"]) {
 
 function publicMatch(match: PublicCompetitionRow["matches"][number]): PublicCompetitionMatch {
   const kickoff = formatBeijingDateTime(match.kickoff);
-  const appointment = match.appointment && ["PUBLISHED", "COMPLETED"].includes(match.appointment.status)
+  const appointment = match.kickoff && match.venue?.trim() && match.appointment && ["PUBLISHED", "COMPLETED"].includes(match.appointment.status)
     ? {
         id: match.appointment.id,
         positions: match.appointment.positions.flatMap((position) => position.referee
@@ -116,6 +117,7 @@ function publicMatch(match: PublicCompetitionRow["matches"][number]): PublicComp
   return {
     id: match.id,
     slug: match.slug,
+    matchNumber: match.matchNumber,
     stage: match.structureStage?.name ?? match.stage,
     group: match.structureGroup?.name ?? null,
     stageOrder: match.structureStage?.sortOrder ?? -1, groupOrder: match.structureGroup?.sortOrder ?? -1, roundOrder: match.structureRound?.sortOrder ?? -1,
@@ -124,9 +126,9 @@ function publicMatch(match: PublicCompetitionRow["matches"][number]): PublicComp
     kickoff: match.kickoff,
     dateLabel: kickoff.dateLabel,
     timeLabel: kickoff.timeLabel,
-    venue: match.venue,
+    venue: match.venue?.trim() || "场地待定",
     status: match.status.toLowerCase() as PublicCompetitionMatch["status"],
-    statusLabel: matchStatusLabels[match.status],
+    statusLabel: match.status === "SCHEDULED" && (!match.kickoff || !match.venue?.trim()) ? "待排期" : matchStatusLabels[match.status],
     homeTeam: { id: match.homeTeam.id, name: match.homeTeam.name },
     awayTeam: { id: match.awayTeam.id, name: match.awayTeam.name },
     homeScore: match.homeScore,
@@ -142,8 +144,9 @@ export function selectCompetitionNextMatch(
   detailHref: string,
   now = new Date(),
 ): CompetitionNextMatch {
+  if (matches.some((item) => item.status === "scheduled" && !item.kickoff) && !matches.some((item) => item.status === "scheduled" && item.kickoff && item.kickoff >= now)) return { state: "pending", label: "待排期", summary: "赛程已公布，具体比赛时间待定", dateLabel: "时间待定", venue: "场地待定" };
   if (status === "COMPLETED") return { state: "completed", label: "赛事已结束", summary: "赛事已结束", archiveHref: detailHref };
-  const match = [...matches].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime() || (a.stageOrder ?? -1) - (b.stageOrder ?? -1) || (a.groupOrder ?? -1) - (b.groupOrder ?? -1) || (a.roundOrder ?? -1) - (b.roundOrder ?? -1) || a.id.localeCompare(b.id)).find((item) => item.status === "scheduled" && item.kickoff >= now);
+  const match = matches.filter((m): m is PublicCompetitionMatch & { kickoff: Date } => m.kickoff !== null).sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime() || (a.stageOrder ?? -1) - (b.stageOrder ?? -1) || (a.groupOrder ?? -1) - (b.groupOrder ?? -1) || (a.roundOrder ?? -1) - (b.roundOrder ?? -1) || a.id.localeCompare(b.id)).find((item) => item.status === "scheduled" && item.kickoff >= now);
   if (match) {
     return {
       state: "scheduled",
@@ -152,7 +155,7 @@ export function selectCompetitionNextMatch(
       awayTeam: match.awayTeam.name,
       dateLabel: match.dateLabel,
       timeLabel: match.timeLabel,
-      venue: match.venue,
+      venue: match.venue || "场地待定",
       detailHref: `${detailHref}#match-${match.id}`,
     };
   }
@@ -183,7 +186,7 @@ function databaseView(row: PublicCompetitionRow, now = new Date()): PublicCompet
     badge: presentation.badge,
     stageLabel: presentation.stageLabel,
     registrationWindow: formatBeijingWindow(row.registrationStartAt, row.registrationEndAt, "待正式通知"),
-    matchWindow: formatBeijingWindow(row.matchStartAt, row.matchEndAt, "待正式发布"),
+    matchWindow: formatBeijingWindow(row.matchStartAt, row.matchEndAt, row.matches.length ? row.matches.some((m) => m.kickoff) ? "详见已公布赛程" : "时间待定" : "待正式发布"),
     venue: row.venue ?? "待正式确认",
     host: row.host ?? "待正式通知",
     organizer: row.organizer ?? "待正式通知",
@@ -214,11 +217,13 @@ async function loadCompetitionSummaries(homepageOnly: boolean, asOf: Date) {
     orderBy: [{ publicOrder: "asc" }, { year: "desc" }, { createdAt: "asc" }, { id: "asc" }],
   });
   const counts = rows.length ? await prisma.match.groupBy({ by: ["competitionId", "status"], where: { competitionId: { in: rows.map((r) => r.id) }, isTestData: false }, _count: true }) : [];
+  const pendingCounts = rows.length ? await prisma.match.groupBy({ by: ["competitionId"], where: { competitionId: { in: rows.map((r) => r.id) }, isTestData: false, status: "SCHEDULED", kickoff: null }, _count: true }) : [];
   return rows.map((row) => {
     const view = databaseView({ ...row, matches: row.matches.map((m) => ({ ...m, appointment: null })) }, asOf);
     view.scale = row._count.teams ? `${row._count.teams} 支球队` : "参赛规模待确认";
     if (!row.matches.length && row._count.matches && row.status !== "COMPLETED") view.nextMatch = { state: "none", label: "暂无下一场", summary: counts.some((c) => c.competitionId === row.id && c.status === "SCHEDULED") ? "暂无下一场预告，赛果待确认。" : "暂无后续赛程，可查看现有赛果。" };
-    return { view, nextTime: row.matches[0]?.kickoff.getTime() ?? Infinity, publicOrder: row.publicOrder, id: row.id };
+    if (!row.matches.length && pendingCounts.some((c) => c.competitionId === row.id)) view.nextMatch = { state: "pending", label: "待排期", summary: "赛程已公布，具体比赛时间待定", dateLabel: "时间待定", venue: "场地待定" };
+    return { view, nextTime: row.matches[0]?.kickoff?.getTime() ?? Infinity, publicOrder: row.publicOrder, id: row.id };
   });
 }
 export async function getPublicCompetitionCatalog(): Promise<PublicCompetitionView[]> {
@@ -245,7 +250,7 @@ export async function getHomepagePublicCompetitions(asOf = new Date()): Promise<
 export async function getPublicCompetitionStandings(competitionId: string) {
   const competition = await prisma.competition.findFirst({ where: { id: competitionId, publicPublished: true, isTestData: false }, select: { stages: { where: { type: "GROUP" }, orderBy: [{ sortOrder: "asc" }, { id: "asc" }], select: { groups: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }], select: { id: true } } } } } });
   if (!competition) return [];
-  const tables = await Promise.all(competition.stages.flatMap((s) => s.groups.map((g) => getGroupStandings(g.id))));
+  const tables = await getCompetitionGroupStandings(competitionId);
   return tables.map((t) => ({ groupId: t.group.id, groupName: t.group.name, stageName: t.group.stageName, rows: t.rows, hasResults: t.hasResults, tied: t.tied, rankingConfirmed: t.rankingConfirmed, qualificationStale: t.qualificationStale, qualifiedTeamIds: t.qualifiedTeamIds }));
 }
 export async function getAllPublicCompetitionDetails() {

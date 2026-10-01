@@ -1256,6 +1256,8 @@
 .ops-public-table { display: block; max-width: 100%; overflow-x: auto; }
 .core-competition-pending > .ops-public-standings { grid-column: 1 / -1; min-width: 0; }
 .ops-public-standings section { min-width: 0; margin-bottom: 24px; }
+.ops-public-standings details { min-width: 0; padding-block: 12px; }
+.ops-public-standings summary { cursor: pointer; font-weight: 700; }
 .ops-public-standings h3 { margin-bottom: 10px; }
 .ops-public-standings p { margin-bottom: 12px; }
 .ops-public-standings .admin-table-scroll { max-width: 100%; overflow-x: auto; }

@@ -5,3 +5,8 @@ scripts/test-deployer.sh text eol=lf
 # Preserve captured CLI output, including terminal progress carriage returns.
 docs/ops-r3-1/evidence/*.log -whitespace
 docs/ops-r3-1/acceptance-preparation/evidence/*.log -whitespace
+
+# Preserve OPS release evidence as captured, including CLI progress output.
+docs/ops-r3-1-2/evidence/** -whitespace
+docs/ops-r3-1-3/evidence/** -whitespace
+docs/ops-r3-1-3/release-evidence/*.log -whitespace

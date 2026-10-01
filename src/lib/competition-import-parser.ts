@@ -31,6 +31,7 @@ const headerAliases: Record<CompetitionImportType, Record<string, readonly strin
   MATCH: {
     homeTeam: ["hometeam", "home team", "home_team", "主队"],
     awayTeam: ["awayteam", "away team", "away_team", "客队"],
+    date: ["date", "日期", "暂定日期"], time: ["time", "时间"], tentativeSchedule: ["tentativeschedule", "暂定安排"],
     kickoff: ["kickoff", "开球时间", "比赛时间"],
     endAt: ["endat", "end at", "end_at", "结束时间"],
     venue: ["venue", "场地", "比赛场地"],
@@ -45,7 +46,7 @@ const headerAliases: Record<CompetitionImportType, Record<string, readonly strin
 
 const requiredHeaders: Record<CompetitionImportType, readonly string[]> = {
   TEAM: ["name"],
-  MATCH: ["homeTeam", "awayTeam", "kickoff", "venue", "stage"],
+  MATCH: ["homeTeam", "awayTeam", "stage"],
 };
 
 export class CompetitionImportParseError extends Error {
@@ -407,13 +408,26 @@ export async function readCompetitionImportRequest(request: Request): Promise<Co
     } else if (inputMethod === "DOCX") {
       if (importType !== "MATCH") throw new CompetitionImportParseError("DOCX 仅用于赛程导入。");
       parsed = parseCompetitionImportDocx(Buffer.from(bytes));
-      parsed.rows = completeDocxRows(parsed.rows, edits);
+
     } else {
       parsed = await parseCompetitionImportXlsx(Buffer.from(bytes), importType, mapping, inspect);
     }
   }
 
+  parsed.rows = completeDocxRows(parsed.rows, edits);
+  function readMappings(key: string) {
+    let value: unknown;
+    try { value = JSON.parse(String(form.get(key) ?? "{}")); } catch { throw new CompetitionImportParseError("对应关系无效。"); }
+    if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length > 1000 || Object.entries(value).some(([k,v]) => k.length > 80 || typeof v !== "string" || v.length > 64)) throw new CompetitionImportParseError("对应关系无效。");
+    return value as Record<string,string>;
+  }
+  const teamMappings = readMappings("teamMappings"), groupMappings = readMappings("groupMappings");
+  let excludedRowNumbers: unknown;
+  try { excludedRowNumbers = JSON.parse(String(form.get("excludedRowNumbers") ?? "[]")); } catch { throw new CompetitionImportParseError("暂不导入的行选择无效。"); }
+  if (!Array.isArray(excludedRowNumbers) || excludedRowNumbers.length > 5000 || excludedRowNumbers.some((n) => !Number.isSafeInteger(n) || !parsed.rows.some((r) => r.rowNumber === n)) || new Set(excludedRowNumbers).size !== excludedRowNumbers.length) throw new CompetitionImportParseError("暂不导入的行选择无效。");
+
   return {
+    strictIdentity: importType === "MATCH", teamMappings, groupMappings, excludedRowNumbers: excludedRowNumbers as number[],
     competitionId,
     importType,
     inputMethod,

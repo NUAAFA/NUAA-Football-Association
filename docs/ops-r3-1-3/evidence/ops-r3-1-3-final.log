@@ -1,0 +1,11 @@
+
+> nuaa-football-association@0.1.0 test:ops-r3-1-3
+> tsx scripts/test-ops-r3-1-3.ts
+
+PASS TEAM-REMOVE-01/02: memberships removed, groups/history/other competition preserved, public entry only removed, authorization enforced
+PASS IMPORT-MATCH-01..04: deterministic recommendations, one confirmation per source, ambiguity and identity distinctions, no merge, cross competition/same team refused
+PASS IMPORT-TIME-01..04/SUBSET-01..02: 28/30 atomic subset, zero fake kickoff, date/venue/text persist, ambiguity explicit pending, duplicate import no overwrite
+PASS TEAM-REMOVE-06/group removal: exact 4 selected / 3 safe / 1 blocked, atomic denial then explicit safe-only removal; group removal keeps Team and detailed audit
+PASS TEAM-REMOVE-03..07/IMPORT-DELETE-01: all match statuses protected, explicit safe subset, stale mapping refuses resurrection, dependency added after inspect refuses deletion, confirmation history preserved
+PASS 110-team candidate preview / 109 pending rows / one mapping shared across all rows
+ISOLATED_FIXTURE=/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-ops-r313-9APOax

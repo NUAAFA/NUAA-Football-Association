@@ -78,7 +78,7 @@ export function parseCompetitionImportDocx(buffer: Buffer) {
       if (values.every((v) => !v)) continue;
       if (++rowNumber > COMPETITION_IMPORT_MAX_ROWS) fail("Word 赛程不能超过 5000 行。");
       const [round, matchNumber, date, time, homeTeam, awayTeam, venue, note] = values;
-      const group = note.match(/(?:^|\s)([A-Z]组)(?:\s|$)/)?.[1] ?? "";
+      const group = note.replace(/^备注\s*[:：]\s*/, "").match(/(?:^|[\s，,;；])([^\s，,;；:：]+组)(?=$|[\s，,;；])/u)?.[1] ?? note.replace(/^备注\s*[:：]\s*/, "").trim();
       const row = { rowNumber, values: { stage, round, matchNumber, date, time, homeTeam, awayTeam, venue, note, group, kickoff: date && time ? `${date} ${time}` : "" } };
       (stage === "淘汰赛" ? referenceRows : rows).push(row);
     }
@@ -90,7 +90,7 @@ export function parseCompetitionImportDocx(buffer: Buffer) {
 // Completion edits cannot change teams, stage classification, match numbers or reference rows.
 export function completeDocxRows(rows: CompetitionImportParsedRow[], edits: unknown) {
   if (!edits || typeof edits !== "object" || Array.isArray(edits) || Object.keys(edits).length > COMPETITION_IMPORT_MAX_ROWS) fail("Word 补全数据无效。");
-  const allowed = ["date", "time", "venue", "stageId", "groupId", "roundId"];
+  const allowed = ["date", "time", "venue", "stageId", "groupId", "roundId", "kickoff", "endAt", "pendingResolution", "tentativeSchedule"];
   const byNumber = new Map(rows.map((r) => [String(r.rowNumber), r]));
   for (const [key, patch] of Object.entries(edits)) {
     if (!byNumber.has(key) || !patch || typeof patch !== "object" || Array.isArray(patch) || Object.entries(patch).some(([field, value]) => !allowed.includes(field) || typeof value !== "string" || value.length > 120)) fail("Word 补全字段无效。");
@@ -98,7 +98,7 @@ export function completeDocxRows(rows: CompetitionImportParsedRow[], edits: unkn
   return rows.map((r) => {
     const patch = (edits as Record<string, Record<string, string>>)[r.rowNumber] ?? {};
     const values = { ...r.values, ...patch };
-    values.kickoff = values.date && values.time ? `${values.date} ${values.time}` : "";
+    if (Object.hasOwn(values, "date") || Object.hasOwn(values, "time")) values.kickoff = values.date && values.time ? `${values.date} ${values.time}` : "";
     return { ...r, values };
   });
 }

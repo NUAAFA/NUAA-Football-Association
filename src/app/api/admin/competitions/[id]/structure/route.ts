@@ -1,14 +1,16 @@
+import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { authorizeUnifiedAdminRequest, unifiedAdminErrorResponse, UnifiedAdminInputError } from "@/lib/unified-admin-api";
-import { loadCompetitionStructure, mutateCompetitionStructure, getGroupStandings, confirmGroup, type StructureAction } from "@/lib/competition-structure-service";
+import { loadCompetitionStructure, mutateCompetitionStructure, getCompetitionGroupStandings, confirmGroup, type StructureAction } from "@/lib/competition-structure-service";
 import { isRecord } from "@/lib/referee-validation";
 import { revalidatePublicCompetitionById } from "@/lib/public-competition-revalidation";
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     await authorizeUnifiedAdminRequest(request, "competitions:read");
     const stages = await loadCompetitionStructure((await context.params).id);
-    const tables = await Promise.all(stages.flatMap((s) => s.groups.map((g) => getGroupStandings(g.id))));
-    return NextResponse.json({ stages, tables });
+    const tables = await getCompetitionGroupStandings((await context.params).id);
+    const teams = await prisma.team.findMany({ where: { competitionId: (await context.params).id }, select: { id: true, name: true }, orderBy: { name: "asc" } });
+    return NextResponse.json({ stages, tables, teams });
   } catch (error) { return unifiedAdminErrorResponse(error, "结构读取失败。"); }
 }
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -30,6 +32,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       if (!Number.isSafeInteger(sortOrder) || sortOrder < 0 || sortOrder > 9999) throw new UnifiedAdminInputError("排序值无效。");
       if (body.action === "stage") { const type = text("type"); if (!["GROUP", "KNOCKOUT", "OTHER"].includes(type)) throw new UnifiedAdminInputError("阶段类型无效。"); input = { action: "stage", name: text("name"), type: type as "GROUP" | "KNOCKOUT" | "OTHER", sortOrder }; }
       else if (body.action === "group") input = { action: "group", stageId: text("stageId"), name: text("name"), sortOrder };
+      else if (body.action === "updateGroup") input = { action: "updateGroup", groupId: text("groupId"), name: text("name"), sortOrder };
+      else if (body.action === "assign") input = { action: "assign", stageId: text("stageId"), groupId: body.groupId ? text("groupId") : null, teamIds: ids(), reason: text("reason") };
       else if (body.action === "round") input = { action: "round", stageId: text("stageId"), groupId: body.groupId ? text("groupId") : undefined, name: text("name"), sortOrder };
       else if (body.action === "members") input = { action: "members", groupId: text("groupId"), teamIds: ids(), reason: text("reason") };
       else if (body.action === "delete") { const entity = text("entity"); if (!["stage", "group", "round"].includes(entity)) throw new UnifiedAdminInputError("删除对象无效。"); input = { action: "delete", entity: entity as "stage" | "group" | "round", id: text("id") }; }

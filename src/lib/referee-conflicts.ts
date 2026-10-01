@@ -47,6 +47,7 @@ export async function detectAppointmentWarnings(
     select: {
       id: true,
       kickoff: true,
+      venue: true,
       endAt: true,
       competition: { select: { format: true } },
       homeTeam: {
@@ -65,7 +66,7 @@ export async function detectAppointmentWarnings(
       },
     },
   });
-  if (!match) return [];
+  if (!match?.kickoff || !match.venue?.trim()) return [];
 
   const targetEndForAvailability = match.endAt ?? match.kickoff;
   const [referees, existingAssignments] = await Promise.all([
@@ -111,6 +112,7 @@ export async function detectAppointmentWarnings(
               select: {
                 id: true,
                 kickoff: true,
+              venue: true,
                 endAt: true,
                 homeTeam: { select: { name: true } },
                 awayTeam: { select: { name: true } },
@@ -233,7 +235,7 @@ export async function detectAppointmentWarnings(
     let nearestAdjacent: { gapMinutes: number; matchId: string; matchup: string; direction: "上一场" | "下一场" } | null = null;
     for (const item of otherAssignments) {
       const other = item.appointment.match;
-      if (!other.endAt) continue;
+      if (!other.kickoff || !other.venue?.trim() || !other.endAt) continue;
       const matchup = `${other.homeTeam.name} vs ${other.awayTeam.name}`;
       if (intervalsOverlap(match.kickoff, match.endAt, other.kickoff, other.endAt)) {
         const overlapMs = Math.min(match.endAt.getTime(), other.endAt.getTime()) - Math.max(match.kickoff.getTime(), other.kickoff.getTime());

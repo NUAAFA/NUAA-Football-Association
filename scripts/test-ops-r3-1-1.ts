@@ -48,8 +48,7 @@ try {
   }
   const input = (rows: typeof parsed.rows, hash: string) => ({ competitionId: competition.id, importType: "MATCH" as const, inputMethod: "DOCX" as const, inputHash: hash, rows, referenceRows: parsed.referenceRows, inputWarnings: parsed.inputWarnings });
   const emptyPreview = await buildCompetitionImportPreview(input(parsed.rows, "original"));
-  assert.equal(emptyPreview.summary.errorRows, 30); assert.equal(await prisma.match.count(), 0);
-  await assert.rejects(() => commitCompetitionImport({ ...input(parsed.rows, "original"), expectedPlanHash: emptyPreview.planHash }, grant));
+  assert.equal(emptyPreview.summary.errorRows, 0); assert.equal(emptyPreview.summary.warningRows, 30); assert.equal(await prisma.match.count(), 0);
   const edits = Object.fromEntries(parsed.rows.map((r, i) => [r.rowNumber, { date: `2030-10-${String(1 + Math.floor(i / 2)).padStart(2, "0")}`, time: i % 2 ? "19:30" : "18:30", venue: "隔离足球场" }]));
   const complete = completeDocxRows(parsed.rows, edits);
   const fullPreview = await buildCompetitionImportPreview(input(complete, "completed"));

@@ -26,6 +26,10 @@ export type CompetitionImportParsedRow = {
 };
 
 export type CompetitionImportInput = {
+  strictIdentity?: boolean;
+  teamMappings?: Record<string, string>;
+  groupMappings?: Record<string, string>;
+  excludedRowNumbers?: number[];
   referenceRows?: CompetitionImportParsedRow[];
   competitionId: string;
   importType: CompetitionImportType;
@@ -39,6 +43,8 @@ export type CompetitionImportInput = {
 };
 
 export type CompetitionImportIssue = {
+  teamNames?: string[];
+  groupName?: string;
   field: string;
   errorCode: string;
   message: string;
@@ -74,6 +80,10 @@ export type CompetitionImportSummary = {
 };
 
 export type CompetitionImportPreview = {
+  teamMappings?: Array<{ sourceName: string; affectedRows: number; exactId?: string; mappedId?: string; candidates: { id: string; name: string; explanation: string }[] }>;
+  teamOptions?: { id: string; name: string }[];
+  groupMappings?: Array<{ sourceName: string; candidates: { id: string; name: string; explanation: string }[] }>;
+  excludedRows?: CompetitionImportParsedRow[];
   referenceRows?: CompetitionImportParsedRow[];
   publicImpact: boolean;
   planHash: string;

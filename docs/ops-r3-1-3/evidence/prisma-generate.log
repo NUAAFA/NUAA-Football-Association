@@ -1,0 +1,9 @@
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+
+✔ Generated Prisma Client (v7.9.1) to ./src/generated/prisma-v29 in 153ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+

@@ -1,0 +1,100 @@
+
+> nuaa-football-association@0.1.0 test:public-competition-dynamic:http
+> tsx scripts/test-public-competition-dynamic-http.ts
+
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": SQLite database "dynamic.db" at "file:/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-public-competition-r3-http-e5UEu2/dynamic.db"
+
+SQLite database dynamic.db created at file:/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-public-competition-r3-http-e5UEu2/dynamic.db
+
+16 migrations found in prisma/migrations
+
+Applying migration `20260722013757_init_referee_center`
+Applying migration `20260723124500_add_referee_sessions`
+Applying migration `20260730090000_referee_operations_v24`
+Applying migration `20260819120000_referee_admin_r1`
+Applying migration `20260820120000_referee_business_model_fix2`
+Applying migration `20260820160000_referee_acceptance_fix3`
+Applying migration `20260823091228_unified_admin_r1_foundation`
+Applying migration `20260823160000_referee_admission_application_intake`
+Applying migration `20260824120000_referee_admission_eligibility`
+Applying migration `20260913120000_public_competition_dynamic_r1`
+Applying migration `20260914210000_admin_operations_r2`
+Applying migration `20260922120000_public_competition_true_dynamic_r3`
+Applying migration `20260923120000_dynamic_public_team_directory_r1`
+Applying migration `20260928090000_ops_r3_1`
+Applying migration `20260929090000_ops_r3_1_1`
+Applying migration `20261001090000_ops_r3_1_2`
+
+The following migration(s) have been applied:
+
+migrations/
+  └─ 20260722013757_init_referee_center/
+    └─ migration.sql
+  └─ 20260723124500_add_referee_sessions/
+    └─ migration.sql
+  └─ 20260730090000_referee_operations_v24/
+    └─ migration.sql
+  └─ 20260819120000_referee_admin_r1/
+    └─ migration.sql
+  └─ 20260820120000_referee_business_model_fix2/
+    └─ migration.sql
+  └─ 20260820160000_referee_acceptance_fix3/
+    └─ migration.sql
+  └─ 20260823091228_unified_admin_r1_foundation/
+    └─ migration.sql
+  └─ 20260823160000_referee_admission_application_intake/
+    └─ migration.sql
+  └─ 20260824120000_referee_admission_eligibility/
+    └─ migration.sql
+  └─ 20260913120000_public_competition_dynamic_r1/
+    └─ migration.sql
+  └─ 20260914210000_admin_operations_r2/
+    └─ migration.sql
+  └─ 20260922120000_public_competition_true_dynamic_r3/
+    └─ migration.sql
+  └─ 20260923120000_dynamic_public_team_directory_r1/
+    └─ migration.sql
+  └─ 20260928090000_ops_r3_1/
+    └─ migration.sql
+  └─ 20260929090000_ops_r3_1_1/
+    └─ migration.sql
+  └─ 20261001090000_ops_r3_1_2/
+    └─ migration.sql
+
+All migrations have been successfully applied.
+▲ Next.js 16.3.8
+- Local:         http://127.0.0.1:50372
+- Network:       http://127.0.0.1:50372
+✓ Ready in 99ms
+✓ Running next.config.ts took 23ms
+{
+  "publicDiscovery": "PASS",
+  "publicationFilter": "PASS",
+  "arbitrarySevenAside": "PASS",
+  "arbitrarySixAside": "PASS",
+  "customTemplateFailClosed": "PASS",
+  "competitionIsolation": "PASS",
+  "teamIsolation": "PASS",
+  "matchIsolation": "PASS",
+  "appointmentIsolation": "PASS",
+  "canonicalNextMatch": "PASS",
+  "matchCreateUpdateCompleteCancelDelete": "PASS",
+  "sameProcessFreshness": "PASS",
+  "publicationToggle": "PASS",
+  "homepageToggle": "PASS",
+  "homepageFeatureLimit": "PASS",
+  "publicDtoPrivacy": "PASS",
+  "unpublished404": "PASS",
+  "dynamicSitemap": "PASS",
+  "genericRouteStaticInspection": "PASS",
+  "publicFooter": "PASS",
+  "historicalArchives": "PASS",
+  "serverStarts": 1,
+  "serverPid": 3439,
+  "rebuildsAfterStart": 0,
+  "restartsAfterStart": 0,
+  "foreignKeyViolations": 0
+}

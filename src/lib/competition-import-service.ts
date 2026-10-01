@@ -1,3 +1,4 @@
+import { importNameCandidates } from "@/lib/competition-import-matching";
 import { isKnockoutPlaceholder, validMatchNumber } from "@/lib/competition-match-number";
 import { createHash } from "node:crypto";
 
@@ -36,9 +37,9 @@ type LoadedMatch = {
   slug: string;
   competitionId: string;
   stage: string;
-  kickoff: Date;
+  kickoff: Date | null;
   endAt: Date | null;
-  venue: string;
+  venue: string | null;
   round: string | null;
   source: "MANUAL" | "FOOTBALL_CHINA";
   externalMatchId: string | null;
@@ -55,15 +56,16 @@ type TeamPlan = {
 };
 
 type MatchPlan = {
+  tentativeDate: string | null; tentativeSchedule: string | null;
   matchNumber: number | null;
   note: string;
   stageId: string | null; groupId: string | null; roundId: string | null;
   preview: CompetitionImportPreviewRow;
   homeTeam: string;
   awayTeam: string;
-  kickoff: Date;
+  kickoff: Date | null;
   endAt: Date | null;
-  venue: string;
+  venue: string | null;
   stage: string;
   round: string | null;
   externalMatchId: string | null;
@@ -190,7 +192,7 @@ export function parseCompetitionImportDate(
     return null;
   }
   const text = String(value).trim();
-  const local = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/.exec(text);
+  const local = /^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(text);
   if (local) {
     const parsed = shanghaiWallClock([
       Number(local[1]),
@@ -241,8 +243,8 @@ function stableMatchSlug(competitionSlug: string, kickoff: Date, homeTeam: strin
   return `${base}-${timestamp}-${hash}`;
 }
 
-function naturalMatchKey(kickoff: Date, homeTeam: string, awayTeam: string) {
-  return `${kickoff.toISOString()}\0${comparisonKey(homeTeam)}\0${comparisonKey(awayTeam)}`;
+function naturalMatchKey(kickoff: Date | null, homeTeam: string, awayTeam: string, scope = "") {
+  return `${kickoff?.toISOString() ?? `pending:${scope}`}\0${comparisonKey(homeTeam)}\0${comparisonKey(awayTeam)}`;
 }
 
 function makeSummary(rows: CompetitionImportPreviewRow[], plannedTeamCreates: number) {
@@ -266,9 +268,10 @@ function makePreview(
   plannedTeamCreates: number,
 ): CompetitionImportPreview {
   return {
+    excludedRows: input.rows.filter((r) => input.excludedRowNumbers?.includes(r.rowNumber)),
     referenceRows: input.referenceRows,
     publicImpact: Boolean(competition.publicPublished && !competition.isTestData),
-    planHash: createHash("sha256").update(JSON.stringify({ inputHash: input.inputHash, publicImpact: Boolean(competition.publicPublished && !competition.isTestData), rows, referenceRows: input.referenceRows })).digest("hex"),
+    planHash: createHash("sha256").update(JSON.stringify({ inputHash: input.inputHash, publicImpact: Boolean(competition.publicPublished && !competition.isTestData), rows, referenceRows: input.referenceRows, teamMappings: input.teamMappings, groupMappings: input.groupMappings, excludedRowNumbers: input.excludedRowNumbers })).digest("hex"),
     competition,
     importType: input.importType,
     inputMethod: input.inputMethod,
@@ -314,7 +317,7 @@ async function analyzeTeamImport(
   const seenExternalIds = new Map<string, number>();
   const teamPlans: TeamPlan[] = [];
 
-  for (const row of input.rows) {
+  for (const row of input.rows.filter((r) => !input.excludedRowNumbers?.includes(r.rowNumber))) {
     const errors: CompetitionImportIssue[] = [];
     const warnings: CompetitionImportIssue[] = [];
     const name = readText(row.values, "name", "球队名称", 80, errors);
@@ -390,9 +393,9 @@ function matchDifferences(existing: LoadedMatch, plan: MatchPlan) {
   compare("competitionId", existing.competitionId, plan.preview.normalized.competitionId ?? null);
   compare("homeTeam", comparisonKey(existing.homeTeam.name), comparisonKey(plan.homeTeam));
   compare("awayTeam", comparisonKey(existing.awayTeam.name), comparisonKey(plan.awayTeam));
-  compare("kickoff", existing.kickoff.toISOString(), plan.kickoff.toISOString());
+  compare("kickoff", existing.kickoff?.toISOString() ?? null, plan.kickoff?.toISOString() ?? null);
   if (plan.matchNumber !== null) compare("matchNumber", existing.matchNumber?.toString() ?? null, String(plan.matchNumber));
-  compare("venue", existing.venue.trim(), plan.venue);
+  compare("venue", existing.venue?.trim() ?? null, plan.venue);
   compare("stage", existing.stage.trim(), plan.stage);
   compare("stageId", existing.stageId, plan.stageId); compare("groupId", existing.groupId, plan.groupId); compare("roundId", existing.roundId, plan.roundId);
   compare("endAt", existing.endAt?.toISOString() ?? null, plan.endAt?.toISOString() ?? null);
@@ -431,35 +434,69 @@ async function analyzeMatchImport(
   const structures = await db.competitionStage.findMany({ where: { competitionId: competition.id }, include: { groups: { include: { members: true } }, rounds: true } });
   const preliminary: MatchPlan[] = [];
 
-  for (const row of input.rows) {
+  for (const row of input.rows.filter((r) => !input.excludedRowNumbers?.includes(r.rowNumber))) {
     const errors: CompetitionImportIssue[] = [];
     const warnings: CompetitionImportIssue[] = [];
     const rawNumber = displayCell(row.values.matchNumber).trim();
     const matchNumber = rawNumber ? Number(rawNumber) : null;
     if (!validMatchNumber(matchNumber) || rawNumber && !/^\d+$/.test(rawNumber)) errors.push(issue("matchNumber", "INVALID_MATCH_NUMBER", "场序须为 1–99999 的整数。"));
+    if (input.inputMethod === "DOCX" && matchNumber === null) errors.push(issue("matchNumber", "MATCH_NUMBER_REQUIRED", "DOCX 场序不能为空。"));
     const note = readText(row.values, "note", "备注", 500, errors, false);
-    const homeTeam = readText(row.values, "homeTeam", "主队", 80, errors);
-    const awayTeam = readText(row.values, "awayTeam", "客队", 80, errors);
-    const kickoff = parseCompetitionImportDate(row.values.kickoff, "kickoff", "开球时间", errors);
+    function resolveName(field: string, label: string) {
+      const sourceName = readText(row.values, field, label, 80, errors);
+      const mappedId = input.teamMappings?.[sourceName];
+      if (mappedId) {
+        const team = currentTeams.find((t) => t.id === mappedId);
+        if (!team) { errors.push(issue(field, "TEAM_MAPPING_EXPIRED", `“${sourceName}”对应的球队已不在当前赛事，请重新选择对应球队。`)); return sourceName; }
+        return team.name;
+      }
+      if (input.strictIdentity && !currentTeams.some((t) => t.name === sourceName) && !isKnockoutPlaceholder(sourceName)) errors.push(issue(field, "TEAM_MAPPING_REQUIRED", `请确认“${sourceName}”对应的本赛事真实球队。`));
+      return sourceName;
+    }
+    const homeTeam = resolveName("homeTeam", "主队"), awayTeam = resolveName("awayTeam", "客队");
+    const timeErrors: CompetitionImportIssue[] = [];
+    const rawKickoff = displayCell(row.values.kickoff).trim(), rawDate = displayCell(row.values.date).trim(), rawTime = displayCell(row.values.time).trim();
+    const normalizeTime = (v: string) => v.normalize("NFKC").replace(/年|月|\//g, "-").replace(/日/g, " ").replace(/时|点/g, ":").replace(/分/g, "").trim();
+    const pending = row.values.pendingResolution === "pending";
+    const dateOnly = /^\d{4}-\d{1,2}-\d{1,2}$/.test(normalizeTime(rawDate || rawKickoff));
+    let tentativeDate: string | null = null;
+    if (dateOnly && !rawTime) {
+      const text = normalizeTime(rawDate || rawKickoff);
+      if (parseCompetitionImportDate(`${text} 00:00`, "date", "暂定日期", timeErrors, false)) tentativeDate = text.split("-").map((v,i)=>i===0?v:v.padStart(2,"0")).join("-");
+    }
+    const freeText = /^(?:周末|下午|晚间|待通知|待定|上午|晚上|时间待定)$/;
+    const clockOnly = /^(?:[01]?\d|2[0-3]):[0-5]\d$/.test(normalizeTime(rawKickoff));
+    const partial = clockOnly || !rawKickoff && Boolean(rawDate || rawTime) || dateOnly && !rawTime || freeText.test(rawKickoff);
+    const kickoff = pending || partial ? null : parseCompetitionImportDate(rawKickoff ? normalizeTime(rawKickoff) : row.values.kickoff, "kickoff", "开球时间", timeErrors, false);
+    if (rawDate && !rawTime && !dateOnly && !freeText.test(rawDate)) timeErrors.push(issue("date", "AMBIGUOUS_DATE", "日期需要修改，或明确选择保留原文并按待定导入。"));
+    if (!pending) errors.push(...timeErrors);
+    const tentativeSchedule = kickoff ? null : [displayCell(row.values.tentativeSchedule), rawDate && !tentativeDate ? rawDate : "", rawTime, !tentativeDate ? rawKickoff : ""].filter(Boolean).join(" · ") || null;
+    if ((tentativeSchedule?.length ?? 0) > 500) errors.push(issue("time", "TOO_LONG", "暂定安排不能超过500字。"));
     const endAt = parseCompetitionImportDate(row.values.endAt, "endAt", "结束时间", errors, false);
-    const venue = readText(row.values, "venue", "场地", 120, errors);
+    const venue = readText(row.values, "venue", "场地", 120, errors, false) || null;
+    if (!kickoff) warnings.push(issue("kickoff", "PENDING_TIME", "比赛时间待安排"));
+    if (!venue) warnings.push(issue("venue", "PENDING_VENUE", "比赛场地待安排"));
+    if (endAt && !kickoff) errors.push(issue("endAt", "KICKOFF_REQUIRED", "填写结束时间前须安排开球时间。"));
     const stage = readText(row.values, "stage", "阶段", 80, errors);
     const round = readText(row.values, "round", "轮次", 80, errors, false) || null;
+    if (input.inputMethod === "DOCX" && !round) errors.push(issue("round", "ROUND_REQUIRED", "DOCX 轮次不能为空。"));
     let groupName = readText(row.values, "group", "分组", 80, errors, false);
     const findStage = structures.filter((s) => row.values.stageId ? s.id === displayCell(row.values.stageId) : s.name === stage);
     const selectedStage = findStage.length === 1 ? findStage[0] : undefined;
-    const groups = selectedStage?.groups.filter((g) => row.values.groupId ? g.id === displayCell(row.values.groupId) : g.name === groupName) ?? [];
+    const mappedGroupId = input.groupMappings?.[groupName];
+    const groups = selectedStage?.groups.filter((g) => row.values.groupId || mappedGroupId ? g.id === (displayCell(row.values.groupId) || mappedGroupId) : g.name === groupName) ?? [];
     const selectedGroup = groups.length === 1 ? groups[0] : undefined;
-    if (selectedGroup && row.values.groupId) groupName = selectedGroup.name;
+    if (selectedGroup && (row.values.groupId || mappedGroupId)) groupName = selectedGroup.name;
     const rounds = selectedStage?.rounds.filter((r) => (!r.groupId || r.groupId === selectedGroup?.id) && (row.values.roundId ? r.id === displayCell(row.values.roundId) : r.name === round)) ?? [];
     const selectedRound = rounds.length === 1 ? rounds[0] : undefined;
     if ((structures.length || row.values.stageId || groupName || row.values.groupId || row.values.roundId) && !selectedStage) errors.push(issue("stage", "STRUCTURE_UNMATCHED", "阶段未匹配；请先建立结构并核对准确名称或 ID。"));
-    if (selectedStage?.type === "GROUP" && !selectedGroup) errors.push(issue("group", "GROUP_UNMATCHED", "小组未匹配；请先建立并选择当前阶段的小组。"));
+    if (selectedStage?.type === "GROUP" && !selectedGroup) errors.push(issue("group", "GROUP_UNMATCHED", `未找到小组“${groupName || displayCell(row.values.groupId)}”。请前往“球队与分组”核对。`));
     if ((groupName || row.values.groupId) && (!selectedGroup || selectedStage?.type !== "GROUP")) errors.push(issue("group", "GROUP_INVALID", "分组不属于所选小组阶段。"));
     if (selectedStage && (round || row.values.roundId) && !selectedRound) errors.push(issue("round", "ROUND_UNMATCHED", "轮次未匹配，请先人工建立轮次或选择准确 ID。"));
     if (selectedGroup) {
       const members = new Set(selectedGroup.members.map((m) => m.teamId));
-      if (![homeTeam, awayTeam].every((n) => { const t = existingByTeamName.get(comparisonKey(n)); return t && members.has(t.id); })) errors.push(issue("group", "GROUP_TEAM_MISMATCH", "主客队必须是已确定的本组成员，不能自动建队或归组。"));
+      const names = [homeTeam, awayTeam].filter((n) => { const t = existingByTeamName.get(comparisonKey(n)); return !t || !members.has(t.id); });
+      if (names.length) errors.push({ ...issue("group", "GROUP_TEAM_MISMATCH", `球队分组不一致：以下球队尚未确认属于 ${selectedGroup.name}：${names.join("、")}。请先前往“球队与分组”完成分组，再重新检查赛程。`), teamNames: names, groupName: selectedGroup.name });
     }
     if ([homeTeam, awayTeam].some(isKnockoutPlaceholder)) errors.push(issue("team", "PLACEHOLDER_TEAM", "淘汰赛占位描述不能创建真实球队或比赛；请人工选择真实球队。"));
     if (input.inputMethod === "DOCX" || selectedStage?.type === "KNOCKOUT") {
@@ -474,16 +511,15 @@ async function analyzeMatchImport(
     if (kickoff && endAt && endAt <= kickoff) {
       errors.push(issue("endAt", "END_NOT_AFTER_KICKOFF", "比赛结束时间必须晚于开球时间。"));
     }
-    const slug = kickoff && homeTeam && awayTeam
-      ? stableMatchSlug(competition.slug, kickoff, homeTeam, awayTeam)
-      : "";
+    const slug = homeTeam && awayTeam ? kickoff ? stableMatchSlug(competition.slug, kickoff, homeTeam, awayTeam) : `${competition.slug.slice(0,36)}-pending-${createHash("sha256").update(JSON.stringify([competition.id, stageId, groupId, roundId, matchNumber, homeTeam, awayTeam])).digest("hex").slice(0,16)}` : "";
     const preview: CompetitionImportPreviewRow = {
       rowNumber: row.rowNumber,
       raw: rawSummary(row.values),
       normalized: {
-        matchNumber: matchNumber === null ? null : String(matchNumber), note,
+        matchNumber: matchNumber === null ? null : String(matchNumber), note, tentativeDate, tentativeSchedule,
         date: displayCell(row.values.date), time: displayCell(row.values.time),
         competitionId: competition.id,
+        homeTeamId: existingByTeamName.get(comparisonKey(homeTeam))?.id ?? null, awayTeamId: existingByTeamName.get(comparisonKey(awayTeam))?.id ?? null,
         homeTeam: homeTeam || null,
         awayTeam: awayTeam || null,
         kickoff: kickoff?.toISOString() ?? null,
@@ -504,10 +540,10 @@ async function analyzeMatchImport(
       slug: slug || undefined,
     };
     preliminary.push({
-      preview, matchNumber, note,
+      preview, matchNumber, note, tentativeDate, tentativeSchedule,
       homeTeam,
       awayTeam,
-      kickoff: kickoff ?? new Date(0),
+      kickoff,
       endAt,
       venue,
       stage, stageId, groupId, roundId,
@@ -554,7 +590,7 @@ async function analyzeMatchImport(
         })
       : Promise.resolve([]),
   ]);
-  const existingByNaturalKey = new Map(competitionMatches.map((match) => [naturalMatchKey(match.kickoff, match.homeTeam.name, match.awayTeam.name), match]));
+  const existingByNaturalKey = new Map(competitionMatches.map((match) => [naturalMatchKey(match.kickoff, match.homeTeam.name, match.awayTeam.name, JSON.stringify([match.stageId, match.groupId, match.roundId, match.matchNumber])), match]));
   const existingByExternalId = new Map(externalMatches.flatMap((match) => match.externalMatchId ? [[match.externalMatchId, match] as const] : []));
   const existingBySlug = new Map(slugMatches.map((match) => [match.slug, match]));
   const existingByNumber = new Map(competitionMatches.filter((m) => m.matchNumber !== null).map((m) => [m.matchNumber!, m]));
@@ -570,7 +606,7 @@ async function analyzeMatchImport(
       if (previous !== undefined) { plan.preview.errors.push(issue("matchNumber", "DUPLICATE_MATCH_NUMBER", `场序与第 ${previous} 行重复。`)); plan.preview.action = "CONFLICT"; continue; }
       seenNumber.set(plan.matchNumber, plan.preview.rowNumber);
     }
-    const naturalKey = naturalMatchKey(plan.kickoff, plan.homeTeam, plan.awayTeam);
+    const naturalKey = naturalMatchKey(plan.kickoff, plan.homeTeam, plan.awayTeam, JSON.stringify([plan.stageId, plan.groupId, plan.roundId, plan.matchNumber]));
     const duplicateNatural = seenNatural.get(naturalKey);
     const duplicateExternal = plan.externalMatchId ? seenExternal.get(plan.externalMatchId) : undefined;
     if (duplicateExternal) {
@@ -632,8 +668,13 @@ async function analyzeMatchImport(
 
   const plannedMatchTeams = [...plannedTeamRows.values()].map((item) => item.name);
   const rows = preliminary.map((plan) => plan.preview);
+  const names = [...new Set(input.rows.flatMap((r) => [displayCell(r.values.homeTeam), displayCell(r.values.awayTeam)]).filter((n) => n && !isKnockoutPlaceholder(n)))];
+  const preview = makePreview(input, competition, rows, plannedMatchTeams.length);
+  preview.teamOptions = currentTeams.map(({ id, name }) => ({ id, name }));
+  preview.teamMappings = names.map((sourceName) => ({ sourceName, affectedRows: input.rows.filter((r) => [displayCell(r.values.homeTeam), displayCell(r.values.awayTeam)].includes(sourceName)).length, exactId: currentTeams.find((t) => t.name === sourceName)?.id, mappedId: input.teamMappings?.[sourceName], candidates: importNameCandidates(sourceName, currentTeams) }));
+  preview.groupMappings = [...new Set(input.rows.map((r) => displayCell(r.values.group)).filter(Boolean))].map((sourceName) => ({ sourceName, candidates: importNameCandidates(sourceName, structures.flatMap((s) => s.groups)) }));
   return {
-    preview: makePreview(input, competition, rows, plannedMatchTeams.length),
+    preview,
     currentTeams,
     teamPlans: [],
     matchPlans: preliminary,
@@ -662,7 +703,7 @@ export async function commitCompetitionImport(
       const analysis = await analyzeCompetitionImport(tx, input);
       const { preview } = analysis;
       if (input.expectedPlanHash && input.expectedPlanHash !== preview.planHash) throw new CompetitionImportCommitConflict("检查后输入、分组或公开状态已变化，请重新检查并确认。", preview);
-      if (preview.summary.errorRows || preview.summary.conflictRows) {
+      if (!preview.rows.length || preview.summary.errorRows || preview.summary.conflictRows) {
         throw new CompetitionImportCommitConflict("导入内容仍包含错误或冲突，请修正后重新预览。", preview);
       }
 
@@ -720,6 +761,7 @@ export async function commitCompetitionImport(
           await assertMatchStructure(tx, { competitionId: input.competitionId, stageId: plan.stageId, groupId: plan.groupId, roundId: plan.roundId, homeTeamId: homeTeam.id, awayTeamId: awayTeam.id });
           await tx.match.create({
             data: {
+              tentativeDate: plan.tentativeDate, tentativeSchedule: plan.tentativeSchedule,
               matchNumber: plan.matchNumber, internalNote: plan.note || null,
               slug: plan.slug,
               competitionId: input.competitionId,
@@ -755,7 +797,7 @@ export async function commitCompetitionImport(
             importType: input.importType,
             inputMethod: input.inputMethod,
             inputHash: input.inputHash,
-            totalRows: preview.summary.totalRows,
+            totalRows: preview.summary.totalRows, excludedRowNumbers: input.excludedRowNumbers, teamMappings: input.teamMappings, groupMappings: input.groupMappings,
             createdTeams,
             reusedTeams,
             createdMatches,

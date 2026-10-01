@@ -54,8 +54,8 @@ export default async function RefereeWorkspacePage() {
     prisma.refereeAvailability.findMany({ where: { refereeId: session.refereeId, endAt: { gte: now } }, orderBy: { startAt: "asc" }, take: 5 }),
     prisma.match.count({ where: { status: "SCHEDULED", applicationWindowStatus: "OPEN", applicationDeadline: { gt: now } } }),
   ]);
-  const sortedPositions = [...assignedPositions].sort((left, right) => left.appointment.match.kickoff.getTime() - right.appointment.match.kickoff.getTime());
-  const upcomingPositions = sortedPositions.filter((item) => item.appointment.status === "PUBLISHED" && item.appointment.match.status === "SCHEDULED");
+  const sortedPositions = [...assignedPositions].sort((left, right) => (left.appointment.match.kickoff?.getTime() ?? Infinity) - (right.appointment.match.kickoff?.getTime() ?? Infinity));
+  const upcomingPositions = sortedPositions.filter((item) => item.appointment.status === "PUBLISHED" && item.appointment.match.status === "SCHEDULED" && item.appointment.match.kickoff !== null && Boolean(item.appointment.match.venue?.trim()));
   const historicalPositions = sortedPositions.filter((item) => item.appointment.status === "COMPLETED").reverse();
   return <>
     <SiteHeader /><RefreshOnFocus />
@@ -70,7 +70,7 @@ export default async function RefereeWorkspacePage() {
 
         <section id="official-tasks">
           <header className="functional-section-heading"><div><p>UPCOMING OFFICIAL DUTIES</p><h2>正式任务 · 待执裁 / 待完赛确认</h2></div><span>{upcomingPositions.length} 项</span></header>
-          {upcomingPositions.length ? <div className="referee-task-list">{upcomingPositions.map((position, index) => { const version = position.appointment.versions[0]; return <article className={index === 0 ? "is-nearest" : ""} key={position.id}><div><span>{index === 0 ? "最近任务 · " : ""}{position.appointment.match.competition.name}</span><h3>{position.appointment.match.homeTeam.name} vs {position.appointment.match.awayTeam.name}</h3><p>{formatRefereeDateTime(position.appointment.match.kickoff)} · {position.appointment.match.venue}</p></div><strong>{position.label}{position.appointment.match.kickoff <= now ? " · 待完赛确认" : ""}</strong><RefereeTaskActions appointmentId={position.appointment.id} acknowledgedAt={version?.acknowledgements[0] ? formatRefereeDateTime(version.acknowledgements[0].acknowledgedAt) : null} reportStatus={version?.conflictReports[0]?.status ?? null} /></article>; })}</div> : <div className="functional-empty functional-empty-compact"><strong>暂无正式任务 · 待执裁 / 待完赛确认</strong><p>只有管理员正式发布且未撤回的选派会显示在这里。</p></div>}
+          {upcomingPositions.length ? <div className="referee-task-list">{upcomingPositions.map((position, index) => { const version = position.appointment.versions[0]; return <article className={index === 0 ? "is-nearest" : ""} key={position.id}><div><span>{index === 0 ? "最近任务 · " : ""}{position.appointment.match.competition.name}</span><h3>{position.appointment.match.homeTeam.name} vs {position.appointment.match.awayTeam.name}</h3><p>{formatRefereeDateTime(position.appointment.match.kickoff)} · {position.appointment.match.venue}</p></div><strong>{position.label}{position.appointment.match.kickoff && position.appointment.match.kickoff <= now ? " · 待完赛确认" : ""}</strong><RefereeTaskActions appointmentId={position.appointment.id} acknowledgedAt={version?.acknowledgements[0] ? formatRefereeDateTime(version.acknowledgements[0].acknowledgedAt) : null} reportStatus={version?.conflictReports[0]?.status ?? null} /></article>; })}</div> : <div className="functional-empty functional-empty-compact"><strong>暂无正式任务 · 待执裁 / 待完赛确认</strong><p>只有管理员正式发布且未撤回的选派会显示在这里。</p></div>}
         </section>
 
         <div className="referee-dashboard-secondary">

@@ -1,0 +1,23 @@
+
+> nuaa-football-association@0.1.0 test:referee-r1-3a
+> tsx scripts/test-referee-r1-3a.ts
+
+{
+  "admissionPendingWithoutReferee": true,
+  "admissionRbac": true,
+  "admissionRejectAndRepeatConflict": true,
+  "approvalDefaultsAndTrace": true,
+  "noFuzzyMatchAndExplicitLink": true,
+  "initialPasswordNotPersistedInPlaintext": true,
+  "firstLoginAndPasswordChange": true,
+  "workspaceAvailabilityBeforeEligibility": true,
+  "trainingAndEligibilityIndependent": true,
+  "eligibilityReasonAndAudit": true,
+  "applicationHardGateMatrix": true,
+  "adminExceptionCannotBypassEligibility": true,
+  "appointmentDraftHardGateMatrix": true,
+  "unavailableAndOverlapHardConflicts": true,
+  "appointmentPublishStaleStateRevalidation": true,
+  "accountDisableInvalidatesSessions": true,
+  "auditLogCoverage": true
+}

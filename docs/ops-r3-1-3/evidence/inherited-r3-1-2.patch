@@ -1,0 +1,1388 @@
+diff --git a/package.json b/package.json
+index 74beb78..99fa5b4 100644
+--- a/package.json
++++ b/package.json
+@@ -26,6 +26,7 @@
+     "test:unified-admin-r1-2:http": "tsx scripts/test-unified-admin-r1-2-http.ts",
+     "test:unified-admin-rbac": "tsx scripts/test-unified-admin-rbac.ts",
+     "test:unified-admin-blockers:http": "tsx scripts/test-unified-admin-blockers.ts",
++    "test:ops-r3-1-2": "tsx scripts/test-ops-r3-1-2.ts",
+     "test:competition-import": "tsx scripts/test-competition-import.ts",
+     "test:competition-import:http": "tsx scripts/test-competition-import-http-runtime.ts",
+     "test:public-competition-dynamic": "tsx scripts/test-public-competition-dynamic.ts",
+diff --git a/prisma/schema.prisma b/prisma/schema.prisma
+index 3b09054..318fb16 100644
+--- a/prisma/schema.prisma
++++ b/prisma/schema.prisma
+@@ -247,9 +247,9 @@ model Match {
+   slug                    String                     @unique
+   competitionId           String
+   stage                   String
+-  kickoff                 DateTime
++  kickoff                 DateTime?
+   endAt                   DateTime?
+-  venue                   String
++  venue                   String?
+   round                   String?
+   source                  DataSource                 @default(MANUAL)
+   externalMatchId         String?
+@@ -777,6 +777,8 @@ model CompetitionStage {
+ }
+ 
+ model CompetitionGroup {
++  createdAt     DateTime @default(now())
++  updatedAt     DateTime @updatedAt
+   id            String                @id @default(cuid())
+   stageId       String
+   name          String
+diff --git a/scripts/test-competition-import-worker.ts b/scripts/test-competition-import-worker.ts
+index c8df900..882ade3 100644
+--- a/scripts/test-competition-import-worker.ts
++++ b/scripts/test-competition-import-worker.ts
+@@ -243,7 +243,7 @@ async function main() {
+     const matchCommit = await service.commitCompetitionImport(validMatches, competitionAuthorization);
+     assert(matchCommit.createdTeams === 1 && matchCommit.createdMatches === 2, "Match commit summary mismatch.");
+     const persistedMatch = await verifier.match.findUniqueOrThrow({ where: { source_externalMatchId: { source: "MANUAL", externalMatchId: "MATCH-001" } } });
+-    assert(persistedMatch.kickoff.toISOString() === "2026-10-25T10:30:00.000Z", "Persisted kickoff timezone mismatch.");
++    assert(persistedMatch.kickoff!.toISOString() === "2026-10-25T10:30:00.000Z", "Persisted kickoff timezone mismatch.");
+     assert(persistedMatch.status === "SCHEDULED" && persistedMatch.applicationWindowStatus === "CLOSED" && persistedMatch.applicationDeadline === null, "Imported match safety defaults failed.");
+     const matchCommitAgain = await service.commitCompetitionImport(validMatches, competitionAuthorization);
+     assert(matchCommitAgain.createdTeams === 0 && matchCommitAgain.createdMatches === 0 && matchCommitAgain.skippedMatches === 2, "Match re-import was not idempotent.");
+diff --git a/scripts/test-ops-r3-1-1.ts b/scripts/test-ops-r3-1-1.ts
+index 097c236..de872cf 100644
+--- a/scripts/test-ops-r3-1-1.ts
++++ b/scripts/test-ops-r3-1-1.ts
+@@ -48,8 +48,7 @@ try {
+   }
+   const input = (rows: typeof parsed.rows, hash: string) => ({ competitionId: competition.id, importType: "MATCH" as const, inputMethod: "DOCX" as const, inputHash: hash, rows, referenceRows: parsed.referenceRows, inputWarnings: parsed.inputWarnings });
+   const emptyPreview = await buildCompetitionImportPreview(input(parsed.rows, "original"));
+-  assert.equal(emptyPreview.summary.errorRows, 30); assert.equal(await prisma.match.count(), 0);
+-  await assert.rejects(() => commitCompetitionImport({ ...input(parsed.rows, "original"), expectedPlanHash: emptyPreview.planHash }, grant));
++  assert.equal(emptyPreview.summary.errorRows, 0); assert.equal(emptyPreview.summary.warningRows, 30); assert.equal(await prisma.match.count(), 0);
+   const edits = Object.fromEntries(parsed.rows.map((r, i) => [r.rowNumber, { date: `2030-10-${String(1 + Math.floor(i / 2)).padStart(2, "0")}`, time: i % 2 ? "19:30" : "18:30", venue: "隔离足球场" }]));
+   const complete = completeDocxRows(parsed.rows, edits);
+   const fullPreview = await buildCompetitionImportPreview(input(complete, "completed"));
+diff --git a/scripts/test-ops-r3-1-legacy-history.ts b/scripts/test-ops-r3-1-legacy-history.ts
+index 37ecc91..65b9a35 100644
+--- a/scripts/test-ops-r3-1-legacy-history.ts
++++ b/scripts/test-ops-r3-1-legacy-history.ts
+@@ -27,7 +27,7 @@ async function main() {
+     for (const [slug, status, label] of [["ops-legacy-completed-no-score", "COMPLETED", "原比赛已完成"], ["ops-legacy-scheduled-completed-appointment", "SCHEDULED", "原比赛仍已安排"]] as const) {
+       const match = await db.match.upsert({ where: { slug }, update: {}, create: { slug, competitionId: competition.id, stage: `旧档案${label}`, kickoff: new Date(Date.now() - 7 * 86400000), homeTeamId: teams[0].id, awayTeamId: teams[1].id, venue: "仅隔离历史验收", status, isTestData: true } });
+       let appointment = await db.refereeAppointment.findUnique({ where: { matchId: match.id } });
+-      if (!appointment) appointment = await db.refereeAppointment.create({ data: { matchId: match.id, status: "COMPLETED", revision: 2, publishedAt: match.kickoff, completedAt: new Date(match.kickoff.getTime() + 7200000), publicationNote: "合成旧完成档案；比分原本缺失", positions: { create: { key: "REFEREE", label: "历史裁判员", refereeId: accounts.refereeId, sortOrder: 0 } }, versions: { create: [{ revision: 1, status: "PUBLISHED", snapshot: JSON.stringify({ fixture: "restored-legacy" }) }, { revision: 2, status: "COMPLETED", snapshot: JSON.stringify({ fixture: "restored-legacy" }) }] } } });
++      if (!appointment) appointment = await db.refereeAppointment.create({ data: { matchId: match.id, status: "COMPLETED", revision: 2, publishedAt: match.kickoff, completedAt: new Date(match.kickoff!.getTime() + 7200000), publicationNote: "合成旧完成档案；比分原本缺失", positions: { create: { key: "REFEREE", label: "历史裁判员", refereeId: accounts.refereeId, sortOrder: 0 } }, versions: { create: [{ revision: 1, status: "PUBLISHED", snapshot: JSON.stringify({ fixture: "restored-legacy" }) }, { revision: 2, status: "COMPLETED", snapshot: JSON.stringify({ fixture: "restored-legacy" }) }] } } });
+       fixtures.push({ matchId: match.id, appointmentId: appointment.id, label });
+     }
+     const snapshots = async () => Promise.all(fixtures.map(async (f) => ({ ...f, match: await db.match.findUniqueOrThrow({ where: { id: f.matchId }, select: { status: true, homeScore: true, awayScore: true, resultVersion: true, resultConfirmedAt: true } }), versions: await db.appointmentVersion.count({ where: { appointmentId: f.appointmentId } }), audits: await db.auditLog.count({ where: { entityId: { in: [f.matchId, f.appointmentId] } } }) })));
+diff --git a/scripts/test-referee-r1-3a-worker.ts b/scripts/test-referee-r1-3a-worker.ts
+index a9a8e8d..e844ebb 100644
+--- a/scripts/test-referee-r1-3a-worker.ts
++++ b/scripts/test-referee-r1-3a-worker.ts
+@@ -380,13 +380,13 @@ async function main() {
+         competitionId: targetCompetition.id,
+         stage: `R1-3A 场次 ${matchSequence}`,
+         kickoff,
+-        endAt: new Date(kickoff.getTime() + 120 * 60_000),
++        endAt: new Date(kickoff!.getTime() + 120 * 60_000),
+         venue: `R1-3A 场地 ${matchSequence}`,
+         homeTeamId: targetCompetition.teams[0].id,
+         awayTeamId: targetCompetition.teams[1].id,
+         status: "SCHEDULED",
+         applicationWindowStatus: options.open === false ? "CLOSED" : "OPEN",
+-        applicationDeadline: options.open === false ? undefined : new Date(kickoff.getTime() - 24 * 60 * 60_000),
++        applicationDeadline: options.open === false ? undefined : new Date(kickoff!.getTime() - 24 * 60 * 60_000),
+         positionCounts: { REFEREE: 1 },
+       }, { id: refereeActor.id, role: "REFEREE_MANAGER" });
+     };
+@@ -520,8 +520,8 @@ async function main() {
+     const unavailableMatch = await createMatch({ open: false });
+     await r1.saveRefereeAvailability({
+       refereeId: approvedReferee.id,
+-      startAt: unavailableMatch.kickoff,
+-      endAt: new Date(unavailableMatch.kickoff.getTime() + 60 * 60_000),
++      startAt: unavailableMatch.kickoff!,
++      endAt: new Date(unavailableMatch.kickoff!.getTime() + 60 * 60_000),
+       kind: "UNAVAILABLE",
+       note: "课程冲突",
+       actor: { type: "REFEREE", id: approvedReferee.id },
+diff --git a/scripts/test-referee-r1-worker.ts b/scripts/test-referee-r1-worker.ts
+index 7cca36e..9af4519 100644
+--- a/scripts/test-referee-r1-worker.ts
++++ b/scripts/test-referee-r1-worker.ts
+@@ -224,12 +224,12 @@ async function main() {
+     await r1.setTeamAffiliations("legacy-home", [college.id], superActor);
+ 
+     const kickoff = legacyMatch.kickoff;
+-    const targetEnd = new Date(kickoff.getTime() + 120 * 60_000);
++    const targetEnd = new Date(kickoff!.getTime() + 120 * 60_000);
+     await verifier.match.update({ where: { id: legacyMatch.id }, data: { endAt: targetEnd } });
+     await r1.saveRefereeAvailability({
+       refereeId: legacyReferee.id,
+-      startAt: new Date(kickoff.getTime() + 30 * 60_000),
+-      endAt: new Date(kickoff.getTime() + 60 * 60_000),
++      startAt: new Date(kickoff!.getTime() + 30 * 60_000),
++      endAt: new Date(kickoff!.getTime() + 60 * 60_000),
+       kind: "UNAVAILABLE",
+       note: "课程冲突",
+       actor: { type: "REFEREE", id: legacyReferee.id },
+@@ -239,8 +239,8 @@ async function main() {
+       slug: "r1-overlap-match",
+       competitionId: "legacy-competition",
+       stage: "重叠验证",
+-      kickoff: new Date(kickoff.getTime() + 60 * 60_000),
+-      endAt: new Date(kickoff.getTime() + 180 * 60_000),
++      kickoff: new Date(kickoff!.getTime() + 60 * 60_000),
++      endAt: new Date(kickoff!.getTime() + 180 * 60_000),
+       venue: "重叠测试场地",
+       homeTeamId: "legacy-home",
+       awayTeamId: "legacy-away",
+diff --git a/src/app/admin/(dashboard)/competitions/[id]/page.tsx b/src/app/admin/(dashboard)/competitions/[id]/page.tsx
+index a6312ec..b8c0548 100644
+--- a/src/app/admin/(dashboard)/competitions/[id]/page.tsx
++++ b/src/app/admin/(dashboard)/competitions/[id]/page.tsx
+@@ -1,7 +1,8 @@
++import { TeamGroupingManager } from "@/components/admin/team-grouping-manager";
+ import { getHomepagePublicCompetitions, getPublicCompetition } from "@/lib/public-competition-service";
+ import type { Prisma } from "@/generated/prisma-v29/client";
+ import { CompetitionStructureManager } from "@/components/admin/competition-structure-manager";
+-import { loadCompetitionStructure, getGroupStandings } from "@/lib/competition-structure-service";
++import { loadCompetitionStructure, getCompetitionGroupStandings } from "@/lib/competition-structure-service";
+ import Link from "next/link";
+ import { notFound } from "next/navigation";
+ 
+@@ -19,6 +20,7 @@ export default async function CompetitionWorkspacePage({ params, searchParams }:
+   const query = await searchParams;
+   const { section } = query;
+   const where: Prisma.MatchWhereInput = { competitionId: id, ...(query.stageId ? { stageId: query.stageId === "legacy" ? null : query.stageId } : {}), ...(query.groupId ? { groupId: query.groupId } : {}), ...(query.roundId ? { roundId: query.roundId } : {}), ...(["SCHEDULED", "COMPLETED", "CANCELLED"].includes(query.status ?? "") ? { status: query.status as "SCHEDULED" | "COMPLETED" | "CANCELLED" } : {}) };
++  if (query.status === "PENDING") { where.status = "SCHEDULED"; where.OR = [{ kickoff: null }, { venue: null }, { venue: "" }]; }
+   const [matchCount, pendingCount] = await Promise.all([prisma.match.count({ where }), prisma.match.count({ where: { competitionId: id, status: "SCHEDULED" } })]);
+   const page = Math.min(Math.max(1, Math.ceil(matchCount / 30)), Math.max(1, Math.floor(Number(query.page) || 1)));
+   const [competition, rawUnits] = await Promise.all([
+@@ -46,7 +48,7 @@ export default async function CompetitionWorkspacePage({ params, searchParams }:
+   const units = sortAffiliationOptions(rawUnits.map((unit) => ({ id: unit.id, name: unit.name, type: unit.type, prefixes: unit.legacyCollege?.codeMappings.map((mapping) => mapping.prefix) ?? [] })))
+     .map((unit) => ({ ...unit, label: affiliationOptionLabel(unit) }));
+   const stages = await loadCompetitionStructure(id);
+-  const tables = await Promise.all(stages.flatMap((stage) => stage.groups.map((g) => getGroupStandings(g.id))));
++  const tables = await getCompetitionGroupStandings(id);
+   const [homepage, publicView] = await Promise.all([getHomepagePublicCompetitions(), getPublicCompetition(competition.slug)]);
+   const chosen = homepage.some((c) => c.id === id);
+   const publicEffect = !competition.publicPublished ? "赛事中心尚未公开" : competition.isTestData ? "测试标记阻止公开" : chosen ? "赛事中心已公开 · 当前入选首页" : competition.status === "COMPLETED" ? "赛事中心已公开 · 已结束，不占活跃首页位" : !competition.homepageFeatured ? "赛事中心已公开 · 未选择首页候选" : "赛事中心已公开 · 首页候选，目前按近期比赛排序未入选";
+@@ -57,7 +59,8 @@ export default async function CompetitionWorkspacePage({ params, searchParams }:
+       canWrite={canWrite}
+       counts={{ teams: competition._count.teams, matches: competition._count.matches, pending: pendingCount, filtered: matchCount }} page={page} stages={stages}
+       publicEffect={publicEffect + (publicView?.nextMatch.state === "scheduled" ? ` · 下一场：${publicView.nextMatch.homeTeam} vs ${publicView.nextMatch.awayTeam} ${publicView.nextMatch.dateLabel} ${publicView.nextMatch.timeLabel}` : publicView ? ` · ${publicView.nextMatch.summary}` : "")}
+-      structure={<CompetitionStructureManager key={id} competitionId={id} stages={stages} tables={tables} teams={competition.teams.map((t) => ({ id: t.id, name: t.name }))} canWrite={canWrite} />}
++      grouping={<TeamGroupingManager key={id} competitionId={id} stages={stages} teams={competition.teams.map((t) => ({ id: t.id, name: t.name }))} canWrite={canWrite} />}
++      structure={<CompetitionStructureManager showGrouping={false} key={id} competitionId={id} stages={stages} tables={tables} teams={competition.teams.map((t) => ({ id: t.id, name: t.name }))} canWrite={canWrite} />}
+       initialSection={section === "teams" ? "teams" : section === "matches" ? "matches" : "overview"}
+       competition={{
+         id: competition.id,
+@@ -70,7 +73,7 @@ export default async function CompetitionWorkspacePage({ params, searchParams }:
+           ? "该赛事已有参赛球队、比赛、公开发布或其他正式数据，不能直接删除。请保留历史并逐项核对。"
+           : undefined,
+       }}
+-      matches={competition.matches.map((match) => ({ matchNumber: match.matchNumber, id: match.id, matchup: `${match.homeTeam.name} vs ${match.awayTeam.name}`, kickoff: formatRefereeDateTime(match.kickoff), venue: match.venue, status: match.status, stage: match.structureStage?.name ?? match.stage, group: match.structureGroup?.name, round: match.structureRound?.name ?? match.round ?? "", score: match.homeScore !== null && match.awayScore !== null ? `${match.homeScore}:${match.awayScore}` : "" }))}
++      matches={competition.matches.map((match) => ({ matchNumber: match.matchNumber, id: match.id, matchup: `${match.homeTeam.name} vs ${match.awayTeam.name}`, kickoff: formatRefereeDateTime(match.kickoff), venue: match.venue || "场地待定", pendingSchedule: !match.kickoff || !match.venue?.trim(), status: match.status, stage: match.structureStage?.name ?? match.stage, group: match.structureGroup?.name, round: match.structureRound?.name ?? match.round ?? "", score: match.homeScore !== null && match.awayScore !== null ? `${match.homeScore}:${match.awayScore}` : "" }))}
+       teams={competition.teams.map((team) => ({ id: team.id, name: team.name, teamType: team.teamType, unitIds: team.unitAffiliations.map((item) => item.unitId), matchCount: team._count.homeMatches + team._count.awayMatches }))}
+       units={units}
+     />
+diff --git a/src/app/admin/(dashboard)/matches/[id]/page.tsx b/src/app/admin/(dashboard)/matches/[id]/page.tsx
+index 39eeac3..29a4866 100644
+--- a/src/app/admin/(dashboard)/matches/[id]/page.tsx
++++ b/src/app/admin/(dashboard)/matches/[id]/page.tsx
+@@ -1,3 +1,4 @@
++import { MatchSchedulingForm } from "@/components/admin/match-scheduling-form";
+ import Link from "next/link";
+ import { notFound } from "next/navigation";
+ 
+@@ -53,17 +54,18 @@ export default async function UnifiedMatchDetailPage({ params }: { params: Promi
+       <div><span>{match.competition.name}</span><h1>{matchLabel}</h1><p>{match.round ? `${match.round} · ` : ""}{match.stage}</p>
+         <dl className="admin-detail-meta">
+           <div><dt>开球时间</dt><dd>{formatRefereeDateTime(match.kickoff)}</dd></div>
+-          <div><dt>比赛场地</dt><dd>{match.venue}</dd></div>
+-          <div><dt>比赛状态</dt><dd>{matchStatusLabels[match.status]}</dd></div>
++          <div><dt>比赛场地</dt><dd>{match.venue || "场地待定"}</dd></div>
++          <div><dt>比赛状态</dt><dd>{match.status === "SCHEDULED" && (!match.kickoff || !match.venue?.trim()) ? "待排期" : matchStatusLabels[match.status]}</dd></div>
+           <div><dt>选派状态</dt><dd>{appointmentStatusLabels[match.appointment?.status ?? "NONE"]}</dd></div>
+         </dl>
+       </div>
+       {canWrite ? <div className="admin-detail-actions">
++        {match.status === "SCHEDULED" && (!match.kickoff || !match.venue?.trim()) ? <MatchSchedulingForm matchId={match.id} /> : null}
+         <Link className="admin-button admin-button-secondary" href={`/admin/matches/${match.id}/edit`}>编辑比赛</Link>
+         <AdminMatchDangerActions matchId={match.id} matchLabel={matchLabel} protectedReason={deletionProtected ? "该比赛已有报名意向、选派或正式历史记录，不能直接删除。请使用“取消比赛”保留业务历史。" : undefined} />
+       </div> : null}
+     </section>
+-    <AdminPanel title="比赛结果">{canWrite ? <MatchResultForm match={{ id: match.id, homeScore: match.homeScore, awayScore: match.awayScore, homePenaltyScore: match.homePenaltyScore, awayPenaltyScore: match.awayPenaltyScore, resultVersion: match.resultVersion, status: match.status, knockout: match.structureStage?.type === "KNOCKOUT", canConfirm: match.status !== "CANCELLED" && match.kickoff <= new Date() && (!match.endAt || match.endAt <= new Date()) }} /> : <p>{match.homeScore !== null && match.awayScore !== null ? `${match.homeScore}:${match.awayScore}` : "赛果待确认"}</p>}</AdminPanel>
++    <AdminPanel title="比赛结果">{canWrite ? <MatchResultForm match={{ id: match.id, homeScore: match.homeScore, awayScore: match.awayScore, homePenaltyScore: match.homePenaltyScore, awayPenaltyScore: match.awayPenaltyScore, resultVersion: match.resultVersion, status: match.status, knockout: match.structureStage?.type === "KNOCKOUT", canConfirm: match.status !== "CANCELLED" && Boolean(match.venue?.trim()) && match.kickoff !== null && match.kickoff <= new Date() && (!match.endAt || match.endAt <= new Date()) }} /> : <p>{match.homeScore !== null && match.awayScore !== null ? `${match.homeScore}:${match.awayScore}` : "赛果待确认"}</p>}</AdminPanel>
+     <AdminPanel title="比赛资料" description="赛事管理员仅维护比赛运营资料；裁判选派位于裁判中心。">
+       <dl className="admin-detail-meta">
+         <div><dt>报名窗口</dt><dd>{match.applicationWindowStatus}</dd></div>
+diff --git a/src/app/api/admin/competitions/[id]/structure/route.ts b/src/app/api/admin/competitions/[id]/structure/route.ts
+index 8074bd3..78a3acc 100644
+--- a/src/app/api/admin/competitions/[id]/structure/route.ts
++++ b/src/app/api/admin/competitions/[id]/structure/route.ts
+@@ -1,14 +1,16 @@
++import { prisma } from "@/lib/prisma";
+ import { NextResponse } from "next/server";
+ import { authorizeUnifiedAdminRequest, unifiedAdminErrorResponse, UnifiedAdminInputError } from "@/lib/unified-admin-api";
+-import { loadCompetitionStructure, mutateCompetitionStructure, getGroupStandings, confirmGroup, type StructureAction } from "@/lib/competition-structure-service";
++import { loadCompetitionStructure, mutateCompetitionStructure, getCompetitionGroupStandings, confirmGroup, type StructureAction } from "@/lib/competition-structure-service";
+ import { isRecord } from "@/lib/referee-validation";
+ import { revalidatePublicCompetitionById } from "@/lib/public-competition-revalidation";
+ export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+   try {
+     await authorizeUnifiedAdminRequest(request, "competitions:read");
+     const stages = await loadCompetitionStructure((await context.params).id);
+-    const tables = await Promise.all(stages.flatMap((s) => s.groups.map((g) => getGroupStandings(g.id))));
+-    return NextResponse.json({ stages, tables });
++    const tables = await getCompetitionGroupStandings((await context.params).id);
++    const teams = await prisma.team.findMany({ where: { competitionId: (await context.params).id }, select: { id: true, name: true }, orderBy: { name: "asc" } });
++    return NextResponse.json({ stages, tables, teams });
+   } catch (error) { return unifiedAdminErrorResponse(error, "结构读取失败。"); }
+ }
+ export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+@@ -30,6 +32,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
+       if (!Number.isSafeInteger(sortOrder) || sortOrder < 0 || sortOrder > 9999) throw new UnifiedAdminInputError("排序值无效。");
+       if (body.action === "stage") { const type = text("type"); if (!["GROUP", "KNOCKOUT", "OTHER"].includes(type)) throw new UnifiedAdminInputError("阶段类型无效。"); input = { action: "stage", name: text("name"), type: type as "GROUP" | "KNOCKOUT" | "OTHER", sortOrder }; }
+       else if (body.action === "group") input = { action: "group", stageId: text("stageId"), name: text("name"), sortOrder };
++      else if (body.action === "updateGroup") input = { action: "updateGroup", groupId: text("groupId"), name: text("name"), sortOrder };
++      else if (body.action === "assign") input = { action: "assign", stageId: text("stageId"), groupId: body.groupId ? text("groupId") : null, teamIds: ids(), reason: text("reason") };
+       else if (body.action === "round") input = { action: "round", stageId: text("stageId"), groupId: body.groupId ? text("groupId") : undefined, name: text("name"), sortOrder };
+       else if (body.action === "members") input = { action: "members", groupId: text("groupId"), teamIds: ids(), reason: text("reason") };
+       else if (body.action === "delete") { const entity = text("entity"); if (!["stage", "group", "round"].includes(entity)) throw new UnifiedAdminInputError("删除对象无效。"); input = { action: "delete", entity: entity as "stage" | "group" | "round", id: text("id") }; }
+diff --git a/src/app/api/referees/admin/matches/[id]/route.ts b/src/app/api/referees/admin/matches/[id]/route.ts
+index 98cd22d..15ad7c5 100644
+--- a/src/app/api/referees/admin/matches/[id]/route.ts
++++ b/src/app/api/referees/admin/matches/[id]/route.ts
+@@ -43,9 +43,9 @@ function inputFromBody(body: Record<string, unknown>) {
+     groupId: body.groupId === undefined ? undefined : readShortText(body.groupId, "分组", 64, false) || null,
+     roundId: body.roundId === undefined ? undefined : readShortText(body.roundId, "轮次", 64, false) || null,
+     stage: readShortText(body.stage, "比赛名称或轮次", 80),
+-    kickoff: readDate(body.kickoff, "比赛时间")!,
++    kickoff: readDate(body.kickoff, "比赛时间", false) ?? null,
+     endAt: readDate(body.endAt, "比赛结束时间", false),
+-    venue: readShortText(body.venue, "比赛场地", 120),
++    venue: readShortText(body.venue, "比赛场地", 120, false) || null,
+     round: readShortText(body.round, "轮次", 80, false),
+     source: readEnum(body.source ?? "MANUAL", ["MANUAL", "FOOTBALL_CHINA"] as const, "数据来源"),
+     externalMatchId: readShortText(body.externalMatchId, "外部比赛 ID", 120, false),
+diff --git a/src/app/api/referees/admin/matches/route.ts b/src/app/api/referees/admin/matches/route.ts
+index cf348ac..25f75d3 100644
+--- a/src/app/api/referees/admin/matches/route.ts
++++ b/src/app/api/referees/admin/matches/route.ts
+@@ -40,9 +40,9 @@ export async function POST(request: Request) {
+     groupId: body.groupId === undefined ? undefined : readShortText(body.groupId, "分组", 64, false) || null,
+     roundId: body.roundId === undefined ? undefined : readShortText(body.roundId, "轮次", 64, false) || null,
+     stage: readShortText(body.stage, "比赛名称或轮次", 80),
+-      kickoff: readDate(body.kickoff, "比赛时间")!,
++      kickoff: readDate(body.kickoff, "比赛时间", false) ?? null,
+       endAt: readDate(body.endAt, "比赛结束时间", false),
+-      venue: readShortText(body.venue, "比赛场地", 120),
++      venue: readShortText(body.venue, "比赛场地", 120, false) || null,
+       round: readShortText(body.round, "轮次", 80, false),
+       source: readEnum(body.source ?? "MANUAL", ["MANUAL", "FOOTBALL_CHINA"] as const, "数据来源"),
+       externalMatchId: readShortText(body.externalMatchId, "外部比赛 ID", 120, false),
+diff --git a/src/app/referees/admin/(dashboard)/conflicts/page.tsx b/src/app/referees/admin/(dashboard)/conflicts/page.tsx
+index e51bb9a..603c97b 100644
+--- a/src/app/referees/admin/(dashboard)/conflicts/page.tsx
++++ b/src/app/referees/admin/(dashboard)/conflicts/page.tsx
+@@ -20,6 +20,6 @@ export default async function AdminConflictReportsPage({ searchParams }: { searc
+   return <>
+     <AdminPageHeader eyebrow="CONFLICT REPORTS" title="冲突报告" description="处理正式发布版本上的裁判员反馈，不与报名意向混用。" />
+     <nav className="admin-tabs admin-route-tabs">{[["PENDING",`待处理 (${pendingCount})`],["HANDLED","已处理"],["ALL","全部"]].map(([value,label]) => <Link aria-current={status === value ? "page" : undefined} href={`/admin/conflicts?status=${value}`} key={value}>{label}</Link>)}</nav>
+-    <section className="admin-panel"><ConflictReportsManager reports={reports.map((report) => ({ id: report.id, referee: `${report.referee.publicCode} · ${report.referee.name}`, competition: report.appointment.match.competition.name, matchId: report.appointment.match.id, match: `${report.appointment.match.homeTeam.name} vs ${report.appointment.match.awayTeam.name}`, kickoff: formatRefereeDateTime(report.appointment.match.kickoff), venue: report.appointment.match.venue, position: report.appointment.positions.find((position) => position.refereeId === report.referee.id)?.label ?? "", reason: report.reason, reasonCode: report.reasonCode ?? "OTHER", explanation: report.explanation ?? report.reason, reportedAt: formatRefereeDateTime(report.reportedAt), status: report.status, resolutionNote: report.resolutionNote ?? "" }))} /></section>
++    <section className="admin-panel"><ConflictReportsManager reports={reports.map((report) => ({ id: report.id, referee: `${report.referee.publicCode} · ${report.referee.name}`, competition: report.appointment.match.competition.name, matchId: report.appointment.match.id, match: `${report.appointment.match.homeTeam.name} vs ${report.appointment.match.awayTeam.name}`, kickoff: formatRefereeDateTime(report.appointment.match.kickoff), venue: report.appointment.match.venue || "场地待定", position: report.appointment.positions.find((position) => position.refereeId === report.referee.id)?.label ?? "", reason: report.reason, reasonCode: report.reasonCode ?? "OTHER", explanation: report.explanation ?? report.reason, reportedAt: formatRefereeDateTime(report.reportedAt), status: report.status, resolutionNote: report.resolutionNote ?? "" }))} /></section>
+   </>;
+ }
+diff --git a/src/app/referees/admin/(dashboard)/matches/[id]/edit/page.tsx b/src/app/referees/admin/(dashboard)/matches/[id]/edit/page.tsx
+index f01a12a..cb79fbb 100644
+--- a/src/app/referees/admin/(dashboard)/matches/[id]/edit/page.tsx
++++ b/src/app/referees/admin/(dashboard)/matches/[id]/edit/page.tsx
+@@ -20,7 +20,7 @@ export default async function EditAdminMatchPage({ params }: { params: Promise<{
+   const organizationUnits = sortAffiliationOptions(units.map((unit) => ({ id: unit.id, name: unit.name, type: unit.type, prefixes: unit.legacyCollege?.codeMappings.map((mapping) => mapping.prefix) ?? [] }))).map((unit) => ({ ...unit, label: affiliationOptionLabel(unit) }));
+   const record: AdminMatchRecord = {
+     matchNumber: match.matchNumber, stageId: match.stageId, groupId: match.groupId, roundId: match.roundId, id: match.id, slug: match.slug, competitionId: match.competitionId, stage: match.stage,
+-    kickoff: toShanghaiDateTimeInput(match.kickoff), endAt: toShanghaiDateTimeInput(match.endAt), venue: match.venue,
++    kickoff: toShanghaiDateTimeInput(match.kickoff), endAt: toShanghaiDateTimeInput(match.endAt), venue: match.venue ?? "",
+     round: match.round ?? "", source: match.source, externalMatchId: match.externalMatchId ?? "", homeTeamId: match.homeTeamId,
+     awayTeamId: match.awayTeamId, status: match.status, applicationWindowStatus: match.applicationWindowStatus,
+     applicationDeadline: toShanghaiDateTimeInput(match.applicationDeadline), publicNote: match.publicNote ?? "", internalNote: match.internalNote ?? "",
+diff --git a/src/app/referees/admin/(dashboard)/matches/[id]/page.tsx b/src/app/referees/admin/(dashboard)/matches/[id]/page.tsx
+index d530453..caf9da5 100644
+--- a/src/app/referees/admin/(dashboard)/matches/[id]/page.tsx
++++ b/src/app/referees/admin/(dashboard)/matches/[id]/page.tsx
+@@ -34,6 +34,7 @@ export default async function AdminMatchDetailPage({ params, appointmentOnly = f
+     getCompletedRefereeStatistics(),
+   ]);
+   if (!match) notFound();
++  if (!match.kickoff || !match.venue?.trim()) return <><h1>{match.homeTeam.name} vs {match.awayTeam.name} · 待排期</h1><p>比赛时间 / 场地待安排。安排后才能开放报名、发布选派和进入正式任务。</p><Link href={`/admin/matches/${match.id}`}>查看比赛 / 安排比赛</Link></>;
+   const templateConfigured = hasPositionTemplate(match.competition.format);
+   const targetEnd = match.endAt ?? new Date(match.kickoff.getTime() + 60_000);
+   const matchDay = getBeijingDayBounds(match.kickoff);
+@@ -68,7 +69,7 @@ export default async function AdminMatchDetailPage({ params, appointmentOnly = f
+     refereeId,
+     resolveMatchAvailability(
+       candidateAvailability.filter((item) => item.refereeId === refereeId),
+-      match.kickoff,
++      match.kickoff!,
+       targetEnd,
+     ),
+   ]));
+diff --git a/src/app/referees/assignments/page.tsx b/src/app/referees/assignments/page.tsx
+index ded3b2c..78ff6a2 100644
+--- a/src/app/referees/assignments/page.tsx
++++ b/src/app/referees/assignments/page.tsx
+@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
+ 
+ async function getItems(): Promise<PublicAppointment[]> {
+   const appointments = await getPublicUpcomingAppointments();
+-  return appointments.map((item) => ({ id: item.id, competition: item.match.competition.name, match: `${item.match.homeTeam.name} vs ${item.match.awayTeam.name}`, stage: item.match.stage, kickoff: formatRefereeDateTime(item.match.kickoff), venue: item.match.venue, publishedAt: item.publishedAt ? formatRefereeDateTime(item.publishedAt) : "—", updatedAt: formatRefereeDateTime(item.updatedAt), note: item.publicationNote, positions: item.positions.flatMap((position) => position.referee ? [{ key: `${position.key}-${position.slot}`, label: `${position.label}${position.slot > 1 ? ` ${position.slot}` : ""}`, referee: position.referee.name }] : []) }));
++  return appointments.map((item) => ({ id: item.id, competition: item.match.competition.name, match: `${item.match.homeTeam.name} vs ${item.match.awayTeam.name}`, stage: item.match.stage, kickoff: formatRefereeDateTime(item.match.kickoff), venue: item.match.venue || "场地待定", publishedAt: item.publishedAt ? formatRefereeDateTime(item.publishedAt) : "—", updatedAt: formatRefereeDateTime(item.updatedAt), note: item.publicationNote, positions: item.positions.flatMap((position) => position.referee ? [{ key: `${position.key}-${position.slot}`, label: `${position.label}${position.slot > 1 ? ` ${position.slot}` : ""}`, referee: position.referee.name }] : []) }));
+ }
+ 
+ export default async function RefereeAssignmentsPage() { const items = await getItems(); return <><SiteHeader /><main className="functional-page" id="main-content"><section className="functional-hero"><div className="detail-shell"><p>PUBLISHED APPOINTMENTS</p><h1>裁判员选派公告</h1><p>仅公布协会正式发布且当前有效的裁判组选派；开球后未确认完赛仍保留，后续调整以最新公告为准。</p></div></section><RefereeSubnav /><section className="functional-section"><div className="detail-shell"><PublicAppointmentList emptyTitle="当前暂无有效的已发布选派" items={items} /></div></section></main><SiteFooter /></>; }
+diff --git a/src/app/referees/history/page.tsx b/src/app/referees/history/page.tsx
+index 91bb7f0..9acffef 100644
+--- a/src/app/referees/history/page.tsx
++++ b/src/app/referees/history/page.tsx
+@@ -11,6 +11,6 @@ export const dynamic = "force-dynamic";
+ 
+ export default async function RefereeHistoryPage() {
+   const appointments = await getPublicHistoricalAppointments();
+-  const items: PublicAppointment[] = appointments.map((item) => ({ id: item.id, competition: item.match.competition.name, match: `${item.match.homeTeam.name} vs ${item.match.awayTeam.name}`, stage: item.match.stage, kickoff: formatRefereeDateTime(item.match.kickoff), venue: item.match.venue, publishedAt: item.publishedAt ? formatRefereeDateTime(item.publishedAt) : "—", updatedAt: formatRefereeDateTime(item.updatedAt), note: item.publicationNote, positions: item.positions.flatMap((position) => position.referee ? [{ key: `${position.key}-${position.slot}`, label: `${position.label}${position.slot > 1 ? ` ${position.slot}` : ""}`, referee: position.referee.name }] : []) }));
++  const items: PublicAppointment[] = appointments.map((item) => ({ id: item.id, competition: item.match.competition.name, match: `${item.match.homeTeam.name} vs ${item.match.awayTeam.name}`, stage: item.match.stage, kickoff: formatRefereeDateTime(item.match.kickoff), venue: item.match.venue || "场地待定", publishedAt: item.publishedAt ? formatRefereeDateTime(item.publishedAt) : "—", updatedAt: formatRefereeDateTime(item.updatedAt), note: item.publicationNote, positions: item.positions.flatMap((position) => position.referee ? [{ key: `${position.key}-${position.slot}`, label: `${position.label}${position.slot > 1 ? ` ${position.slot}` : ""}`, referee: position.referee.name }] : []) }));
+   return <><SiteHeader /><main className="functional-page" id="main-content"><section className="functional-hero"><div className="detail-shell"><p>APPOINTMENT ARCHIVE</p><h1>历史选派记录</h1><p>保留已结束比赛中经协会正式发布的裁判组选派档案。</p></div></section><RefereeSubnav /><section className="functional-section"><div className="detail-shell"><PublicAppointmentList emptyTitle="当前暂无已公开的历史选派" items={items} /></div></section></main><SiteFooter /></>;
+ }
+diff --git a/src/app/referees/open-matches/[slug]/page.tsx b/src/app/referees/open-matches/[slug]/page.tsx
+index 5b0a76f..dafd803 100644
+--- a/src/app/referees/open-matches/[slug]/page.tsx
++++ b/src/app/referees/open-matches/[slug]/page.tsx
+@@ -46,7 +46,7 @@ export default async function OpenMatchDetailPage({
+     },
+     include: { competition: true, homeTeam: true, awayTeam: true, positionRequirements: { orderBy: { sortOrder: "asc" } } },
+   });
+-  if (!match) notFound();
++  if (!match || !match.kickoff || !match.venue?.trim()) notFound();
+ 
+   const templateConfigured = hasPositionTemplate(match.competition.format);
+ 
+@@ -137,7 +137,7 @@ export default async function OpenMatchDetailPage({
+ 
+   return (
+     <>
+-      <JsonLd data={sportsEventJsonLd({ name: `${match.homeTeam.name} vs ${match.awayTeam.name}`, description: `${match.competition.name} · ${match.stage}`, path: `/referees/open-matches/${match.slug}`, status: match.status === "CANCELLED" ? "EventCancelled" : match.status === "COMPLETED" ? "EventCompleted" : "EventScheduled", startDate: match.kickoff.toISOString(), location: match.venue })} />
++      <JsonLd data={sportsEventJsonLd({ name: `${match.homeTeam.name} vs ${match.awayTeam.name}`, description: `${match.competition.name} · ${match.stage}`, path: `/referees/open-matches/${match.slug}`, status: match.status === "CANCELLED" ? "EventCancelled" : match.status === "COMPLETED" ? "EventCompleted" : "EventScheduled", startDate: match.kickoff?.toISOString(), location: match.venue ?? undefined })} />
+       <RefereeOpenMatchesShell
+         description={`${match.competition.name} · ${match.stage}`}
+         eyebrow="MATCH APPOINTMENT"
+diff --git a/src/app/referees/open-matches/page.tsx b/src/app/referees/open-matches/page.tsx
+index c82c3b9..a1a5ac1 100644
+--- a/src/app/referees/open-matches/page.tsx
++++ b/src/app/referees/open-matches/page.tsx
+@@ -17,7 +17,7 @@ export default async function OpenRefereeMatchesPage() {
+   const [matches, session] = await Promise.all([
+     prisma.match.findMany({
+       where: {
+-        status: "SCHEDULED",
++        status: "SCHEDULED", kickoff: { not: null }, venue: { not: null },
+         applicationWindowStatus: "OPEN",
+         applicationDeadline: { gt: new Date() },
+         isTestData: false,
+diff --git a/src/app/referees/workspace/page.tsx b/src/app/referees/workspace/page.tsx
+index 1d93a61..9bca1bf 100644
+--- a/src/app/referees/workspace/page.tsx
++++ b/src/app/referees/workspace/page.tsx
+@@ -54,8 +54,8 @@ export default async function RefereeWorkspacePage() {
+     prisma.refereeAvailability.findMany({ where: { refereeId: session.refereeId, endAt: { gte: now } }, orderBy: { startAt: "asc" }, take: 5 }),
+     prisma.match.count({ where: { status: "SCHEDULED", applicationWindowStatus: "OPEN", applicationDeadline: { gt: now } } }),
+   ]);
+-  const sortedPositions = [...assignedPositions].sort((left, right) => left.appointment.match.kickoff.getTime() - right.appointment.match.kickoff.getTime());
+-  const upcomingPositions = sortedPositions.filter((item) => item.appointment.status === "PUBLISHED" && item.appointment.match.status === "SCHEDULED");
++  const sortedPositions = [...assignedPositions].sort((left, right) => (left.appointment.match.kickoff?.getTime() ?? Infinity) - (right.appointment.match.kickoff?.getTime() ?? Infinity));
++  const upcomingPositions = sortedPositions.filter((item) => item.appointment.status === "PUBLISHED" && item.appointment.match.status === "SCHEDULED" && item.appointment.match.kickoff !== null && Boolean(item.appointment.match.venue?.trim()));
+   const historicalPositions = sortedPositions.filter((item) => item.appointment.status === "COMPLETED").reverse();
+   return <>
+     <SiteHeader /><RefreshOnFocus />
+@@ -70,7 +70,7 @@ export default async function RefereeWorkspacePage() {
+ 
+         <section id="official-tasks">
+           <header className="functional-section-heading"><div><p>UPCOMING OFFICIAL DUTIES</p><h2>正式任务 · 待执裁 / 待完赛确认</h2></div><span>{upcomingPositions.length} 项</span></header>
+-          {upcomingPositions.length ? <div className="referee-task-list">{upcomingPositions.map((position, index) => { const version = position.appointment.versions[0]; return <article className={index === 0 ? "is-nearest" : ""} key={position.id}><div><span>{index === 0 ? "最近任务 · " : ""}{position.appointment.match.competition.name}</span><h3>{position.appointment.match.homeTeam.name} vs {position.appointment.match.awayTeam.name}</h3><p>{formatRefereeDateTime(position.appointment.match.kickoff)} · {position.appointment.match.venue}</p></div><strong>{position.label}{position.appointment.match.kickoff <= now ? " · 待完赛确认" : ""}</strong><RefereeTaskActions appointmentId={position.appointment.id} acknowledgedAt={version?.acknowledgements[0] ? formatRefereeDateTime(version.acknowledgements[0].acknowledgedAt) : null} reportStatus={version?.conflictReports[0]?.status ?? null} /></article>; })}</div> : <div className="functional-empty functional-empty-compact"><strong>暂无正式任务 · 待执裁 / 待完赛确认</strong><p>只有管理员正式发布且未撤回的选派会显示在这里。</p></div>}
++          {upcomingPositions.length ? <div className="referee-task-list">{upcomingPositions.map((position, index) => { const version = position.appointment.versions[0]; return <article className={index === 0 ? "is-nearest" : ""} key={position.id}><div><span>{index === 0 ? "最近任务 · " : ""}{position.appointment.match.competition.name}</span><h3>{position.appointment.match.homeTeam.name} vs {position.appointment.match.awayTeam.name}</h3><p>{formatRefereeDateTime(position.appointment.match.kickoff)} · {position.appointment.match.venue}</p></div><strong>{position.label}{position.appointment.match.kickoff && position.appointment.match.kickoff <= now ? " · 待完赛确认" : ""}</strong><RefereeTaskActions appointmentId={position.appointment.id} acknowledgedAt={version?.acknowledgements[0] ? formatRefereeDateTime(version.acknowledgements[0].acknowledgedAt) : null} reportStatus={version?.conflictReports[0]?.status ?? null} /></article>; })}</div> : <div className="functional-empty functional-empty-compact"><strong>暂无正式任务 · 待执裁 / 待完赛确认</strong><p>只有管理员正式发布且未撤回的选派会显示在这里。</p></div>}
+         </section>
+ 
+         <div className="referee-dashboard-secondary">
+diff --git a/src/components/admin/competition-import-manager.tsx b/src/components/admin/competition-import-manager.tsx
+index d69c100..0eeb349 100644
+--- a/src/components/admin/competition-import-manager.tsx
++++ b/src/components/admin/competition-import-manager.tsx
+@@ -1,4 +1,5 @@
+ "use client";
++import { TeamGroupingManager, type GroupingStage } from "@/components/admin/team-grouping-manager";
+ 
+ import Link from "next/link";
+ import { formatBeijingDateTime } from "@/lib/beijing-datetime";
+@@ -36,8 +37,8 @@ const summaryItems: Array<{ key: keyof CompetitionImportPreview["summary"]; labe
+ 
+ function payloadSummary(value: Record<string, string | null>) {
+   return Object.entries(value)
+-    .filter(([, item]) => item !== null && item !== "")
+-    .map(([key, item]) => `${({ homeTeamName: "主队", awayTeamName: "客队", kickoff: "开球（北京时间）", endAt: "结束（北京时间）", stage: "阶段", group: "小组", round: "轮次", venue: "场地" } as Record<string,string>)[key] ?? key}: ${item && ["kickoff", "endAt"].includes(key) ? formatBeijingDateTime(new Date(item)).dateTimeLabel : item}`)
++    .filter(([key, item]) => !["competitionId", "stageId", "groupId", "roundId", "structureFingerprint", "status", "applicationWindowStatus", "applicationDeadline"].includes(key) && item !== null && item !== "")
++    .map(([key, item]) => `${({ homeTeam: "主队", awayTeam: "客队", homeTeamName: "主队", awayTeamName: "客队", matchNumber: "场序", note: "备注", name: "球队", date: "日期", time: "时间", teamType: "球队类型", kickoff: "开球（北京时间）", endAt: "结束（北京时间）", stage: "阶段", group: "小组", round: "轮次", venue: "场地" } as Record<string,string>)[key] ?? key}: ${item && ["kickoff", "endAt"].includes(key) ? formatBeijingDateTime(new Date(item)).dateTimeLabel : item}`)
+     .join(" · ");
+ }
+ 
+@@ -53,6 +54,11 @@ export function CompetitionImportManager({ competitions, initialCompetitionId, i
+   const [docxEdits, setDocxEdits] = useState<Record<string, Record<string, string>>>({});
+   const [docxDirty, setDocxDirty] = useState(false);
+   const [groupOptions, setGroupOptions] = useState<Array<{ id: string; name: string; stageId: string; rounds: Array<{ id: string; name: string }> }>>([]);
++  const [grouping, setGrouping] = useState<{ stages: GroupingStage[]; teams: { id: string; name: string }[] } | null>(null);
++  const [structureVersion, setStructureVersion] = useState(0);
++  async function openGrouping() {
++    try { const response = await fetch(`/api/admin/competitions/${competitionId}/structure`); const data = await response.json(); if (!response.ok) throw new Error(data.error || "分组读取失败"); setGrouping(data); } catch (error) { setMessage(error instanceof Error ? error.message : "分组读取失败"); }
++  }
+   const [bulkDate, setBulkDate] = useState(""), [bulkTime, setBulkTime] = useState(""), [bulkVenue, setBulkVenue] = useState("");
+   useEffect(() => {
+     if (inputMethod !== "DOCX" || !competitionId) return;
+@@ -61,7 +67,7 @@ export function CompetitionImportManager({ competitions, initialCompetitionId, i
+       if (!controller.signal.aborted && Array.isArray(d.stages)) setGroupOptions(d.stages.filter((stage: { type: string }) => stage.type === "GROUP").flatMap((stage: { id: string; groups: Array<{ id: string; name: string }>; rounds: Array<{ id: string; name: string; groupId: string | null }> }) => stage.groups.map((group) => ({ id: group.id, name: group.name, stageId: stage.id, rounds: stage.rounds.filter((round) => !round.groupId || round.groupId === group.id).map((round) => ({ id: round.id, name: round.name })) }))));
+     }).catch(() => {});
+     return () => controller.abort();
+-  }, [competitionId, inputMethod]);
++  }, [competitionId, inputMethod, structureVersion]);
+   const [busy, setBusy] = useState(false);
+   const [columns, setColumns] = useState<string[]>([]), [samples, setSamples] = useState<string[][]>([]), [mapping, setMapping] = useState<Record<string, string>>({}), [previewPage, setPreviewPage] = useState(1);
+ 
+@@ -172,8 +178,8 @@ export function CompetitionImportManager({ competitions, initialCompetitionId, i
+           {(["CSV", "XLSX", "PASTE", ...(importType === "MATCH" ? ["DOCX" as const] : [])] as const).map((method) => <button aria-checked={inputMethod === method} className={inputMethod === method ? "is-active" : ""} key={method} onClick={() => { setInputMethod(method); setFile(null); setContent(""); setColumns([]); setSamples([]); setMapping({}); resetAnalysis(); }} role="radio" type="button">{method === "PASTE" ? "批量粘贴" : method}</button>)}
+         </div>
+         {inputMethod === "PASTE" ? <label><span>TSV / Excel 粘贴内容（也可识别明确 CSV；球队可每行一个名称）</span><textarea onChange={(event) => { setContent(event.target.value); setColumns([]); setSamples([]); setMapping({}); resetAnalysis(); }} placeholder={pastePlaceholder} rows={10} value={content} /></label> : <label><span>选择 {inputMethod === "CSV" ? "UTF-8 CSV" : inputMethod === "DOCX" ? "Word .docx" : "Excel .xlsx"} 文件</span><input accept={inputMethod === "CSV" ? ".csv,text/csv" : inputMethod === "DOCX" ? ".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" : ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"} onChange={(event) => { setFile(event.target.files?.[0] ?? null); setColumns([]); setSamples([]); setMapping({}); resetAnalysis(); }} type="file" /></label>}
+-        <p className="admin-import-safety-note">导入记录人工确认的赛程，新比赛保持“已安排”、裁判报名关闭。不自动报名、选派或同步足球中国。</p>
+-        {inputMethod !== "DOCX" ? <button className="admin-button admin-button-secondary" disabled={busy} onClick={() => void inspectColumns()} type="button">对应列 / 查看前 3 行</button> : <p className="admin-import-safety-note">只读取 Word 表格；淘汰赛为只读参考。时间、场地必须是真实信息，补全后再次检查。</p>}
++        <p className="admin-import-safety-note">导入记录人工确认的赛程，缺少时间或场地的新比赛为“待排期”；资料完整后为“已安排”，裁判报名默认关闭。不自动报名、选派或同步足球中国。</p>
++        {inputMethod !== "DOCX" ? <button className="admin-button admin-button-secondary" disabled={busy} onClick={() => void inspectColumns()} type="button">对应列 / 查看前 3 行</button> : <p className="admin-import-safety-note">只读取 Word 表格；淘汰赛为只读参考。时间、场地未知时可留空，安排时须填写真实信息。</p>}
+         {columns.length ? <div className="admin-table-scroll"><table className="admin-data-table"><thead><tr>{columns.map((c, i) => <th key={i}><span>{c}</span><select aria-label={`${c}对应字段`} value={mapping[c] ?? ""} onChange={(e) => { setMapping((old) => { const next = { ...old }; if (e.target.value) next[c] = e.target.value; else delete next[c]; return next; }); resetAnalysis(); }}><option value="">按已知列名识别</option><option value="ignore">忽略此列</option>{(importType === "TEAM" ? [["name", "球队名称"], ["teamType", "球队类型"], ["externalTeamId", "外部球队 ID"]] : [["homeTeam", "主队"], ["awayTeam", "客队"], ["kickoff", "开球时间"], ["endAt", "结束时间"], ["venue", "场地"], ["stage", "阶段"], ["group", "分组"], ["round", "轮次"], ["externalMatchId", "外部比赛 ID"], ["stageId", "阶段 ID（明确对应）"], ["groupId", "小组 ID（明确对应）"], ["roundId", "轮次 ID（明确对应）"]]).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></th>)}</tr></thead><tbody>{samples.map((r, i) => <tr key={i}>{columns.map((_, j) => <td key={j}>{r[j]}</td>)}</tr>)}</tbody></table></div> : null}
+         <footer><button className="admin-button" disabled={busy || !competitions.length} onClick={() => void request("preview")} type="button">{busy ? "处理中…" : "检查导入内容"}</button></footer>
+       </div>
+@@ -187,18 +193,18 @@ export function CompetitionImportManager({ competitions, initialCompetitionId, i
+         <p className="admin-notice-success">{preview.publicImpact ? "该赛事已公开，提交后符合规则的新比赛会进入官网赛程。裁判报名关闭不影响公开赛程。" : "赛事未公开或为测试赛事，导入不会开启公开或首页候选。"}</p>
+         {preview.inputMethod === "DOCX" ? <>
+           <div className="admin-import-blocked"><strong>淘汰赛结构 · 仅供参考</strong><p>识别 {preview.referenceRows?.length ?? 0} 场；系统不会创建正式比赛或占位球队。管理员确认出线后逐场选择真实球队。</p><div className="ops-detail-scroll">{preview.referenceRows?.map((r) => <p key={r.rowNumber}>第{String(r.values.matchNumber)}场 · {String(r.values.round)} · {String(r.values.homeTeam)} vs {String(r.values.awayTeam)}</p>)}</div></div>
+-          <div className="ops-docx-completion"><h3>补全小组赛真实信息</h3><p>可批量补空值，也可逐场改日期、时间、场地与小组。每次修改后点击“重新检查”。</p><div className="admin-form-grid"><label><span>同一天</span><input type="date" value={bulkDate} onChange={(e) => setBulkDate(e.target.value)} /></label><label><span>同一时间</span><input type="time" value={bulkTime} onChange={(e) => setBulkTime(e.target.value)} /></label><label><span>同一场地</span><input value={bulkVenue} onChange={(e) => setBulkVenue(e.target.value)} /></label><button className="admin-button admin-button-secondary" type="button" onClick={() => { const next = { ...docxEdits }; for (const row of preview.rows) { const key = String(row.rowNumber), patch = { ...(next[key] ?? {}) }; if (bulkDate && !(patch.date || row.raw.date)) patch.date = bulkDate; if (bulkTime && !(patch.time || row.raw.time)) patch.time = bulkTime; if (bulkVenue && !(patch.venue || row.raw.venue)) patch.venue = bulkVenue; next[key] = patch; } setDocxEdits(next); setDocxDirty(true); }}>批量补空值</button></div>
++          <div className="ops-docx-completion"><h3>核对对阵与可选排期</h3><p>日期、时间、场地未知时可留空导入为待排期。可批量补空值，也可逐场改排期与小组。每次修改后点击“重新检查”。</p><div className="admin-form-grid"><label><span>同一天</span><input type="date" value={bulkDate} onChange={(e) => setBulkDate(e.target.value)} /></label><label><span>同一时间</span><input type="time" value={bulkTime} onChange={(e) => setBulkTime(e.target.value)} /></label><label><span>同一场地</span><input value={bulkVenue} onChange={(e) => setBulkVenue(e.target.value)} /></label><button className="admin-button admin-button-secondary" type="button" onClick={() => { const next = { ...docxEdits }; for (const row of preview.rows) { const key = String(row.rowNumber), patch = { ...(next[key] ?? {}) }; if (bulkDate && !(patch.date || row.raw.date)) patch.date = bulkDate; if (bulkTime && !(patch.time || row.raw.time)) patch.time = bulkTime; if (bulkVenue && !(patch.venue || row.raw.venue)) patch.venue = bulkVenue; next[key] = patch; } setDocxEdits(next); setDocxDirty(true); }}>批量补空值</button></div>
+           <div className="admin-table-scroll"><table className="admin-data-table ops-docx-table"><thead><tr><th>场序 / 对阵</th><th>日期</th><th>时间</th><th>场地</th><th>小组</th><th>轮次</th></tr></thead><tbody>{preview.rows.slice((previewPage - 1) * 30, previewPage * 30).map((row) => { const patch = docxEdits[row.rowNumber] ?? {}; const selectedGroup = groupOptions.find((g) => g.id === (patch.groupId ?? row.normalized.groupId)); return <tr key={row.rowNumber}><td><strong>第{row.raw.matchNumber}场</strong><small>{row.raw.homeTeam} vs {row.raw.awayTeam}</small></td><td><input aria-label={`第${row.rowNumber}场日期`} type="date" value={patch.date ?? row.raw.date ?? ""} onChange={(e) => editDocx(row.rowNumber, "date", e.target.value)} /></td><td><input aria-label={`第${row.rowNumber}场时间`} type="time" value={patch.time ?? row.raw.time ?? ""} onChange={(e) => editDocx(row.rowNumber, "time", e.target.value)} /></td><td><input aria-label={`第${row.rowNumber}场场地`} value={patch.venue ?? row.raw.venue ?? ""} onChange={(e) => editDocx(row.rowNumber, "venue", e.target.value)} /></td><td><select aria-label={`第${row.rowNumber}场小组`} value={patch.groupId ?? row.normalized.groupId ?? ""} onChange={(e) => { const group = groupOptions.find((g) => g.id === e.target.value); setDocxEdits((old) => ({ ...old, [row.rowNumber]: { ...(old[row.rowNumber] ?? {}), groupId: group?.id ?? "", stageId: group?.stageId ?? "", roundId: "" } })); setDocxDirty(true); }}><option value="">{row.raw.group || "选择小组"} · 未匹配</option>{groupOptions.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select></td><td><select aria-label={`第${row.rowNumber}场轮次`} value={patch.roundId ?? row.normalized.roundId ?? ""} onChange={(e) => editDocx(row.rowNumber, "roundId", e.target.value)}><option value="">{row.raw.round || "选择轮次"} · 未匹配</option>{selectedGroup?.rounds.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select></td></tr>; })}</tbody></table></div><button className="admin-button" disabled={busy} type="button" onClick={() => void request("preview")}>{docxDirty ? "重新检查补全内容" : "再次检查"}</button></div>
+         </> : null}
+         {preview.inputWarnings.map((warning) => <p className="admin-import-warning" key={warning}>{warning}</p>)}
+         <div className="admin-import-summary">{summaryItems.map((item) => <div data-key={item.key} key={item.key}><span>{item.label}</span><strong>{preview.summary[item.key]}</strong></div>)}</div>
+         {preview.importType === "MATCH" && preview.inputMethod !== "DOCX" ? <p className="admin-import-team-plan">本次赛程导入将额外创建 <strong>{preview.summary.plannedTeamCreates}</strong> 支未知球队；球队与比赛将在同一事务中提交。</p> : null}
+-        <div className="admin-table-scroll"><table className="admin-data-table admin-import-table"><thead><tr><th>行</th><th>检查内容（时间为 UTC，对应北京时间 +8 小时）</th><th>动作</th><th>球队处理</th><th>警告 / 错误</th></tr></thead><tbody>{preview.rows.slice((previewPage - 1) * 30, previewPage * 30).map((row) => <tr data-action={row.action} key={row.rowNumber}>
++        <div className="admin-table-scroll"><table className="admin-data-table admin-import-table"><thead><tr><th>行</th><th>检查内容（北京时间）</th><th>动作</th><th>球队处理</th><th>警告 / 错误</th></tr></thead><tbody>{preview.rows.slice((previewPage - 1) * 30, previewPage * 30).map((row) => <tr data-action={row.action} key={row.rowNumber}>
+           <td><strong>{row.normalized.matchNumber ? `第${row.normalized.matchNumber}场` : row.rowNumber}</strong></td>
+-          <td><small>{payloadSummary(row.normalized)}</small>{row.slug ? <code>{row.slug}</code> : null}{row.differences ? <details><summary>查看字段差异</summary><pre>{JSON.stringify(row.differences, null, 2)}</pre></details> : null}</td>
++          <td><small>{payloadSummary(row.normalized)}</small>{row.differences ? <details><summary>查看字段差异</summary><pre>{JSON.stringify(row.differences, null, 2)}</pre></details> : null}</td>
+           <td><span className="admin-status-badge" data-status={row.action}>{actionLabels[row.action]}</span></td>
+-          <td>{row.teamActions?.map((team) => <span className="admin-import-team-action" key={`${team.name}-${team.action}`}>{team.name}: {team.action}</span>) ?? "—"}</td>
+-          <td>{row.warnings.map((warning) => <p className="admin-import-warning" key={`${warning.field}-${warning.errorCode}`}>{warning.field} · {warning.errorCode}: {warning.message}</p>)}{row.errors.map((error) => <p className="admin-import-error" key={`${error.field}-${error.errorCode}`}>{error.field} · {error.errorCode}: {error.message}</p>)}{!row.warnings.length && !row.errors.length ? "—" : null}</td>
++          <td>{row.teamActions?.map((team) => <span className="admin-import-team-action" key={`${team.name}-${team.action}`}>{team.name}：{({ CREATE_TEAM: "新建球队", REUSE_EXISTING: "复用已有球队", REUSE_PLANNED: "复用本批次球队" })[team.action]}</span>) ?? "—"}</td>
++          <td>{row.errors.some((error) => ["GROUP_TEAM_MISMATCH", "GROUP_UNMATCHED", "GROUP_INVALID"].includes(error.errorCode)) ? <><button type="button" className="admin-button admin-button-secondary" disabled={busy} onClick={() => void openGrouping()}>管理球队分组</button><Link href={`/admin/competitions/${competitionId}?section=teams`} target="_blank" rel="noopener noreferrer">前往球队与分组</Link></> : null}{row.warnings.map((warning) => <p className="admin-import-warning" key={`${warning.field}-${warning.errorCode}`}>{warning.message}</p>)}{row.errors.map((error) => error.errorCode === "GROUP_TEAM_MISMATCH" ? <div className="admin-import-error" key={`${error.field}-${error.errorCode}`}><strong>球队分组不一致</strong><p>以下球队尚未确认属于 {error.groupName}：</p><ul>{error.teamNames?.map((name) => <li key={name}>{name}</li>)}</ul><p>请先前往“球队与分组”完成分组，再重新检查赛程。</p></div> : <p className="admin-import-error" key={`${error.field}-${error.errorCode}`}>{error.message}</p>)}{!row.warnings.length && !row.errors.length ? "—" : null}</td>
+         </tr>)}</tbody></table></div>
+         <div className="admin-pagination"><button disabled={previewPage <= 1} onClick={() => setPreviewPage((n) => n - 1)} type="button">上一页</button><span>{previewPage} / {Math.max(1, Math.ceil(preview.rows.length / 30))}</span><button disabled={previewPage * 30 >= preview.rows.length} onClick={() => setPreviewPage((n) => n + 1)} type="button">下一页</button></div>
+         {commitBlocked ? <div className="admin-import-blocked"><strong>当前不能导入</strong><p>补全或修正错误后重新检查；淘汰赛仍须人工逐场创建。</p><div><Link href="/admin/organizations">手动维护球队</Link><Link href="/admin/matches">手动维护比赛</Link></div></div> : <div className="admin-import-confirm"><div><strong>检查通过，可以导入</strong><p>提交会再次核对输入、分组及公开状态；变化时请重新检查。</p></div><button className="admin-button" disabled={busy} onClick={() => { if (window.confirm("确认按当前输入执行原子导入？服务器会重新校验全部行。")) void request("commit"); }} type="button">{busy ? "提交中…" : "确认导入"}</button></div>}
+@@ -210,5 +216,6 @@ export function CompetitionImportManager({ competitions, initialCompetitionId, i
+       <div className="admin-panel-body"><dl><div><dt>创建球队</dt><dd>{result.createdTeams}</dd></div><div><dt>复用球队</dt><dd>{result.reusedTeams}</dd></div><div><dt>创建比赛</dt><dd>{result.createdMatches}</dd></div><div><dt>跳过重复比赛</dt><dd>{result.skippedMatches}</dd></div><div><dt>警告行</dt><dd>{result.warnings}</dd></div><div><dt>操作日志编号</dt><dd><code>{result.auditId}</code></dd></div></dl></div>
+       <div className="admin-panel-body"><Link href={`/admin/competitions/${competitionId}?section=matches`}>查看分组赛程</Link> · <Link href={`/competitions/${result.preview.competition.slug}`}>查看官网效果（需已公开）</Link></div>
+     </section> : null}
++    {grouping ? <div className="ops-modal-backdrop"><section className="admin-panel ops-modal" role="dialog" aria-modal="true" aria-label="管理球队分组"><header className="admin-panel-header"><h2>管理球队分组</h2><button type="button" onClick={() => setGrouping(null)}>返回预览</button></header><div className="admin-panel-body"><p>已上传文件和当前修改保留在本页。保存分组后点击“返回并重新检查”。</p><TeamGroupingManager competitionId={competitionId} stages={grouping.stages} teams={grouping.teams} canWrite={true} onSaved={async () => { await openGrouping(); setStructureVersion((v) => v + 1); setDocxDirty(true); }} /><button type="button" className="admin-button" disabled={busy} onClick={() => { setGrouping(null); void request("preview"); }}>返回并重新检查</button></div></section></div> : null}
+   </div>;
+ }
+diff --git a/src/components/admin/competition-structure-manager.tsx b/src/components/admin/competition-structure-manager.tsx
+index ef889da..e830b34 100644
+--- a/src/components/admin/competition-structure-manager.tsx
++++ b/src/components/admin/competition-structure-manager.tsx
+@@ -1,11 +1,12 @@
+ "use client";
++import { TeamGroupingManager } from "@/components/admin/team-grouping-manager";
+ import Link from "next/link";
+ import { useRouter, useSearchParams } from "next/navigation";
+ import { useState } from "react";
+ import type { loadCompetitionStructure, getGroupStandings } from "@/lib/competition-structure-service";
+ type Stages = Awaited<ReturnType<typeof loadCompetitionStructure>>;
+ type Table = Awaited<ReturnType<typeof getGroupStandings>>;
+-export function CompetitionStructureManager({ competitionId, stages, tables, teams, canWrite }: { competitionId: string; stages: Stages; tables: Table[]; teams: { id: string; name: string }[]; canWrite: boolean }) {
++export function CompetitionStructureManager({ competitionId, stages, tables, teams, canWrite, showGrouping = true }: { competitionId: string; stages: Stages; tables: Table[]; teams: { id: string; name: string }[]; canWrite: boolean; showGrouping?: boolean }) {
+   const router = useRouter(), params = useSearchParams(); const [message, setMessage] = useState(""), [busy, setBusy] = useState(false);
+   const stageId = params.get("stageId") ?? stages[0]?.id ?? "", groupId = params.get("groupId") ?? "";
+   function selectStructure(key: string, value: string) { const next = new URLSearchParams(params.toString()); next.set("stageId", key === "stageId" ? value : stageId); if (key === "groupId") next.set("groupId", value); else next.delete("groupId"); next.delete("roundId"); next.delete("page"); router.replace(`/admin/competitions/${competitionId}?${next}`); }
+@@ -22,9 +23,9 @@ export function CompetitionStructureManager({ competitionId, stages, tables, tea
+     <div className="admin-filter-bar"><label><span>当前阶段</span><select value={stageId} onChange={(e) => { setStageId(e.target.value); }}><option value="">选择阶段</option>{stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>{stage?.groups.length ? <label><span>当前小组</span><select value={groupId} onChange={(e) => setGroupId(e.target.value)}><option value="">全部 / 无分组</option>{stage.groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label> : null}{canWrite ? <><Link className="admin-button admin-button-secondary" href={`/admin/matches/new?competitionId=${competitionId}&stageId=${stageId}&groupId=${groupId}`}>新建本阶段比赛</Link><Link href={`/admin/competitions/import?competitionId=${competitionId}&kind=matches`}>批量导入赛程</Link></> : null}</div>
+     {canWrite && stage ? <><form className="admin-form" onSubmit={create}><div className="admin-form-grid"><label><span>新增{stage.type === "GROUP" && !groupId ? "小组或轮次" : "轮次"}</span><input name="name" required maxLength={80} placeholder={stage.type === "GROUP" && !groupId ? "A组 / 第1轮" : "第1轮 / 半决赛"} /></label><label><span>结构</span><select name="action">{stage.type === "GROUP" ? <option value="group">小组</option> : null}<option value="round">轮次</option></select></label><label><span>显示顺序</span><input name="sortOrder" type="number" min={0} max={9999} defaultValue={0} /></label></div><button disabled={busy} className="admin-button" type="submit">建立</button></form><div className="admin-inline-checks"><button className="admin-button admin-button-secondary" disabled={busy} onClick={() => { if (window.confirm("仅未被引用的结构可删除。确认删除当前阶段？")) void save({ action: "delete", entity: "stage", id: stage.id }); }} type="button">删除空阶段</button>{group ? <button className="admin-button admin-button-secondary" disabled={busy} onClick={() => { if (window.confirm("确认删除当前小组？历史引用会阻止删除。")) void save({ action: "delete", entity: "group", id: group.id }); }} type="button">删除空小组</button> : null}</div></> : null}
+     {stage ? <div className="admin-inline-checks">{stage.rounds.filter((r) => !groupId || !r.groupId || r.groupId === groupId).map((r) => <span key={r.id}>{canWrite ? <Link href={`/admin/matches/new?competitionId=${competitionId}&stageId=${stage.id}&groupId=${r.groupId ?? groupId}&roundId=${r.id}`}>{r.groupId && !groupId ? `${stage.groups.find((g) => g.id === r.groupId)?.name ?? ""} · ` : ""}{r.name} · 新建比赛</Link> : <span>{r.name}</span>}{canWrite ? <button disabled={busy} onClick={() => { if (window.confirm("确认删除未被比赛引用的轮次？")) void save({ action: "delete", entity: "round", id: r.id }); }} type="button" aria-label={`删除${r.name}`}>×</button> : null}</span>)}</div> : null}
+-    {canWrite && group && stage ? <form key={group.id + group.members.map((m) => m.teamId).join()} className="admin-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); void save({ action: "members", groupId: group.id, teamIds: f.getAll("teamIds"), reason: "人工核对抽签结果" }); }}><h3>{group.name} · 手动分配参赛球队</h3><p>未分组球队可直接选择；本阶段已在其他组的球队不能重复分配。移出已有比赛球队会被阻止。</p><div className="admin-checkbox-list">{teams.map((t) => { const assigned = stage.groups.find((g) => g.members.some((m) => m.teamId === t.id)); return <label key={t.id}><input name="teamIds" value={t.id} type="checkbox" disabled={Boolean(assigned && assigned.id !== group.id)} defaultChecked={assigned?.id === group.id} /><span>{t.name}{assigned ? ` · ${assigned.name}` : " · 未分组"}</span></label>; })}</div><button className="admin-button" disabled={busy} type="submit">保存组成员</button></form> : null}
+-    {tables.filter((t) => t.group.stageName === stage?.name && (!groupId || t.group.id === groupId)).map((t) => <GroupTable key={t.group.id + t.fingerprint + t.qualificationFingerprint} table={t} canWrite={canWrite} busy={busy} save={save} />)}
+-    {!stages.length ? <p>暂无正式结构，可先建立“小组赛”并人工添加 A/B/C/D。</p> : null}</div></section>;
++    {showGrouping ? <TeamGroupingManager competitionId={competitionId} stages={stages} teams={teams} canWrite={canWrite} onSaved={() => router.refresh()} /> : null}
++    {tables.filter((t) => t.group.stageId === stageId && t.group.id === (groupId || stage?.groups[0]?.id)).map((t) => <GroupTable key={t.group.id + t.fingerprint + t.qualificationFingerprint} table={t} canWrite={canWrite} busy={busy} save={save} />)}
++    {!stages.length ? <p>暂无正式结构，可先建立“小组赛”，再按抽签结果创建小组。</p> : null}</div></section>;
+ }
+ function GroupTable({ table: t, canWrite, busy, save }: { table: Table; canWrite: boolean; busy: boolean; save: (body: unknown) => Promise<void> }) {
+   const [order, setOrder] = useState(t.rows.map((r) => r.id));
+diff --git a/src/components/competitions/public-schedule.tsx b/src/components/competitions/public-schedule.tsx
+index 076a0d6..55a7c19 100644
+--- a/src/components/competitions/public-schedule.tsx
++++ b/src/components/competitions/public-schedule.tsx
+@@ -7,7 +7,7 @@ export function PublicSchedule({ competitions }: { competitions: PublicCompetiti
+   const params = useSearchParams(), pathname = usePathname(), router = useRouter();
+   const selected = params.get("competition") ?? "", stage = params.get("stage") ?? "", group = params.get("group") ?? "", round = params.get("round") ?? "", status = params.get("status") ?? "", date = params.get("date") ?? "";
+   const all = competitions.filter((c) => !selected || c.id === selected).flatMap((c) => c.matches.map((m) => ({ ...m, competitionId: c.id, competitionName: c.name, href: c.detailHref })));
+-  const filtered = all.filter((m) => (!stage || m.stage === stage) && (!group || m.group === group) && (!round || m.round === round) && (!status || m.status === status) && (!date || m.dateLabel.replaceAll(".", "-") === date));
++  const filtered = all.filter((m) => (!stage || m.stage === stage) && (!group || m.group === group) && (!round || m.round === round) && (!status || status === "pending" && m.statusLabel === "待排期" || status === "scheduled" && m.status === "scheduled" && m.statusLabel !== "待排期" || status !== "pending" && status !== "scheduled" && m.status === status) && (!date || m.dateLabel.replaceAll(".", "-") === date));
+   const pages = Math.max(1, Math.ceil(filtered.length / 30)), page = Math.min(pages, Math.max(1, Number(params.get("page") ?? 1) || 1));
+   useEffect(() => {
+     // A forecast can point to a match beyond the first page of a long season.
+@@ -26,5 +26,5 @@ export function PublicSchedule({ competitions }: { competitions: PublicCompetiti
+   }, [filtered, page, params, pathname, router]);
+   const change = (key: string, value: string) => { const next = new URLSearchParams(params.toString()); if (value) next.set(key, value); else next.delete(key); next.delete("page"); if (key === "competition") { next.delete("stage"); next.delete("group"); next.delete("round"); } if (key === "stage") { next.delete("group"); next.delete("round"); } router.replace(`${pathname}?${next}`); };
+   const values = (key: "stage" | "group" | "round") => [...new Set(all.filter((m) => !stage || key === "stage" || m.stage === stage).map((m) => m[key]).filter((v): v is string => Boolean(v)))];
+-  return <><div className="functional-filters"><label>赛事<select value={selected} onChange={(e) => change("competition", e.target.value)}><option value="">全部赛事</option>{competitions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>{(["stage", "group", "round"] as const).map((key, i) => <label key={key}>{["阶段", "小组", "轮次"][i]}<select value={params.get(key) ?? ""} onChange={(e) => change(key, e.target.value)}><option value="">全部</option>{values(key).map((v) => <option key={v}>{v}</option>)}</select></label>)}<label>状态<select value={status} onChange={(e) => change("status", e.target.value)}><option value="">全部</option><option value="scheduled">已安排</option><option value="completed">已完成</option><option value="cancelled">已取消</option></select></label><label>日期<input type="date" value={date} onChange={(e) => change("date", e.target.value)} /></label><span>共 {filtered.length} 场 · 北京时间</span></div><div className="functional-schedule-table-wrap ops-public-table"><table className="functional-schedule-table"><thead><tr><th>时间</th><th>赛事 / 阶段 / 组 / 轮次</th><th>主队</th><th>赛果</th><th>客队</th><th>场地</th></tr></thead><tbody>{filtered.slice((page - 1) * 30, page * 30).map((m) => <tr id={`match-${m.id}`} key={m.id}><td>{m.dateLabel} {m.timeLabel}</td><td><Link href={`${m.href}#match-${m.id}`}>{m.competitionName}</Link><small>{[m.stage, m.group, m.round].filter(Boolean).join(" · ")}</small></td><td>{m.homeTeam.name}</td><td>{m.status === "completed" && m.homeScore !== null && m.awayScore !== null ? `${m.homeScore} : ${m.awayScore}` : m.statusLabel}{m.homePenaltyScore !== null && m.homePenaltyScore !== undefined ? <small>点球 {m.homePenaltyScore}:{m.awayPenaltyScore}</small> : null}</td><td>{m.awayTeam.name}</td><td>{m.venue}</td></tr>)}</tbody></table></div>{!filtered.length ? <p>暂无符合条件的公开赛程。</p> : null}<nav className="admin-pagination" aria-label="赛程分页">{page > 1 ? <Link href={`?${new URLSearchParams({ ...Object.fromEntries(params), page: String(page - 1) })}`}>上一页</Link> : null}<span>{page} / {pages}</span>{page < pages ? <Link href={`?${new URLSearchParams({ ...Object.fromEntries(params), page: String(page + 1) })}`}>下一页</Link> : null}</nav></>;
++  return <><div className="functional-filters"><label>赛事<select value={selected} onChange={(e) => change("competition", e.target.value)}><option value="">全部赛事</option>{competitions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>{(["stage", "group", "round"] as const).map((key, i) => <label key={key}>{["阶段", "小组", "轮次"][i]}<select value={params.get(key) ?? ""} onChange={(e) => change(key, e.target.value)}><option value="">全部</option>{values(key).map((v) => <option key={v}>{v}</option>)}</select></label>)}<label>状态<select value={status} onChange={(e) => change("status", e.target.value)}><option value="">全部</option><option value="pending">待排期</option><option value="scheduled">已安排</option><option value="completed">已完成</option><option value="cancelled">已取消</option></select></label><label>日期<input type="date" value={date} onChange={(e) => change("date", e.target.value)} /></label><span>共 {filtered.length} 场 · 北京时间</span></div><div className="functional-schedule-table-wrap ops-public-table"><table className="functional-schedule-table"><thead><tr><th>时间</th><th>赛事 / 阶段 / 组 / 轮次</th><th>主队</th><th>赛果</th><th>客队</th><th>场地</th></tr></thead><tbody>{filtered.slice((page - 1) * 30, page * 30).map((m) => <tr id={`match-${m.id}`} key={m.id}><td>{m.kickoff ? `${m.dateLabel} ${m.timeLabel}` : "时间待定"}</td><td>{m.matchNumber ? <small>第{m.matchNumber}场</small> : null}<Link href={`${m.href}#match-${m.id}`}>{m.competitionName}</Link><small>{[m.stage, m.group, m.round].filter(Boolean).join(" · ")}</small></td><td>{m.homeTeam.name}</td><td>{m.status === "completed" && m.homeScore !== null && m.awayScore !== null ? `${m.homeScore} : ${m.awayScore}` : m.statusLabel}{m.homePenaltyScore !== null && m.homePenaltyScore !== undefined ? <small>点球 {m.homePenaltyScore}:{m.awayPenaltyScore}</small> : null}</td><td>{m.awayTeam.name}</td><td>{m.venue}</td></tr>)}</tbody></table></div>{!filtered.length ? <p>暂无符合条件的公开赛程。</p> : null}<nav className="admin-pagination" aria-label="赛程分页">{page > 1 ? <Link href={`?${new URLSearchParams({ ...Object.fromEntries(params), page: String(page - 1) })}`}>上一页</Link> : null}<span>{page} / {pages}</span>{page < pages ? <Link href={`?${new URLSearchParams({ ...Object.fromEntries(params), page: String(page + 1) })}`}>下一页</Link> : null}</nav></>;
+ }
+diff --git a/src/components/competitions/public-standings.tsx b/src/components/competitions/public-standings.tsx
+index ac2f011..218c1e8 100644
+--- a/src/components/competitions/public-standings.tsx
++++ b/src/components/competitions/public-standings.tsx
+@@ -1,4 +1,8 @@
++"use client";
++import { useState } from "react";
+ import type { PublicCompetitionView } from "@/types/competition-center";
+ export function PublicStandings({ tables }: { tables: NonNullable<PublicCompetitionView["standings"]> }) {
+-  return <div className="ops-public-standings">{tables.length ? tables.map((t) => <section key={t.groupId}><h3>{t.stageName} · {t.groupName}</h3><p>{!t.hasResults ? "尚未开赛" : t.tied && !t.rankingConfirmed ? "同分，最终次序待确认；当前为临时显示次序" : t.rankingConfirmed ? "次序已人工确认" : "基础积分：胜 3 分、平 1 分、负 0 分"}{t.qualificationStale ? " · 出线确认待复核" : ""}</p><div className="admin-table-scroll"><table className="admin-data-table"><thead><tr>{["球队", "场次", "胜", "平", "负", "进球", "失球", "净胜球", "积分"].map((h) => <th key={h}>{h}</th>)}</tr></thead><tbody>{t.rows.map((r) => <tr key={r.id}><td>{r.name}{t.qualifiedTeamIds.includes(r.id) ? " · 人工确认出线" : ""}</td>{[r.played, r.won, r.drawn, r.lost, r.goalsFor, r.goalsAgainst, r.goalDifference, r.points].map((n, i) => <td key={i}>{n}</td>)}</tr>)}</tbody></table></div></section>) : <p>尚无正式小组积分；未结构化的历史比赛仍可查看。</p>}</div>;
++  const [groupId, setGroupId] = useState(""), [search, setSearch] = useState("");
++  const visible = tables.filter((t) => (!groupId || t.groupId === groupId) && (t.groupName.includes(search) || t.stageName.includes(search) || t.rows.some((r) => r.name.includes(search))));
++  return <><div className="functional-filters"><label>搜索小组 / 球队<input value={search} onChange={(e) => setSearch(e.target.value)} /></label><label>选择小组<select value={groupId} onChange={(e) => setGroupId(e.target.value)}><option value="">全部小组</option>{tables.map((t) => <option key={t.groupId} value={t.groupId}>{t.stageName} · {t.groupName}</option>)}</select></label></div><div className="ops-public-standings">{tables.length ? visible.map((t) => <details key={t.groupId} open={Boolean(groupId) || tables.length <= 4}><summary>{t.stageName} · {t.groupName} · {t.rows.length}队</summary><section key={t.groupId}><h3>{t.stageName} · {t.groupName}</h3><p>{!t.hasResults ? "尚未开赛" : t.tied && !t.rankingConfirmed ? "同分，最终次序待确认；当前为临时显示次序" : t.rankingConfirmed ? "次序已人工确认" : "基础积分：胜 3 分、平 1 分、负 0 分"}{t.qualificationStale ? " · 出线确认待复核" : ""}</p><div className="admin-table-scroll"><table className="admin-data-table"><thead><tr>{["球队", "场次", "胜", "平", "负", "进球", "失球", "净胜球", "积分"].map((h) => <th key={h}>{h}</th>)}</tr></thead><tbody>{t.rows.map((r) => <tr key={r.id}><td>{r.name}{t.qualifiedTeamIds.includes(r.id) ? " · 人工确认出线" : ""}</td>{[r.played, r.won, r.drawn, r.lost, r.goalsFor, r.goalsAgainst, r.goalDifference, r.points].map((n, i) => <td key={i}>{n}</td>)}</tr>)}</tbody></table></div></section></details>) : <p>尚无正式小组积分；未结构化的历史比赛仍可查看。</p>}</div></>;
+ }
+diff --git a/src/components/referees/admin/admin-competition-workspace.tsx b/src/components/referees/admin/admin-competition-workspace.tsx
+index f2940f8..29692bc 100644
+--- a/src/components/referees/admin/admin-competition-workspace.tsx
++++ b/src/components/referees/admin/admin-competition-workspace.tsx
+@@ -1,4 +1,5 @@
+ "use client";
++import { MatchSchedulingForm } from "@/components/admin/match-scheduling-form";
+ 
+ import Link from "next/link";
+ import { adminTabKeyboard } from "@/lib/admin-tab-keyboard";
+@@ -41,17 +42,17 @@ export function AdminCompetitionWorkspace({
+   teams,
+   matches,
+   canWrite,
+-  initialSection = "overview", counts, page, stages, publicEffect, structure,
++  initialSection = "overview", counts, page, stages, publicEffect, structure, grouping,
+ }: {
+   competition: { id: string; name: string; formatLabel: string; statusLabel: string; year: number | null; slug: string; deletionProtectedReason?: string };
+   units: CompetitionWorkspaceUnit[];
+   teams: CompetitionWorkspaceTeam[];
+-  matches: Array<{ matchNumber?: number | null; id: string; matchup: string; kickoff: string; venue: string; status: string; stage?: string; group?: string; round?: string; score?: string }>;
++  matches: Array<{ matchNumber?: number | null; id: string; matchup: string; kickoff: string; venue: string; pendingSchedule: boolean; status: string; stage?: string; group?: string; round?: string; score?: string }>;
+   canWrite: boolean;
+   initialSection?: "overview" | "teams" | "matches";
+   counts: { teams: number; matches: number; pending: number; filtered: number }; page: number;
+   stages: Array<{ id: string; name: string; groups: Array<{ id: string; name: string }>; rounds: Array<{ id: string; name: string; groupId: string | null }> }>;
+-  publicEffect: string; structure: ReactNode;
++  publicEffect: string; structure: ReactNode; grouping: ReactNode;
+ }) {
+   const router = useRouter(), params = useSearchParams();
+   const section = initialSection;
+@@ -115,7 +116,7 @@ export function AdminCompetitionWorkspace({
+   return <>
+     <nav aria-label="赛事工作台分区" className="admin-tabs admin-workspace-tabs" role="tablist" onKeyDown={adminTabKeyboard}>
+       <button id="workspace-tab-overview" aria-controls="workspace-panel-overview" tabIndex={section === "overview" ? 0 : -1} aria-selected={section === "overview"} onClick={() => setSection("overview")} role="tab" type="button">赛事资料</button>
+-      <button id="workspace-tab-teams" aria-controls="workspace-panel-teams" tabIndex={section === "teams" ? 0 : -1} aria-selected={section === "teams"} onClick={() => setSection("teams")} role="tab" type="button">参赛球队（{counts.teams}）</button>
++      <button id="workspace-tab-teams" aria-controls="workspace-panel-teams" tabIndex={section === "teams" ? 0 : -1} aria-selected={section === "teams"} onClick={() => setSection("teams")} role="tab" type="button">球队与分组（{counts.teams}）</button>
+       <button id="workspace-tab-matches" aria-controls="workspace-panel-matches" tabIndex={section === "matches" ? 0 : -1} aria-selected={section === "matches"} onClick={() => setSection("matches")} role="tab" type="button">赛程与比分（{counts.matches}）</button>
+     </nav>
+ 
+@@ -127,9 +128,10 @@ export function AdminCompetitionWorkspace({
+ 
+     <section className="admin-panel admin-workspace-team-panel" id="workspace-panel-teams" role="tabpanel" aria-labelledby="workspace-tab-teams" hidden={section !== "teams"}>
+       <header className="admin-panel-header"><div><h2>参赛球队</h2><p>这里只管理“{competition.name}”的参赛球队，不会引入其他赛事的球队。</p></div></header>
+-      {teams.length ? <div className="admin-team-cards">{teams.map((team) => <article className="admin-team-card" key={team.id}><div><strong>{team.name}</strong><span>{teamTypeLabels[team.teamType]} · {team.matchCount ? `已关联 ${team.matchCount} 场比赛` : "尚无比赛引用"}</span></div>{canWrite ? <button className="admin-button admin-button-danger admin-button-quiet" onClick={() => void deleteTeam(team)} type="button">删除球队</button> : null}</article>)}</div> : <div className="admin-empty-state"><strong>当前赛事尚无参赛球队</strong><p>先从组织单位创建代表队、创建联合队，或导入自由组队球队。</p></div>}
++      {grouping}
++      {teams.length ? <details><summary>参赛球队名册（{counts.teams}队）</summary><div className="admin-team-cards">{teams.map((team) => <article className="admin-team-card" key={team.id}><div><strong>{team.name}</strong><span>{teamTypeLabels[team.teamType]} · {team.matchCount ? `已关联 ${team.matchCount} 场比赛` : "尚无比赛引用"}</span></div>{canWrite ? <button className="admin-button admin-button-danger admin-button-quiet" onClick={() => void deleteTeam(team)} type="button">删除球队</button> : null}</article>)}</div></details> : <div className="admin-empty-state"><strong>当前赛事尚无参赛球队</strong><p>先从组织单位创建代表队、创建联合队，或导入自由组队球队。</p></div>}
+       {canWrite ? <div className="admin-workspace-operations">
+-        <details open><summary>添加组织代表队</summary><div className="admin-operation-body">
++        <details><summary>添加组织代表队</summary><div className="admin-operation-body">
+           <OrganizationCheckboxSelector legend="选择组织单位" lockedValues={[...existingUnitIds]} onChange={setSelected} options={selectorOptions} searchPlaceholder="搜索学院或书院…" selectedValues={selected} />
+           <button className="admin-button" disabled={submitting || !selected.length} onClick={() => void createOrganizationTeams()} type="button">批量创建代表队</button>
+         </div></details>
+@@ -141,9 +143,9 @@ export function AdminCompetitionWorkspace({
+ 
+     <section className="admin-panel" id="workspace-panel-matches" role="tabpanel" aria-labelledby="workspace-tab-matches" hidden={section !== "matches"}>
+       <header className="admin-panel-header"><div><h2>赛程与比分</h2><p>共 {counts.matches} 场，待赛果 {counts.pending} 场。新建比赛时赛事固定为当前上下文，主客队仅来自本赛事参赛球队。</p></div>{canWrite && teams.length ? <Link className="admin-button" href={`/admin/matches/new?competitionId=${competition.id}&stageId=${params.get("stageId") ?? ""}&groupId=${params.get("groupId") ?? ""}&roundId=${params.get("roundId") ?? ""}&from=workspace`}>+ 新建比赛</Link> : null}</header>
+-      <div className="admin-filter-bar"><label><span>阶段</span><select value={params.get("stageId") ?? ""} onChange={(e) => navigate("stageId", e.target.value)}><option value="">全部阶段</option><option value="legacy">旧记录 / 未结构化</option>{stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>{selectedStage?.groups.length ? <label><span>小组</span><select value={params.get("groupId") ?? ""} onChange={(e) => navigate("groupId", e.target.value)}><option value="">全部小组</option>{selectedStage.groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label> : null}{selectedStage ? <label><span>轮次</span><select value={params.get("roundId") ?? ""} onChange={(e) => navigate("roundId", e.target.value)}><option value="">全部轮次</option>{selectedStage.rounds.filter((r) => !r.groupId || !params.get("groupId") || r.groupId === params.get("groupId")).map((r) => <option key={r.id} value={r.id}>{r.groupId && !params.get("groupId") ? `${selectedStage.groups.find((g) => g.id === r.groupId)?.name ?? ""} · ` : ""}{r.name}</option>)}</select></label> : null}<label><span>状态</span><select value={params.get("status") ?? ""} onChange={(e) => navigate("status", e.target.value)}><option value="">全部</option><option value="SCHEDULED">待赛果</option><option value="COMPLETED">已完赛</option><option value="CANCELLED">已取消</option></select></label></div>
++      <div className="admin-filter-bar"><label><span>阶段</span><select value={params.get("stageId") ?? ""} onChange={(e) => navigate("stageId", e.target.value)}><option value="">全部阶段</option><option value="legacy">旧记录 / 未结构化</option>{stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>{selectedStage?.groups.length ? <label><span>小组</span><select value={params.get("groupId") ?? ""} onChange={(e) => navigate("groupId", e.target.value)}><option value="">全部小组</option>{selectedStage.groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label> : null}{selectedStage ? <label><span>轮次</span><select value={params.get("roundId") ?? ""} onChange={(e) => navigate("roundId", e.target.value)}><option value="">全部轮次</option>{selectedStage.rounds.filter((r) => !r.groupId || !params.get("groupId") || r.groupId === params.get("groupId")).map((r) => <option key={r.id} value={r.id}>{r.groupId && !params.get("groupId") ? `${selectedStage.groups.find((g) => g.id === r.groupId)?.name ?? ""} · ` : ""}{r.name}</option>)}</select></label> : null}<label><span>状态</span><select value={params.get("status") ?? ""} onChange={(e) => navigate("status", e.target.value)}><option value="">全部</option><option value="PENDING">待排期</option><option value="SCHEDULED">待赛果 / 待赛</option><option value="COMPLETED">已完赛</option><option value="CANCELLED">已取消</option></select></label></div>
+       <div className="admin-page-actions">{canWrite ? <Link href={`/admin/competitions/import?competitionId=${competition.id}&kind=matches`}>批量导入赛程</Link> : null}<span>当前筛选 {counts.filtered} 场</span></div>
+-      {!teams.length ? <div className="admin-empty-state"><strong>当前赛事尚无参赛球队。</strong><p>请先添加参赛球队，再创建比赛。</p><button className="admin-button" onClick={() => setSection("teams")} type="button">前往添加球队</button></div> : matches.length ? <div className="admin-table-scroll"><table className="admin-data-table"><thead><tr><th>比赛</th><th>时间</th><th>场地</th><th>阶段 / 组 / 轮次</th><th>状态 / 比分</th><th>操作</th></tr></thead><tbody>{matches.map((match) => <tr key={match.id}><td>{match.matchNumber ? <small>第{match.matchNumber}场</small> : null}<strong>{match.matchup}</strong></td><td>{match.kickoff}</td><td>{match.venue}</td><td>{[match.stage, match.group, match.round].filter(Boolean).join(" · ") || "未结构化"}</td><td>{match.score || (match.status === "COMPLETED" ? "已结束，待核验比分" : match.status === "CANCELLED" ? "已取消" : "待赛果")}</td><td><Link href={`/admin/matches/${match.id}`}>{canWrite ? "录入赛果 / 详情" : "查看详情"}</Link></td></tr>)}</tbody></table></div> : <div className="admin-empty-state"><strong>当前赛事尚无比赛</strong><p>参赛球队已就绪，可以创建第一场比赛。</p></div>}
++      {!teams.length ? <div className="admin-empty-state"><strong>当前赛事尚无参赛球队。</strong><p>请先添加参赛球队，再创建比赛。</p><button className="admin-button" onClick={() => setSection("teams")} type="button">前往添加球队</button></div> : matches.length ? <div className="admin-table-scroll"><table className="admin-data-table"><thead><tr><th>比赛</th><th>时间</th><th>场地</th><th>阶段 / 组 / 轮次</th><th>状态 / 比分</th><th>操作</th></tr></thead><tbody>{matches.map((match) => <tr key={match.id}><td>{match.matchNumber ? <small>第{match.matchNumber}场</small> : null}<strong>{match.matchup}</strong></td><td>{match.kickoff}</td><td>{match.venue}</td><td>{[match.stage, match.group, match.round].filter(Boolean).join(" · ") || "未结构化"}</td><td>{match.score || (match.pendingSchedule && match.status === "SCHEDULED" ? "待排期" : match.status === "COMPLETED" ? "已结束，待核验比分" : match.status === "CANCELLED" ? "已取消" : "已安排")}</td><td>{canWrite && match.pendingSchedule && match.status === "SCHEDULED" ? <MatchSchedulingForm matchId={match.id} /> : null}<Link href={`/admin/matches/${match.id}`}>{canWrite ? "录入赛果 / 详情" : "查看详情"}</Link></td></tr>)}</tbody></table></div> : <div className="admin-empty-state"><strong>当前赛事尚无比赛</strong><p>参赛球队已就绪，可以创建第一场比赛。</p></div>}
+       <nav className="admin-pagination" aria-label="赛事比赛分页">{page > 1 ? <Link href={`?${new URLSearchParams({ ...Object.fromEntries(params), page: String(page - 1) })}`}>上一页</Link> : null}<span>{page} / {Math.max(1, Math.ceil(counts.filtered / 30))}</span>{page * 30 < counts.filtered ? <Link href={`?${new URLSearchParams({ ...Object.fromEntries(params), page: String(page + 1) })}`}>下一页</Link> : null}</nav>
+     </section>
+     {section === "teams" || section === "matches" ? structure : null}
+diff --git a/src/components/referees/admin/admin-match-form.tsx b/src/components/referees/admin/admin-match-form.tsx
+index 426b788..e016e9e 100644
+--- a/src/components/referees/admin/admin-match-form.tsx
++++ b/src/components/referees/admin/admin-match-form.tsx
+@@ -165,9 +165,9 @@ export function AdminMatchForm({
+         <label><span>正式阶段</span><select name="stageId" value={stageId} onChange={(e) => { setStageId(e.target.value); setGroupId(""); setRoundId(""); setHomeTeamSelection(""); setAwayTeamSelection(""); }}><option value="">旧记录 / 未结构化</option>{structures.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>{selectedStage?.type === "GROUP" ? <label><span>小组</span><select name="groupId" required value={groupId} onChange={(e) => { setGroupId(e.target.value); setRoundId(""); setHomeTeamSelection(""); setAwayTeamSelection(""); }}><option value="">选择小组</option>{selectedStage.groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label> : <input name="groupId" value="" type="hidden" />}{selectedStage ? <label><span>正式轮次</span><select name="roundId" value={roundId} onChange={(e) => setRoundId(e.target.value)}><option value="">暂不指定</option>{selectedStage.rounds.filter((r) => !r.groupId || r.groupId === groupId).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label> : <input name="roundId" value="" type="hidden" />}
+         <label><span>阶段文字（保留历史）</span><input defaultValue={match?.stage} name="stage" required={!stageId} /></label>
+         <label><span>标准轮次</span><input defaultValue={match?.round} name="round" /></label>
+-        <label><span>开球时间</span><input defaultValue={match?.kickoff} name="kickoff" required type="datetime-local" /></label>
++        <label><span>开球时间（待排期可留空）</span><input defaultValue={match?.kickoff} name="kickoff" type="datetime-local" /></label>
+         <label><span>预计结束</span><input defaultValue={match?.endAt} name="endAt" type="datetime-local" /></label>
+-        <label><span>比赛场地</span><input defaultValue={match?.venue ?? query.get("venue") ?? ""} name="venue" required /></label>
++        <label><span>比赛场地（待排期可留空）</span><input defaultValue={match?.venue ?? query.get("venue") ?? ""} name="venue" /></label>
+         <label><span>主队</span><select disabled={!competition} onChange={(event) => setHomeTeamSelection(event.target.value)} required value={homeTeamSelection}>{teamOptions()}</select><small>{competition ? "仅显示当前赛事的参赛球队。" : "请先选择赛事"}</small></label>
+         <label><span>客队</span><select disabled={!competition} onChange={(event) => setAwayTeamSelection(event.target.value)} required value={awayTeamSelection}>{teamOptions()}</select><small>{competition ? "如需新增球队，请返回赛事工作台。" : "请先选择赛事"}</small></label>
+         <label><span>比赛状态</span><select defaultValue={match?.status ?? "SCHEDULED"} name="status">{Object.entries(matchStatusLabels).filter(([value]) => value !== "COMPLETED" || match?.status === "COMPLETED").map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+diff --git a/src/components/referees/admin/admin-matches-page.tsx b/src/components/referees/admin/admin-matches-page.tsx
+index 877b469..a3adea4 100644
+--- a/src/components/referees/admin/admin-matches-page.tsx
++++ b/src/components/referees/admin/admin-matches-page.tsx
+@@ -1,3 +1,4 @@
++import { MatchSchedulingForm } from "@/components/admin/match-scheduling-form";
+ import Link from "next/link";
+ 
+ import { AdminMatchNavigation } from "@/components/referees/admin/admin-match-navigation";
+@@ -17,7 +18,7 @@ export async function AdminMatchesPageContent({
+   const query = await searchParams;
+   const competitionId = typeof query.competition === "string" ? query.competition : "";
+   const rawMatchStatus = typeof query.matchStatus === "string" ? query.matchStatus : "";
+-  const matchStatus = ["SCHEDULED", "COMPLETED", "CANCELLED"].includes(rawMatchStatus) ? rawMatchStatus : "";
++  const matchStatus = ["PENDING", "SCHEDULED", "COMPLETED", "CANCELLED"].includes(rawMatchStatus) ? rawMatchStatus : "";
+   const rawAppointmentStatus = typeof query.appointmentStatus === "string" ? query.appointmentStatus : "";
+   const appointmentStatus = ["NONE", "DRAFT", "PUBLISHED", "WITHDRAWN", "COMPLETED", "CANCELLED"].includes(rawAppointmentStatus) ? rawAppointmentStatus : "";
+   const quick = typeof query.quick === "string" && ["pending", "incomplete", "conflict", "published"].includes(query.quick) ? query.quick : "";
+@@ -29,7 +30,7 @@ export async function AdminMatchesPageContent({
+     prisma.match.findMany({
+       where: {
+         ...(competitionId ? { competitionId } : {}),
+-        ...(matchStatus ? { status: matchStatus as "SCHEDULED" | "COMPLETED" | "CANCELLED" } : {}),
++        ...(matchStatus === "PENDING" ? { status: "SCHEDULED" as const, OR: [{ kickoff: null }, { venue: null }, { venue: "" }] } : matchStatus ? { status: matchStatus as "SCHEDULED" | "COMPLETED" | "CANCELLED" } : {}),
+         ...(dateStart ? { kickoff: { gte: dateStart, lt: new Date(dateStart.getTime() + 86400000) } } : {}),
+         ...(appointmentStatus === "NONE" ? { appointment: null } : appointmentStatus ? { appointment: { status: appointmentStatus as "DRAFT" | "PUBLISHED" | "WITHDRAWN" | "COMPLETED" | "CANCELLED" } } : {}),
+       },
+@@ -65,14 +66,14 @@ export async function AdminMatchesPageContent({
+     <form className="admin-filter-bar">
+       <label><span>赛事</span><select defaultValue={competitionId} name="competition"><option value="">全部赛事</option>{competitions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+       <label><span>日期</span><input defaultValue={date} name="date" type="date" /></label>
+-      <label><span>比赛状态</span><select defaultValue={matchStatus} name="matchStatus"><option value="">全部状态</option>{Object.entries(matchStatusLabels).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label>
++      <label><span>比赛状态</span><select defaultValue={matchStatus} name="matchStatus"><option value="">全部状态</option><option value="PENDING">待排期</option>{Object.entries(matchStatusLabels).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+       <label><span>选派状态</span><select defaultValue={appointmentStatus} name="appointmentStatus"><option value="">全部状态</option>{Object.entries(appointmentStatusLabels).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+       <button className="admin-button admin-button-secondary" type="submit">筛选</button>
+       <Link className="admin-filter-reset" href={detailRoot}>清除</Link>
+     </form>
+     {isAppointmentView ? <nav aria-label="选派快速筛选" className="admin-quick-filters"><Link aria-current={quick === "pending" ? "page" : undefined} href="/admin/appointments?quick=pending">待选派</Link><Link aria-current={quick === "incomplete" ? "page" : undefined} href="/admin/appointments?quick=incomplete">未完整选派</Link><Link aria-current={quick === "conflict" ? "page" : undefined} href="/admin/appointments?quick=conflict">有冲突 / 异常</Link><Link aria-current={quick === "published" ? "page" : undefined} href="/admin/appointments?quick=published">已发布</Link></nav> : null}
+     <AdminPanel title={`比赛列表 · ${matches.length}`} description="默认按开球时间倒序，最多显示 250 场。">
+-      {matches.length ? <div className="admin-table-scroll"><table className="admin-data-table"><thead><tr><th>时间</th><th>比赛</th><th>赛事</th><th>场地</th><th>比赛状态</th>{isAppointmentView ? <th>人员完整度</th> : null}<th>选派状态</th>{isAppointmentView ? <th>提醒</th> : null}<th>操作</th></tr></thead><tbody>{matches.map((match) => { const required = match.positionRequirements.reduce((sum, item) => sum + item.count, 0); const assigned = match.appointment?.positions.filter((position) => position.refereeId).length ?? 0; const pendingConflicts = match.appointment?.conflictReports.length ?? 0; return <tr key={match.id}><td>{formatRefereeDateTime(match.kickoff)}</td><td><strong>{match.homeTeam.name} vs {match.awayTeam.name}</strong><small>{match.stage}</small></td><td>{match.competition.name}</td><td>{match.venue}</td><td><AdminStatusBadge status={match.status} label={matchStatusLabels[match.status]} /></td>{isAppointmentView ? <td><strong className="admin-stat-number">{assigned}/{required}</strong></td> : null}<td><AdminStatusBadge status={match.appointment?.status ?? "NONE"} label={appointmentStatusLabels[match.appointment?.status ?? "NONE"]} /></td>{isAppointmentView ? <td>{pendingConflicts ? <Link className="admin-warning-link" href="/admin/conflicts?status=PENDING">{pendingConflicts} 个待处理冲突</Link> : assigned < required ? "人员未完整" : "—"}</td> : null}<td><div className="admin-table-actions"><Link className="admin-row-action-primary" href={`${detailRoot}/${match.id}`}>{isAppointmentView ? (match.appointment?.status === "PUBLISHED" ? "查看选派" : "进入选派") : "查看比赛"}</Link>{!isAppointmentView && canWriteCompetitions ? <Link href={`/admin/matches/${match.id}/edit`}>编辑</Link> : null}</div></td></tr>; })}</tbody></table></div> : <AdminEmptyState title="没有符合条件的比赛" description={canWriteCompetitions ? "调整筛选条件，或创建一场新比赛。" : "请调整筛选条件。"} />}
++      {matches.length ? <div className="admin-table-scroll"><table className="admin-data-table"><thead><tr><th>时间</th><th>比赛</th><th>赛事</th><th>场地</th><th>比赛状态</th>{isAppointmentView ? <th>人员完整度</th> : null}<th>选派状态</th>{isAppointmentView ? <th>提醒</th> : null}<th>操作</th></tr></thead><tbody>{matches.map((match) => { const required = match.positionRequirements.reduce((sum, item) => sum + item.count, 0); const assigned = match.appointment?.positions.filter((position) => position.refereeId).length ?? 0; const pendingConflicts = match.appointment?.conflictReports.length ?? 0; return <tr key={match.id}><td>{formatRefereeDateTime(match.kickoff)}</td><td><strong>{match.homeTeam.name} vs {match.awayTeam.name}</strong><small>{match.stage}</small></td><td>{match.competition.name}</td><td>{match.venue || "场地待定"}</td><td><AdminStatusBadge status={match.status} label={match.status === "SCHEDULED" && (!match.kickoff || !match.venue?.trim()) ? "待排期" : matchStatusLabels[match.status]} /></td>{isAppointmentView ? <td><strong className="admin-stat-number">{assigned}/{required}</strong></td> : null}<td><AdminStatusBadge status={match.appointment?.status ?? "NONE"} label={appointmentStatusLabels[match.appointment?.status ?? "NONE"]} /></td>{isAppointmentView ? <td>{pendingConflicts ? <Link className="admin-warning-link" href="/admin/conflicts?status=PENDING">{pendingConflicts} 个待处理冲突</Link> : assigned < required ? "人员未完整" : "—"}</td> : null}<td><div className="admin-table-actions">{!isAppointmentView && canWriteCompetitions && match.status === "SCHEDULED" && (!match.kickoff || !match.venue?.trim()) ? <MatchSchedulingForm matchId={match.id} /> : null}<Link className="admin-row-action-primary" href={`${detailRoot}/${match.id}`}>{isAppointmentView ? (match.appointment?.status === "PUBLISHED" ? "查看选派" : "进入选派") : "查看比赛"}</Link>{!isAppointmentView && canWriteCompetitions ? <Link href={`/admin/matches/${match.id}/edit`}>编辑</Link> : null}</div></td></tr>; })}</tbody></table></div> : <AdminEmptyState title="没有符合条件的比赛" description={canWriteCompetitions ? "调整筛选条件，或创建一场新比赛。" : "请调整筛选条件。"} />}
+     </AdminPanel>
+   </>;
+ }
+diff --git a/src/lib/beijing-datetime.ts b/src/lib/beijing-datetime.ts
+index e97e73d..d94124f 100644
+--- a/src/lib/beijing-datetime.ts
++++ b/src/lib/beijing-datetime.ts
+@@ -58,7 +58,8 @@ export function parseBeijingDateTime(value: unknown, label: string) {
+   return parsed;
+ }
+ 
+-export function formatBeijingDateTime(value: Date) {
++export function formatBeijingDateTime(value: Date | null) {
++  if (!value) return { dateLabel: "时间待定", timeLabel: "时间待定", dateTimeLabel: "时间待定" };
+   const parts = beijingParts(value);
+   const dateLabel = `${parts.year}.${parts.month}.${parts.day}`;
+   const timeLabel = `${parts.hour}:${parts.minute}`;
+diff --git a/src/lib/competition-import-docx.ts b/src/lib/competition-import-docx.ts
+index ec7ab7c..ddd836f 100644
+--- a/src/lib/competition-import-docx.ts
++++ b/src/lib/competition-import-docx.ts
+@@ -78,7 +78,7 @@ export function parseCompetitionImportDocx(buffer: Buffer) {
+       if (values.every((v) => !v)) continue;
+       if (++rowNumber > COMPETITION_IMPORT_MAX_ROWS) fail("Word 赛程不能超过 5000 行。");
+       const [round, matchNumber, date, time, homeTeam, awayTeam, venue, note] = values;
+-      const group = note.match(/(?:^|\s)([A-Z]组)(?:\s|$)/)?.[1] ?? "";
++      const group = note.replace(/^备注\s*[:：]\s*/, "").match(/(?:^|[\s，,;；])([^\s，,;；:：]+组)(?=$|[\s，,;；])/u)?.[1] ?? note.replace(/^备注\s*[:：]\s*/, "").trim();
+       const row = { rowNumber, values: { stage, round, matchNumber, date, time, homeTeam, awayTeam, venue, note, group, kickoff: date && time ? `${date} ${time}` : "" } };
+       (stage === "淘汰赛" ? referenceRows : rows).push(row);
+     }
+diff --git a/src/lib/competition-import-service.ts b/src/lib/competition-import-service.ts
+index f44712a..73403d5 100644
+--- a/src/lib/competition-import-service.ts
++++ b/src/lib/competition-import-service.ts
+@@ -36,9 +36,9 @@ type LoadedMatch = {
+   slug: string;
+   competitionId: string;
+   stage: string;
+-  kickoff: Date;
++  kickoff: Date | null;
+   endAt: Date | null;
+-  venue: string;
++  venue: string | null;
+   round: string | null;
+   source: "MANUAL" | "FOOTBALL_CHINA";
+   externalMatchId: string | null;
+@@ -61,9 +61,9 @@ type MatchPlan = {
+   preview: CompetitionImportPreviewRow;
+   homeTeam: string;
+   awayTeam: string;
+-  kickoff: Date;
++  kickoff: Date | null;
+   endAt: Date | null;
+-  venue: string;
++  venue: string | null;
+   stage: string;
+   round: string | null;
+   externalMatchId: string | null;
+@@ -241,8 +241,8 @@ function stableMatchSlug(competitionSlug: string, kickoff: Date, homeTeam: strin
+   return `${base}-${timestamp}-${hash}`;
+ }
+ 
+-function naturalMatchKey(kickoff: Date, homeTeam: string, awayTeam: string) {
+-  return `${kickoff.toISOString()}\0${comparisonKey(homeTeam)}\0${comparisonKey(awayTeam)}`;
++function naturalMatchKey(kickoff: Date | null, homeTeam: string, awayTeam: string, scope = "") {
++  return `${kickoff?.toISOString() ?? `pending:${scope}`}\0${comparisonKey(homeTeam)}\0${comparisonKey(awayTeam)}`;
+ }
+ 
+ function makeSummary(rows: CompetitionImportPreviewRow[], plannedTeamCreates: number) {
+@@ -390,9 +390,9 @@ function matchDifferences(existing: LoadedMatch, plan: MatchPlan) {
+   compare("competitionId", existing.competitionId, plan.preview.normalized.competitionId ?? null);
+   compare("homeTeam", comparisonKey(existing.homeTeam.name), comparisonKey(plan.homeTeam));
+   compare("awayTeam", comparisonKey(existing.awayTeam.name), comparisonKey(plan.awayTeam));
+-  compare("kickoff", existing.kickoff.toISOString(), plan.kickoff.toISOString());
++  compare("kickoff", existing.kickoff?.toISOString() ?? null, plan.kickoff?.toISOString() ?? null);
+   if (plan.matchNumber !== null) compare("matchNumber", existing.matchNumber?.toString() ?? null, String(plan.matchNumber));
+-  compare("venue", existing.venue.trim(), plan.venue);
++  compare("venue", existing.venue?.trim() ?? null, plan.venue);
+   compare("stage", existing.stage.trim(), plan.stage);
+   compare("stageId", existing.stageId, plan.stageId); compare("groupId", existing.groupId, plan.groupId); compare("roundId", existing.roundId, plan.roundId);
+   compare("endAt", existing.endAt?.toISOString() ?? null, plan.endAt?.toISOString() ?? null);
+@@ -437,14 +437,20 @@ async function analyzeMatchImport(
+     const rawNumber = displayCell(row.values.matchNumber).trim();
+     const matchNumber = rawNumber ? Number(rawNumber) : null;
+     if (!validMatchNumber(matchNumber) || rawNumber && !/^\d+$/.test(rawNumber)) errors.push(issue("matchNumber", "INVALID_MATCH_NUMBER", "场序须为 1–99999 的整数。"));
++    if (input.inputMethod === "DOCX" && matchNumber === null) errors.push(issue("matchNumber", "MATCH_NUMBER_REQUIRED", "DOCX 场序不能为空。"));
+     const note = readText(row.values, "note", "备注", 500, errors, false);
+     const homeTeam = readText(row.values, "homeTeam", "主队", 80, errors);
+     const awayTeam = readText(row.values, "awayTeam", "客队", 80, errors);
+-    const kickoff = parseCompetitionImportDate(row.values.kickoff, "kickoff", "开球时间", errors);
++    const kickoff = parseCompetitionImportDate(row.values.kickoff, "kickoff", "开球时间", errors, false);
+     const endAt = parseCompetitionImportDate(row.values.endAt, "endAt", "结束时间", errors, false);
+-    const venue = readText(row.values, "venue", "场地", 120, errors);
++    const venue = readText(row.values, "venue", "场地", 120, errors, false) || null;
++    if (!kickoff) warnings.push(issue("kickoff", "PENDING_TIME", "比赛时间待安排"));
++    if (!venue) warnings.push(issue("venue", "PENDING_VENUE", "比赛场地待安排"));
++    if (endAt && !kickoff) errors.push(issue("endAt", "KICKOFF_REQUIRED", "填写结束时间前须安排开球时间。"));
++    if (input.inputMethod === "DOCX" && Boolean(displayCell(row.values.date).trim()) !== Boolean(displayCell(row.values.time).trim())) errors.push(issue("kickoff", "INCOMPLETE_TIME", "日期和时间须一起填写，或一起留空待排期。"));
+     const stage = readText(row.values, "stage", "阶段", 80, errors);
+     const round = readText(row.values, "round", "轮次", 80, errors, false) || null;
++    if (input.inputMethod === "DOCX" && !round) errors.push(issue("round", "ROUND_REQUIRED", "DOCX 轮次不能为空。"));
+     let groupName = readText(row.values, "group", "分组", 80, errors, false);
+     const findStage = structures.filter((s) => row.values.stageId ? s.id === displayCell(row.values.stageId) : s.name === stage);
+     const selectedStage = findStage.length === 1 ? findStage[0] : undefined;
+@@ -454,12 +460,13 @@ async function analyzeMatchImport(
+     const rounds = selectedStage?.rounds.filter((r) => (!r.groupId || r.groupId === selectedGroup?.id) && (row.values.roundId ? r.id === displayCell(row.values.roundId) : r.name === round)) ?? [];
+     const selectedRound = rounds.length === 1 ? rounds[0] : undefined;
+     if ((structures.length || row.values.stageId || groupName || row.values.groupId || row.values.roundId) && !selectedStage) errors.push(issue("stage", "STRUCTURE_UNMATCHED", "阶段未匹配；请先建立结构并核对准确名称或 ID。"));
+-    if (selectedStage?.type === "GROUP" && !selectedGroup) errors.push(issue("group", "GROUP_UNMATCHED", "小组未匹配；请先建立并选择当前阶段的小组。"));
++    if (selectedStage?.type === "GROUP" && !selectedGroup) errors.push(issue("group", "GROUP_UNMATCHED", `未找到小组“${groupName || displayCell(row.values.groupId)}”。请前往“球队与分组”核对。`));
+     if ((groupName || row.values.groupId) && (!selectedGroup || selectedStage?.type !== "GROUP")) errors.push(issue("group", "GROUP_INVALID", "分组不属于所选小组阶段。"));
+     if (selectedStage && (round || row.values.roundId) && !selectedRound) errors.push(issue("round", "ROUND_UNMATCHED", "轮次未匹配，请先人工建立轮次或选择准确 ID。"));
+     if (selectedGroup) {
+       const members = new Set(selectedGroup.members.map((m) => m.teamId));
+-      if (![homeTeam, awayTeam].every((n) => { const t = existingByTeamName.get(comparisonKey(n)); return t && members.has(t.id); })) errors.push(issue("group", "GROUP_TEAM_MISMATCH", "主客队必须是已确定的本组成员，不能自动建队或归组。"));
++      const names = [homeTeam, awayTeam].filter((n) => { const t = existingByTeamName.get(comparisonKey(n)); return !t || !members.has(t.id); });
++      if (names.length) errors.push({ ...issue("group", "GROUP_TEAM_MISMATCH", `球队分组不一致：以下球队尚未确认属于 ${selectedGroup.name}：${names.join("、")}。请先前往“球队与分组”完成分组，再重新检查赛程。`), teamNames: names, groupName: selectedGroup.name });
+     }
+     if ([homeTeam, awayTeam].some(isKnockoutPlaceholder)) errors.push(issue("team", "PLACEHOLDER_TEAM", "淘汰赛占位描述不能创建真实球队或比赛；请人工选择真实球队。"));
+     if (input.inputMethod === "DOCX" || selectedStage?.type === "KNOCKOUT") {
+@@ -474,9 +481,7 @@ async function analyzeMatchImport(
+     if (kickoff && endAt && endAt <= kickoff) {
+       errors.push(issue("endAt", "END_NOT_AFTER_KICKOFF", "比赛结束时间必须晚于开球时间。"));
+     }
+-    const slug = kickoff && homeTeam && awayTeam
+-      ? stableMatchSlug(competition.slug, kickoff, homeTeam, awayTeam)
+-      : "";
++    const slug = homeTeam && awayTeam ? kickoff ? stableMatchSlug(competition.slug, kickoff, homeTeam, awayTeam) : `${competition.slug.slice(0,36)}-pending-${createHash("sha256").update(JSON.stringify([competition.id, stageId, groupId, roundId, matchNumber, homeTeam, awayTeam])).digest("hex").slice(0,16)}` : "";
+     const preview: CompetitionImportPreviewRow = {
+       rowNumber: row.rowNumber,
+       raw: rawSummary(row.values),
+@@ -507,7 +512,7 @@ async function analyzeMatchImport(
+       preview, matchNumber, note,
+       homeTeam,
+       awayTeam,
+-      kickoff: kickoff ?? new Date(0),
++      kickoff,
+       endAt,
+       venue,
+       stage, stageId, groupId, roundId,
+@@ -554,7 +559,7 @@ async function analyzeMatchImport(
+         })
+       : Promise.resolve([]),
+   ]);
+-  const existingByNaturalKey = new Map(competitionMatches.map((match) => [naturalMatchKey(match.kickoff, match.homeTeam.name, match.awayTeam.name), match]));
++  const existingByNaturalKey = new Map(competitionMatches.map((match) => [naturalMatchKey(match.kickoff, match.homeTeam.name, match.awayTeam.name, JSON.stringify([match.stageId, match.groupId, match.roundId, match.matchNumber])), match]));
+   const existingByExternalId = new Map(externalMatches.flatMap((match) => match.externalMatchId ? [[match.externalMatchId, match] as const] : []));
+   const existingBySlug = new Map(slugMatches.map((match) => [match.slug, match]));
+   const existingByNumber = new Map(competitionMatches.filter((m) => m.matchNumber !== null).map((m) => [m.matchNumber!, m]));
+@@ -570,7 +575,7 @@ async function analyzeMatchImport(
+       if (previous !== undefined) { plan.preview.errors.push(issue("matchNumber", "DUPLICATE_MATCH_NUMBER", `场序与第 ${previous} 行重复。`)); plan.preview.action = "CONFLICT"; continue; }
+       seenNumber.set(plan.matchNumber, plan.preview.rowNumber);
+     }
+-    const naturalKey = naturalMatchKey(plan.kickoff, plan.homeTeam, plan.awayTeam);
++    const naturalKey = naturalMatchKey(plan.kickoff, plan.homeTeam, plan.awayTeam, JSON.stringify([plan.stageId, plan.groupId, plan.roundId, plan.matchNumber]));
+     const duplicateNatural = seenNatural.get(naturalKey);
+     const duplicateExternal = plan.externalMatchId ? seenExternal.get(plan.externalMatchId) : undefined;
+     if (duplicateExternal) {
+diff --git a/src/lib/competition-import-types.ts b/src/lib/competition-import-types.ts
+index bb4f70a..fc125bb 100644
+--- a/src/lib/competition-import-types.ts
++++ b/src/lib/competition-import-types.ts
+@@ -39,6 +39,8 @@ export type CompetitionImportInput = {
+ };
+ 
+ export type CompetitionImportIssue = {
++  teamNames?: string[];
++  groupName?: string;
+   field: string;
+   errorCode: string;
+   message: string;
+diff --git a/src/lib/competition-structure-service.ts b/src/lib/competition-structure-service.ts
+index 6fe890e..16dfcce 100644
+--- a/src/lib/competition-structure-service.ts
++++ b/src/lib/competition-structure-service.ts
+@@ -34,6 +34,8 @@ export async function loadCompetitionStructure(competitionId: string) {
+ export type StructureAction =
+  | { action: "stage"; name: string; type: "GROUP" | "KNOCKOUT" | "OTHER"; sortOrder: number }
+  | { action: "group"; stageId: string; name: string; sortOrder: number }
++ | { action: "updateGroup"; groupId: string; name: string; sortOrder: number }
++ | { action: "assign"; stageId: string; groupId: string | null; teamIds: string[]; reason: string }
+  | { action: "round"; stageId: string; groupId?: string; name: string; sortOrder: number }
+  | { action: "members"; groupId: string; teamIds: string[]; reason: string }
+  | { action: "delete"; entity: "stage" | "group" | "round"; id: string };
+@@ -41,6 +43,7 @@ export async function mutateCompetitionStructure(competitionId: string, input: S
+   assertUnifiedAdminPermission(actor, "competitions:write");
+   return prisma.$transaction(async (tx) => {
+     if (!await tx.competition.findUnique({ where: { id: competitionId } })) throw new RefereeServiceError("赛事不存在。", 404);
++    if ("sortOrder" in input && (!Number.isSafeInteger(input.sortOrder) || input.sortOrder < 0 || input.sortOrder > 9999)) throw new RefereeServiceError("显示顺序无效。");
+     let result: unknown;
+     if (input.action === "stage") {
+       if (!input.name.trim() || input.name.length > 80 || !["GROUP", "KNOCKOUT", "OTHER"].includes(input.type)) throw new RefereeServiceError("阶段名称或类型无效。");
+@@ -51,12 +54,38 @@ export async function mutateCompetitionStructure(competitionId: string, input: S
+       if (!input.name.trim() || input.name.length > 80) throw new RefereeServiceError("名称无效。");
+       if (input.action === "group") {
+         if (stage.type !== "GROUP") throw new RefereeServiceError("仅小组赛阶段可建立分组。");
++        if (await tx.competitionGroup.findFirst({ where: { stageId: stage.id, name: input.name.trim() } })) throw new RefereeServiceError("本阶段已存在同名小组。", 409);
+         result = await tx.competitionGroup.create({ data: { stageId: stage.id, name: input.name.trim(), sortOrder: input.sortOrder } });
+       } else {
+         if (input.groupId && !await tx.competitionGroup.findFirst({ where: { id: input.groupId, stageId: stage.id } })) throw new RefereeServiceError("小组归属不正确。");
+         if (await tx.competitionRound.findFirst({ where: { stageId: stage.id, groupId: input.groupId || null, name: input.name.trim() } })) throw new RefereeServiceError("该范围内已存在同名轮次。");
+         result = await tx.competitionRound.create({ data: { stageId: stage.id, groupId: input.groupId || null, name: input.name.trim(), sortOrder: input.sortOrder } });
+       }
++    } else if (input.action === "updateGroup") {
++      const group = await tx.competitionGroup.findFirst({ where: { id: input.groupId, stage: { competitionId } } });
++      if (!group) throw new RefereeServiceError("小组不存在。", 404);
++      if (!input.name.trim() || input.name.length > 80) throw new RefereeServiceError("小组名称须为1–80个字符。");
++      if (await tx.competitionGroup.count({ where: { stageId: group.stageId, name: input.name.trim(), id: { not: group.id } } })) throw new RefereeServiceError("本阶段已存在同名小组。", 409);
++      result = await tx.competitionGroup.update({ where: { id: group.id }, data: { name: input.name.trim(), sortOrder: input.sortOrder } });
++    } else if (input.action === "assign") {
++      const stage = await tx.competitionStage.findFirst({ where: { id: input.stageId, competitionId, type: "GROUP" } });
++      if (!stage) throw new RefereeServiceError("请选择当前赛事的小组赛阶段。");
++      if (input.groupId && !await tx.competitionGroup.findFirst({ where: { id: input.groupId, stageId: stage.id } })) throw new RefereeServiceError("小组不属于当前阶段。");
++      if (!input.teamIds.length || input.teamIds.length > 500 || new Set(input.teamIds).size !== input.teamIds.length) throw new RefereeServiceError("请选择不重复的球队（每批最多500支）。");
++      const teams = await tx.team.findMany({ where: { id: { in: input.teamIds }, competitionId }, select: { id: true, name: true } });
++      if (teams.length !== input.teamIds.length) throw new RefereeServiceError("球队不属于当前赛事。");
++      const memberships = await tx.teamGroupMembership.findMany({ where: { stageId: stage.id, teamId: { in: input.teamIds } } });
++      const current = new Map(memberships.map((m) => [m.teamId, m.groupId]));
++      const changed = input.teamIds.filter((id) => (current.get(id) ?? null) !== input.groupId);
++      if (changed.length) {
++        const affected = await tx.match.findMany({ where: { stageId: stage.id, OR: [{ homeTeamId: { in: changed } }, { awayTeamId: { in: changed } }] }, select: { id: true, status: true, homeScore: true, awayScore: true } });
++        const groupIds = [...new Set([...memberships.filter((m) => changed.includes(m.teamId)).map((m) => m.groupId), ...(input.groupId ? [input.groupId] : [])])];
++        const confirmations = await tx.groupConfirmation.count({ where: { groupId: { in: groupIds } } });
++        if (affected.length || confirmations) throw new RefereeServiceError(`危险换组已阻止：影响 ${affected.length} 场正式比赛，其中 ${affected.filter((m) => m.status === "COMPLETED" || m.homeScore !== null || m.awayScore !== null).length} 场已有积分/赛果，涉及 ${confirmations} 条排名或出线确认。请先核对受影响比赛与积分。`, 409);
++        await tx.teamGroupMembership.deleteMany({ where: { stageId: stage.id, teamId: { in: changed } } });
++        if (input.groupId) await tx.teamGroupMembership.createMany({ data: changed.map((teamId) => ({ teamId, stageId: stage.id, groupId: input.groupId! })) });
++      }
++      result = { count: changed.length };
+     } else if (input.action === "members") {
+       const group = await tx.competitionGroup.findUnique({ where: { id: input.groupId }, include: { stage: true, members: true } });
+       if (!group || group.stage.competitionId !== competitionId) throw new RefereeServiceError("小组归属不正确。");
+@@ -66,9 +95,12 @@ export async function mutateCompetitionStructure(competitionId: string, input: S
+       const other = await tx.teamGroupMembership.findFirst({ where: { stageId: group.stageId, teamId: { in: input.teamIds }, groupId: { not: group.id } } });
+       if (other) throw new RefereeServiceError("所选球队已属于本阶段其他组，请先人工解除原组关系。");
+       const removed = group.members.map((m) => m.teamId).filter((id) => !input.teamIds.includes(id));
++      const existingIds = new Set(group.members.map((m) => m.teamId));
++      const added = teams.filter((t) => !existingIds.has(t.id));
+       if (removed.length && await tx.match.count({ where: { groupId: group.id, OR: [{ homeTeamId: { in: removed } }, { awayTeamId: { in: removed } }] } })) throw new RefereeServiceError("移出的球队已有本组比赛，请先重新归类比赛；已完赛比赛不允许静默改组。", 409);
+-      await tx.teamGroupMembership.deleteMany({ where: { groupId: group.id } });
+-      for (const team of teams) await tx.teamGroupMembership.create({ data: { stageId: group.stageId, groupId: group.id, teamId: team.id } });
++      if ((removed.length || added.length) && await tx.groupConfirmation.count({ where: { groupId: group.id } })) throw new RefereeServiceError("已有排名或出线确认，请先核对积分，不能直接修改球队分组。", 409);
++      await tx.teamGroupMembership.deleteMany({ where: { groupId: group.id, teamId: { in: removed } } });
++      await tx.teamGroupMembership.createMany({ data: added.map((team) => ({ stageId: group.stageId, groupId: group.id, teamId: team.id })) });
+       result = { count: teams.length };
+     } else {
+       try {
+@@ -83,8 +115,23 @@ export async function mutateCompetitionStructure(competitionId: string, input: S
+ }
+ 
+ export async function getGroupStandings(groupId: string, db: Db = prisma) {
+-  const group = await db.competitionGroup.findUnique({ where: { id: groupId }, include: { stage: { include: { competition: { select: { isTestData: true } } } }, members: { include: { team: { select: { id: true, name: true } } }, orderBy: { teamId: "asc" } }, matches: { orderBy: { id: "asc" }, select: { id: true, homeTeamId: true, awayTeamId: true, homeScore: true, awayScore: true, status: true, isTestData: true, resultVersion: true, stageId: true, competitionId: true, updatedAt: true } }, confirmations: { orderBy: [{ createdAt: "desc" }, { id: "desc" }] } } });
++  const group = await db.competitionGroup.findUnique({ where: { id: groupId }, include: standingsInclude });
+   if (!group) throw new RefereeServiceError("小组不存在。", 404);
++  const knockoutMatches = await db.match.findMany({ where: { competitionId: group.stage.competitionId, structureStage: { type: "KNOCKOUT" } }, select: knockoutSelect, orderBy: { kickoff: "asc" } });
++  return standingsForGroup(group, knockoutMatches);
++}
++const standingsInclude = { stage: { include: { competition: { select: { isTestData: true } } } }, members: { include: { team: { select: { id: true, name: true } } }, orderBy: { teamId: "asc" } }, matches: { orderBy: { id: "asc" }, select: { id: true, homeTeamId: true, awayTeamId: true, homeScore: true, awayScore: true, status: true, isTestData: true, resultVersion: true, stageId: true, competitionId: true, updatedAt: true } }, confirmations: { orderBy: [{ createdAt: "desc" }, { id: "desc" }] } } satisfies Prisma.CompetitionGroupInclude;
++const knockoutSelect = { id: true, homeTeamId: true, awayTeamId: true, status: true, homeTeam: { select: { name: true } }, awayTeam: { select: { name: true } } } satisfies Prisma.MatchSelect;
++type StandingsGroup = Prisma.CompetitionGroupGetPayload<{ include: typeof standingsInclude }>;
++type KnockoutMatch = Prisma.MatchGetPayload<{ select: typeof knockoutSelect }>;
++export async function getCompetitionGroupStandings(competitionId: string, db: Db = prisma) {
++  const [groups, matches] = await Promise.all([
++    db.competitionGroup.findMany({ where: { stage: { competitionId, type: "GROUP" } }, include: standingsInclude, orderBy: [{ stage: { sortOrder: "asc" } }, { stageId: "asc" }, { sortOrder: "asc" }, { id: "asc" }] }),
++    db.match.findMany({ where: { competitionId, structureStage: { type: "KNOCKOUT" } }, select: knockoutSelect, orderBy: { kickoff: "asc" } }),
++  ]);
++  return groups.map((g) => standingsForGroup(g, matches));
++}
++function standingsForGroup(group: StandingsGroup, knockoutMatches: KnockoutMatch[]) {
+   const memberIds = new Set(group.members.map((m) => m.teamId));
+   const matches = group.matches.filter((m) => !m.isTestData && m.stageId === group.stageId && m.competitionId === group.stage.competitionId && m.homeTeamId !== m.awayTeamId && memberIds.has(m.homeTeamId) && memberIds.has(m.awayTeamId));
+   const fingerprint = createHash("sha256").update(JSON.stringify({ members: group.members.map((m) => m.teamId), matches: matches.map((m) => [m.id, m.homeTeamId, m.awayTeamId, m.homeScore, m.awayScore, m.status, m.resultVersion, m.updatedAt]) })).digest("hex");
+@@ -98,8 +145,8 @@ export async function getGroupStandings(groupId: string, db: Db = prisma) {
+   const qualification = latestQualification?.fingerprint === qualificationFingerprint ? latestQualification : null;
+   const order = ranking?.teamIds as string[] | undefined;
+   const staleTeamIds = latestQualification && !qualification ? latestQualification.teamIds as string[] : [];
+-  const affectedMatches = staleTeamIds.length ? await db.match.findMany({ where: { competitionId: group.stage.competitionId, structureStage: { type: "KNOCKOUT" }, OR: [{ homeTeamId: { in: staleTeamIds } }, { awayTeamId: { in: staleTeamIds } }] }, select: { id: true, status: true, homeTeam: { select: { name: true } }, awayTeam: { select: { name: true } } }, orderBy: { kickoff: "asc" } }) : [];
+-  return { group: { id: group.id, name: group.name, stageName: group.stage.name, competitionId: group.stage.competitionId }, rows: order ? [...rows].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id)) : rows, fingerprint, qualificationFingerprint, hasResults, tied, rankingConfirmed: Boolean(ranking), rankingStale: latestRanking?.kind === "RANKING" && !ranking, qualificationStale: Boolean(latestQualification && !qualification), qualifiedTeamIds: (qualification?.teamIds ?? []) as string[], affectedMatches, allCompleted: matches.length > 0 && matches.every((m) => (m.status === "COMPLETED" && m.homeScore !== null && m.awayScore !== null) || m.status === "CANCELLED") };
++  const affectedMatches = knockoutMatches.filter((m) => staleTeamIds.includes(m.homeTeamId) || staleTeamIds.includes(m.awayTeamId));
++  return { group: { id: group.id, name: group.name, stageId: group.stageId, stageName: group.stage.name, competitionId: group.stage.competitionId }, rows: order ? [...rows].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id)) : rows, fingerprint, qualificationFingerprint, hasResults, tied, rankingConfirmed: Boolean(ranking), rankingStale: latestRanking?.kind === "RANKING" && !ranking, qualificationStale: Boolean(latestQualification && !qualification), qualifiedTeamIds: (qualification?.teamIds ?? []) as string[], affectedMatches, allCompleted: matches.length > 0 && matches.every((m) => (m.status === "COMPLETED" && m.homeScore !== null && m.awayScore !== null) || m.status === "CANCELLED") };
+ }
+ 
+ export async function confirmGroup(competitionId: string, groupId: string, input: { kind: "RANKING" | "AUTO" | "QUALIFICATION"; teamIds: string[]; fingerprint: string; reason: string }, actor: UnifiedAdminActor) {
+diff --git a/src/lib/public-competition-service.ts b/src/lib/public-competition-service.ts
+index f8ef0da..69fb0ed 100644
+--- a/src/lib/public-competition-service.ts
++++ b/src/lib/public-competition-service.ts
+@@ -2,7 +2,7 @@ import "server-only";
+ 
+ import type { CompetitionStatus, Prisma } from "@/generated/prisma-v29/client";
+ import { formatBeijingDateTime, formatBeijingWindow } from "@/lib/beijing-datetime";
+-import { getGroupStandings } from "@/lib/competition-structure-service";
++import { getCompetitionGroupStandings } from "@/lib/competition-structure-service";
+ import { prisma } from "@/lib/prisma";
+ import { isAllowedCompetitionRegistrationUrl } from "@/lib/referee-competition-input";
+ import type {
+@@ -48,6 +48,7 @@ const publicCompetitionSelect = {
+     select: {
+       id: true,
+       slug: true,
++      matchNumber: true,
+       stage: true,
+       structureStage: { select: { name: true, sortOrder: true } }, structureGroup: { select: { name: true, sortOrder: true } }, structureRound: { select: { name: true, sortOrder: true } }, homePenaltyScore: true, awayPenaltyScore: true,
+       round: true,
+@@ -105,7 +106,7 @@ function legacyPlayingFormat(format: PublicCompetitionRow["format"]) {
+ 
+ function publicMatch(match: PublicCompetitionRow["matches"][number]): PublicCompetitionMatch {
+   const kickoff = formatBeijingDateTime(match.kickoff);
+-  const appointment = match.appointment && ["PUBLISHED", "COMPLETED"].includes(match.appointment.status)
++  const appointment = match.kickoff && match.venue?.trim() && match.appointment && ["PUBLISHED", "COMPLETED"].includes(match.appointment.status)
+     ? {
+         id: match.appointment.id,
+         positions: match.appointment.positions.flatMap((position) => position.referee
+@@ -116,6 +117,7 @@ function publicMatch(match: PublicCompetitionRow["matches"][number]): PublicComp
+   return {
+     id: match.id,
+     slug: match.slug,
++    matchNumber: match.matchNumber,
+     stage: match.structureStage?.name ?? match.stage,
+     group: match.structureGroup?.name ?? null,
+     stageOrder: match.structureStage?.sortOrder ?? -1, groupOrder: match.structureGroup?.sortOrder ?? -1, roundOrder: match.structureRound?.sortOrder ?? -1,
+@@ -124,9 +126,9 @@ function publicMatch(match: PublicCompetitionRow["matches"][number]): PublicComp
+     kickoff: match.kickoff,
+     dateLabel: kickoff.dateLabel,
+     timeLabel: kickoff.timeLabel,
+-    venue: match.venue,
++    venue: match.venue?.trim() || "场地待定",
+     status: match.status.toLowerCase() as PublicCompetitionMatch["status"],
+-    statusLabel: matchStatusLabels[match.status],
++    statusLabel: match.status === "SCHEDULED" && (!match.kickoff || !match.venue?.trim()) ? "待排期" : matchStatusLabels[match.status],
+     homeTeam: { id: match.homeTeam.id, name: match.homeTeam.name },
+     awayTeam: { id: match.awayTeam.id, name: match.awayTeam.name },
+     homeScore: match.homeScore,
+@@ -142,8 +144,9 @@ export function selectCompetitionNextMatch(
+   detailHref: string,
+   now = new Date(),
+ ): CompetitionNextMatch {
++  if (matches.some((item) => item.status === "scheduled" && !item.kickoff) && !matches.some((item) => item.status === "scheduled" && item.kickoff && item.kickoff >= now)) return { state: "pending", label: "待排期", summary: "赛程已公布，具体比赛时间待定", dateLabel: "时间待定", venue: "场地待定" };
+   if (status === "COMPLETED") return { state: "completed", label: "赛事已结束", summary: "赛事已结束", archiveHref: detailHref };
+-  const match = [...matches].sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime() || (a.stageOrder ?? -1) - (b.stageOrder ?? -1) || (a.groupOrder ?? -1) - (b.groupOrder ?? -1) || (a.roundOrder ?? -1) - (b.roundOrder ?? -1) || a.id.localeCompare(b.id)).find((item) => item.status === "scheduled" && item.kickoff >= now);
++  const match = matches.filter((m): m is PublicCompetitionMatch & { kickoff: Date } => m.kickoff !== null).sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime() || (a.stageOrder ?? -1) - (b.stageOrder ?? -1) || (a.groupOrder ?? -1) - (b.groupOrder ?? -1) || (a.roundOrder ?? -1) - (b.roundOrder ?? -1) || a.id.localeCompare(b.id)).find((item) => item.status === "scheduled" && item.kickoff >= now);
+   if (match) {
+     return {
+       state: "scheduled",
+@@ -152,7 +155,7 @@ export function selectCompetitionNextMatch(
+       awayTeam: match.awayTeam.name,
+       dateLabel: match.dateLabel,
+       timeLabel: match.timeLabel,
+-      venue: match.venue,
++      venue: match.venue || "场地待定",
+       detailHref: `${detailHref}#match-${match.id}`,
+     };
+   }
+@@ -183,7 +186,7 @@ function databaseView(row: PublicCompetitionRow, now = new Date()): PublicCompet
+     badge: presentation.badge,
+     stageLabel: presentation.stageLabel,
+     registrationWindow: formatBeijingWindow(row.registrationStartAt, row.registrationEndAt, "待正式通知"),
+-    matchWindow: formatBeijingWindow(row.matchStartAt, row.matchEndAt, "待正式发布"),
++    matchWindow: formatBeijingWindow(row.matchStartAt, row.matchEndAt, row.matches.length ? row.matches.some((m) => m.kickoff) ? "详见已公布赛程" : "时间待定" : "待正式发布"),
+     venue: row.venue ?? "待正式确认",
+     host: row.host ?? "待正式通知",
+     organizer: row.organizer ?? "待正式通知",
+@@ -214,11 +217,13 @@ async function loadCompetitionSummaries(homepageOnly: boolean, asOf: Date) {
+     orderBy: [{ publicOrder: "asc" }, { year: "desc" }, { createdAt: "asc" }, { id: "asc" }],
+   });
+   const counts = rows.length ? await prisma.match.groupBy({ by: ["competitionId", "status"], where: { competitionId: { in: rows.map((r) => r.id) }, isTestData: false }, _count: true }) : [];
++  const pendingCounts = rows.length ? await prisma.match.groupBy({ by: ["competitionId"], where: { competitionId: { in: rows.map((r) => r.id) }, isTestData: false, status: "SCHEDULED", kickoff: null }, _count: true }) : [];
+   return rows.map((row) => {
+     const view = databaseView({ ...row, matches: row.matches.map((m) => ({ ...m, appointment: null })) }, asOf);
+     view.scale = row._count.teams ? `${row._count.teams} 支球队` : "参赛规模待确认";
+     if (!row.matches.length && row._count.matches && row.status !== "COMPLETED") view.nextMatch = { state: "none", label: "暂无下一场", summary: counts.some((c) => c.competitionId === row.id && c.status === "SCHEDULED") ? "暂无下一场预告，赛果待确认。" : "暂无后续赛程，可查看现有赛果。" };
+-    return { view, nextTime: row.matches[0]?.kickoff.getTime() ?? Infinity, publicOrder: row.publicOrder, id: row.id };
++    if (!row.matches.length && pendingCounts.some((c) => c.competitionId === row.id)) view.nextMatch = { state: "pending", label: "待排期", summary: "赛程已公布，具体比赛时间待定", dateLabel: "时间待定", venue: "场地待定" };
++    return { view, nextTime: row.matches[0]?.kickoff?.getTime() ?? Infinity, publicOrder: row.publicOrder, id: row.id };
+   });
+ }
+ export async function getPublicCompetitionCatalog(): Promise<PublicCompetitionView[]> {
+@@ -245,7 +250,7 @@ export async function getHomepagePublicCompetitions(asOf = new Date()): Promise<
+ export async function getPublicCompetitionStandings(competitionId: string) {
+   const competition = await prisma.competition.findFirst({ where: { id: competitionId, publicPublished: true, isTestData: false }, select: { stages: { where: { type: "GROUP" }, orderBy: [{ sortOrder: "asc" }, { id: "asc" }], select: { groups: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }], select: { id: true } } } } } });
+   if (!competition) return [];
+-  const tables = await Promise.all(competition.stages.flatMap((s) => s.groups.map((g) => getGroupStandings(g.id))));
++  const tables = await getCompetitionGroupStandings(competitionId);
+   return tables.map((t) => ({ groupId: t.group.id, groupName: t.group.name, stageName: t.group.stageName, rows: t.rows, hasResults: t.hasResults, tied: t.tied, rankingConfirmed: t.rankingConfirmed, qualificationStale: t.qualificationStale, qualifiedTeamIds: t.qualifiedTeamIds }));
+ }
+ export async function getAllPublicCompetitionDetails() {
+diff --git a/src/lib/referee-completion-evidence.ts b/src/lib/referee-completion-evidence.ts
+index fb06f11..0df48f0 100644
+--- a/src/lib/referee-completion-evidence.ts
++++ b/src/lib/referee-completion-evidence.ts
+@@ -1,13 +1,14 @@
+ // Reading a legacy COMPLETED assignment must never rewrite its match result.
+ export function completedAssignmentReviewReason(match: {
+   status: string;
+-  kickoff: Date;
++  kickoff: Date | null;
+   homeScore: number | null;
+   awayScore: number | null;
+ }, now = new Date()) {
+   const reasons: string[] = [];
+   if (match.status !== "COMPLETED") reasons.push("比赛状态尚未完成");
+-  if (match.kickoff > now) reasons.push("比赛时间尚未到达");
++  if (!match.kickoff) reasons.push("比赛时间待安排");
++  if (match.kickoff && match.kickoff > now) reasons.push("比赛时间尚未到达");
+   if (match.homeScore === null || match.awayScore === null) reasons.push("比分未完整记录");
+   return reasons.length ? reasons.join("；") : null;
+ }
+diff --git a/src/lib/referee-conflicts.ts b/src/lib/referee-conflicts.ts
+index 99d38bb..36dc5f5 100644
+--- a/src/lib/referee-conflicts.ts
++++ b/src/lib/referee-conflicts.ts
+@@ -47,6 +47,7 @@ export async function detectAppointmentWarnings(
+     select: {
+       id: true,
+       kickoff: true,
++      venue: true,
+       endAt: true,
+       competition: { select: { format: true } },
+       homeTeam: {
+@@ -65,7 +66,7 @@ export async function detectAppointmentWarnings(
+       },
+     },
+   });
+-  if (!match) return [];
++  if (!match?.kickoff || !match.venue?.trim()) return [];
+ 
+   const targetEndForAvailability = match.endAt ?? match.kickoff;
+   const [referees, existingAssignments] = await Promise.all([
+@@ -111,6 +112,7 @@ export async function detectAppointmentWarnings(
+               select: {
+                 id: true,
+                 kickoff: true,
++              venue: true,
+                 endAt: true,
+                 homeTeam: { select: { name: true } },
+                 awayTeam: { select: { name: true } },
+@@ -233,7 +235,7 @@ export async function detectAppointmentWarnings(
+     let nearestAdjacent: { gapMinutes: number; matchId: string; matchup: string; direction: "上一场" | "下一场" } | null = null;
+     for (const item of otherAssignments) {
+       const other = item.appointment.match;
+-      if (!other.endAt) continue;
++      if (!other.kickoff || !other.venue?.trim() || !other.endAt) continue;
+       const matchup = `${other.homeTeam.name} vs ${other.awayTeam.name}`;
+       if (intervalsOverlap(match.kickoff, match.endAt, other.kickoff, other.endAt)) {
+         const overlapMs = Math.min(match.endAt.getTime(), other.endAt.getTime()) - Math.max(match.kickoff.getTime(), other.kickoff.getTime());
+diff --git a/src/lib/referee-presenters.ts b/src/lib/referee-presenters.ts
+index 22c605a..d272a24 100644
+--- a/src/lib/referee-presenters.ts
++++ b/src/lib/referee-presenters.ts
+@@ -5,7 +5,8 @@ const dateTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
+   hour: "2-digit", minute: "2-digit", hour12: false,
+ });
+ 
+-export function formatRefereeDateTime(value: Date) {
++export function formatRefereeDateTime(value: Date | null) {
++  if (!value) return "时间待定";
+   return dateTimeFormatter.format(value).replaceAll("/", "-");
+ }
+ 
+diff --git a/src/lib/referee-public.ts b/src/lib/referee-public.ts
+index ad3d2eb..df6fe74 100644
+--- a/src/lib/referee-public.ts
++++ b/src/lib/referee-public.ts
+@@ -48,6 +48,7 @@ export async function getPublicUpcomingAppointments() {
+       status: "PUBLISHED",
+       match: {
+         status: "SCHEDULED",
++        kickoff: { not: null }, venue: { not: null },
+         isTestData: false,
+         competition: { isTestData: false },
+       },
+@@ -80,7 +81,7 @@ export async function getPublicAppointmentById(id: string) {
+     where: {
+       id,
+       status: { in: ["PUBLISHED", "COMPLETED"] },
+-      match: { isTestData: false, competition: { isTestData: false } },
++      match: { kickoff: { not: null }, venue: { not: null }, isTestData: false, competition: { isTestData: false } },
+     },
+     select: publicAppointmentSelect,
+   });
+diff --git a/src/lib/referee-r1-service.ts b/src/lib/referee-r1-service.ts
+index 4f187e3..57fd837 100644
+--- a/src/lib/referee-r1-service.ts
++++ b/src/lib/referee-r1-service.ts
+@@ -951,7 +951,7 @@ export async function getCompletedRefereeStatistics(options: {
+     recent: Array<{ appointmentId: string; matchup: string; kickoff: Date; position: string }>;
+   }>();
+   for (const position of positions) {
+-    if (!position.refereeId || !position.referee) continue;
++    if (!position.refereeId || !position.referee || !position.appointment.match.kickoff) continue;
+     const row = byReferee.get(position.refereeId) ?? {
+       refereeId: position.refereeId,
+       publicCode: position.referee.publicCode,
+diff --git a/src/lib/referee-service.ts b/src/lib/referee-service.ts
+index d5f7b31..02abf0f 100644
+--- a/src/lib/referee-service.ts
++++ b/src/lib/referee-service.ts
+@@ -1,3 +1,4 @@
++import { assertMatchScheduled, isMatchScheduled, validateMatchSchedule } from "@/lib/match-scheduling";
+ import { isKnockoutPlaceholder, validMatchNumber } from "@/lib/competition-match-number";
+ import type {
+   AdminRole,
+@@ -452,6 +453,7 @@ export async function createRefereeApplication(input: {
+       include: { competition: true },
+     });
+     if (!match) throw new RefereeServiceError("比赛不存在。", 404);
++    assertMatchScheduled(match);
+     if (match.status !== "SCHEDULED" || match.applicationWindowStatus !== "OPEN") {
+       throw new RefereeServiceError("该场比赛当前不接受执裁意向。", 409);
+     }
+@@ -547,6 +549,7 @@ export async function createAdminApplicationException(input: {
+       include: { competition: true },
+     });
+     if (!match) throw new RefereeServiceError("比赛不存在。", 404);
++    assertMatchScheduled(match);
+     assertPositionTemplateConfigured(match.competition.format);
+     const allowed = new Set(getPositionTemplate(match.competition.format).map((item) => item.key));
+     const preferred = [...new Set(input.preferredPositions)];
+@@ -615,9 +618,9 @@ export async function createMatch(input: {
+   groupId?: string | null;
+   roundId?: string | null;
+   stage: string;
+-  kickoff: Date;
++  kickoff: Date | null;
+   endAt?: Date;
+-  venue: string;
++  venue: string | null;
+   round?: string;
+   source?: DataSource;
+   externalMatchId?: string;
+@@ -635,17 +638,7 @@ export async function createMatch(input: {
+   if (input.homeTeamId === input.awayTeamId) {
+     throw new RefereeServiceError("比赛双方不能相同。");
+   }
+-  if (input.endAt && input.endAt <= input.kickoff) {
+-    throw new RefereeServiceError("比赛结束时间必须晚于开球时间。");
+-  }
+-  if (
+-    input.applicationWindowStatus === "OPEN" &&
+-    (!input.applicationDeadline ||
+-      input.applicationDeadline <= new Date() ||
+-      input.applicationDeadline >= input.kickoff)
+-  ) {
+-    throw new RefereeServiceError("开放报名时，截止时间须晚于当前时间且早于开球时间。");
+-  }
++  validateMatchSchedule(input);
+   const competition = await prisma.competition.findUnique({
+     where: { id: input.competitionId },
+     include: { teams: true },
+@@ -700,17 +693,7 @@ export async function createMatchFromSelections(
+   },
+   actor?: AdminActor,
+ ) {
+-  if (input.endAt && input.endAt <= input.kickoff) {
+-    throw new RefereeServiceError("比赛结束时间必须晚于开球时间。");
+-  }
+-  if (
+-    input.applicationWindowStatus === "OPEN" &&
+-    (!input.applicationDeadline ||
+-      input.applicationDeadline <= new Date() ||
+-      input.applicationDeadline >= input.kickoff)
+-  ) {
+-    throw new RefereeServiceError("开放报名时，截止时间须晚于当前时间且早于开球时间。");
+-  }
++  validateMatchSchedule(input);
+   if (input.status === "COMPLETED") throw new RefereeServiceError("请通过确认赛果入口标记比赛完赛。", 409);
+   if (!validMatchNumber(input.matchNumber)) throw new RefereeServiceError("场序须为 1–99999 的整数。");
+   return prisma.$transaction(async (tx) => {
+@@ -782,23 +765,13 @@ export async function updateMatch(
+ ) {
+   const existing = await prisma.match.findUnique({ where: { id } });
+   if (!existing) throw new RefereeServiceError("比赛不存在。", 404);
+-  if (input.status === "COMPLETED" && (existing.status !== "COMPLETED" || input.kickoff > new Date() || (input.endAt && input.endAt > new Date()) || existing.homeScore === null || existing.awayScore === null)) throw new RefereeServiceError("请通过确认赛果入口标记比赛完赛，未来比赛不能结束。", 409);
++  if (input.status === "COMPLETED" && (existing.status !== "COMPLETED" || (!input.kickoff || input.kickoff > new Date()) || (input.endAt && input.endAt > new Date()) || existing.homeScore === null || existing.awayScore === null)) throw new RefereeServiceError("请通过确认赛果入口标记比赛完赛，未来比赛不能结束。", 409);
+   if (existing.status === "COMPLETED" && (input.status !== existing.status || input.homeTeamId !== existing.homeTeamId || input.awayTeamId !== existing.awayTeamId || input.competitionId !== existing.competitionId)) throw new RefereeServiceError("已确认赛果的比赛不可更换参赛球队或状态，请使用赛果更正。", 409);
+   if (!validMatchNumber(input.matchNumber)) throw new RefereeServiceError("场序须为 1–99999 的整数。");
+   if (input.homeTeamId === input.awayTeamId) {
+     throw new RefereeServiceError("比赛双方不能相同。");
+   }
+-  if (input.endAt && input.endAt <= input.kickoff) {
+-    throw new RefereeServiceError("比赛结束时间必须晚于开球时间。");
+-  }
+-  if (
+-    input.applicationWindowStatus === "OPEN" &&
+-    (!input.applicationDeadline ||
+-      input.applicationDeadline <= new Date() ||
+-      input.applicationDeadline >= input.kickoff)
+-  ) {
+-    throw new RefereeServiceError("开放报名时，截止时间须晚于当前时间且早于开球时间。");
+-  }
++  validateMatchSchedule(input);
+   const competition = await prisma.competition.findUnique({
+     where: { id: input.competitionId },
+     include: { teams: true },
+@@ -813,9 +786,10 @@ export async function updateMatch(
+   const match = await prisma.$transaction(async (tx) => {
+     const current = await tx.match.findUnique({ where: { id } });
+     if (!current) throw new RefereeServiceError("比赛不存在。", 404);
+-    if (input.status === "COMPLETED" && (current.status !== "COMPLETED" || input.kickoff > new Date() || (input.endAt && input.endAt > new Date()) || current.homeScore === null || current.awayScore === null)) throw new RefereeServiceError("请通过确认赛果入口标记比赛完赛。", 409);
++    if (input.status === "COMPLETED" && (current.status !== "COMPLETED" || (!input.kickoff || input.kickoff > new Date()) || (input.endAt && input.endAt > new Date()) || current.homeScore === null || current.awayScore === null)) throw new RefereeServiceError("请通过确认赛果入口标记比赛完赛。", 409);
+     if (current.status === "COMPLETED" && (input.status !== current.status || input.homeTeamId !== current.homeTeamId || input.awayTeamId !== current.awayTeamId || input.competitionId !== current.competitionId)) throw new RefereeServiceError("已确认赛果的比赛不可更换参赛球队或状态。", 409);
+     const existing = current;
++    if (!isMatchScheduled(input) && await tx.refereeAppointment.count({ where: { matchId: id, status: { in: ["PUBLISHED", "COMPLETED"] } } })) throw new RefereeServiceError("已有正式裁判任务，不能清空比赛时间或场地；请先撤回选派。", 409);
+     await assertMatchStructure(tx, { ...input, stageId: input.stageId === undefined ? existing.stageId : input.stageId, groupId: input.groupId === undefined ? existing.groupId : input.groupId, roundId: input.roundId === undefined ? existing.roundId : input.roundId });
+     const structureChanged = input.stageId !== undefined && input.stageId !== existing.stageId || input.groupId !== undefined && input.groupId !== existing.groupId || input.roundId !== undefined && input.roundId !== existing.roundId;
+     if (existing.status === "COMPLETED" && structureChanged && (!input.structureChangeReason?.trim() || input.structureChangeReason.length > 500)) throw new RefereeServiceError("已完赛比赛重新归类将影响积分及人工确认，请填写核对原因。", 409);
+@@ -935,7 +909,7 @@ export async function deleteMatchSafely(
+           competitionName: match.competition.name,
+           homeTeamId: match.homeTeam.id,
+           awayTeamId: match.awayTeam.id,
+-          kickoff: match.kickoff.toISOString(),
++          kickoff: match.kickoff?.toISOString() ?? null,
+         },
+         preservedApplicationHistory: true,
+         preservedAppointmentHistory: true,
+@@ -1166,6 +1140,7 @@ export async function publishAppointment(
+       include: { positions: true, match: { include: { competition: true } } },
+     });
+     if (!appointment) throw new RefereeServiceError("请先保存选派草稿。", 409);
++    assertMatchScheduled(appointment.match);
+     assertPositionTemplateConfigured(appointment.match.competition.format);
+     assertAppointmentTransition(appointment.status, "publish");
+     if (appointment.match.status !== "SCHEDULED") {
+@@ -1291,7 +1266,8 @@ export async function completeAppointment(
+     const appointment = await tx.refereeAppointment.findUnique({ where: { matchId }, include: { match: true } });
+     assertAppointmentTransition(appointment?.status ?? "NONE", "complete");
+     if (!appointment) throw new RefereeServiceError("只有已发布选派可以标记完成。", 409);
+-    if (appointment.match.status !== "COMPLETED" || appointment.match.kickoff > new Date() || appointment.match.homeScore === null || appointment.match.awayScore === null) throw new RefereeServiceError("须先确认真实完赛及双方比分，不能提前标记执裁完成。", 409);
++    assertMatchScheduled(appointment.match);
++    if (appointment.match.status !== "COMPLETED" || (!appointment.match.kickoff || appointment.match.kickoff > new Date()) || appointment.match.homeScore === null || appointment.match.awayScore === null) throw new RefereeServiceError("须先确认真实完赛及双方比分，不能提前标记执裁完成。", 409);
+     if (!reason.trim()) throw new RefereeServiceError("请填写人工完成原因。");
+     const version = await saveAppointmentVersion(tx, appointment.id, "COMPLETED", reason, "", actor?.id);
+     const updated = await tx.refereeAppointment.update({
+@@ -1351,7 +1327,7 @@ export async function confirmMatchResult(matchId: string, input: { homeScore: nu
+   return prisma.$transaction(async (tx) => {
+     const match = await tx.match.findUnique({ where: { id: matchId }, include: { structureStage: true, appointment: true } });
+     if (!match) throw new RefereeServiceError("比赛不存在。", 404);
+-    if (match.status === "CANCELLED" || match.kickoff > new Date() || !input.actualEnded || (match.endAt && match.endAt > new Date())) throw new RefereeServiceError("取消、未来或尚未确认结束的比赛不能确认赛果。", 409);
++    if (match.status === "CANCELLED" || !isMatchScheduled(match) || !match.kickoff || match.kickoff > new Date() || !input.actualEnded || (match.endAt && match.endAt > new Date())) throw new RefereeServiceError("取消、未来或尚未确认结束的比赛不能确认赛果。", 409);
+     if (input.homePenaltyScore !== null && (match.structureStage?.type !== "KNOCKOUT" || input.homeScore !== input.awayScore || input.homePenaltyScore === input.awayPenaltyScore)) throw new RefereeServiceError("点球仅用于淘汰赛场上平局，且点球比分应分出胜负。");
+     const unchanged = match.status === "COMPLETED" && match.homeScore === input.homeScore && match.awayScore === input.awayScore && match.homePenaltyScore === input.homePenaltyScore && match.awayPenaltyScore === input.awayPenaltyScore;
+     if (unchanged && (input.expectedVersion === match.resultVersion || input.expectedVersion + 1 === match.resultVersion)) return match;
+diff --git a/src/styles/functional-pages.css b/src/styles/functional-pages.css
+index b4886a3..a7d5609 100644
+--- a/src/styles/functional-pages.css
++++ b/src/styles/functional-pages.css
+@@ -1256,6 +1256,8 @@
+ .ops-public-table { display: block; max-width: 100%; overflow-x: auto; }
+ .core-competition-pending > .ops-public-standings { grid-column: 1 / -1; min-width: 0; }
+ .ops-public-standings section { min-width: 0; margin-bottom: 24px; }
++.ops-public-standings details { min-width: 0; padding-block: 12px; }
++.ops-public-standings summary { cursor: pointer; font-weight: 700; }
+ .ops-public-standings h3 { margin-bottom: 10px; }
+ .ops-public-standings p { margin-bottom: 12px; }
+ .ops-public-standings .admin-table-scroll { max-width: 100%; overflow-x: auto; }
+diff --git a/src/styles/referee-admin.css b/src/styles/referee-admin.css
+index b6f87fc..db8e42d 100644
+--- a/src/styles/referee-admin.css
++++ b/src/styles/referee-admin.css
+@@ -656,3 +656,15 @@
+ .ops-candidate-row { display: grid; gap: 5px; padding: 9px 0; border-top: 1px solid var(--admin-line); }
+ .ops-candidate-row > div { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+ @media (max-width: 760px) { .ops-media-table { min-width: 720px; } .ops-media-detail, .ops-availability-detail { padding: 12px; } .ops-docx-completion, .ops-knockout-candidates { padding: 10px; } }
++
++/* OPS-R3.1.2: group directories wrap at any group count. */
++.ops-grouping { min-width: 0; }
++.ops-group-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; margin-block: 16px; }
++.ops-group-grid article { min-width: 0; padding: 14px; border: 1px solid #d7dde4; border-radius: 10px; overflow-wrap: anywhere; }
++.ops-group-grid label, .ops-search { display: grid; gap: 6px; margin-block: 8px; }
++.ops-group-grid input, .ops-search input { width: 100%; min-width: 0; box-sizing: border-box; }
++.ops-group-name { text-align: left; overflow-wrap: anywhere; max-width: 100%; }
++.ops-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 16px; background: #10203099; }
++.ops-modal { width: min(980px, 100%); max-height: 90dvh; overflow: auto; background: white; min-width: 0; }
++.ops-grouping .admin-filter-bar > label { min-width: 0; max-width: 100%; }
++.ops-grouping select, .ops-grouping input { max-width: 100%; }
+diff --git a/src/types/competition-center.ts b/src/types/competition-center.ts
+index e0d69d7..ec74b44 100644
+--- a/src/types/competition-center.ts
++++ b/src/types/competition-center.ts
+@@ -45,7 +45,7 @@ export type CoreCompetitionLinkSet = {
+ export type CompetitionNextMatch =
+   | {
+       state: "pending";
+-      label: "赛程待发布";
++      label: "赛程待发布" | "待排期";
+       summary: string;
+       dateLabel: string;
+       venue: string;
+@@ -136,12 +136,13 @@ export type PublicCompetitionTeam = {
+ };
+ 
+ export type PublicCompetitionMatch = {
++  matchNumber?: number | null;
+   group?: string | null; stageOrder?: number; groupOrder?: number; roundOrder?: number; homePenaltyScore?: number | null; awayPenaltyScore?: number | null;
+   id: string;
+   slug: string;
+   stage: string;
+   round: string | null;
+-  kickoff: Date;
++  kickoff: Date | null;
+   dateLabel: string;
+   timeLabel: string;
+   venue: string;

@@ -20,7 +20,7 @@ export default async function EditAdminMatchPage({ params }: { params: Promise<{
   const organizationUnits = sortAffiliationOptions(units.map((unit) => ({ id: unit.id, name: unit.name, type: unit.type, prefixes: unit.legacyCollege?.codeMappings.map((mapping) => mapping.prefix) ?? [] }))).map((unit) => ({ ...unit, label: affiliationOptionLabel(unit) }));
   const record: AdminMatchRecord = {
     matchNumber: match.matchNumber, stageId: match.stageId, groupId: match.groupId, roundId: match.roundId, id: match.id, slug: match.slug, competitionId: match.competitionId, stage: match.stage,
-    kickoff: toShanghaiDateTimeInput(match.kickoff), endAt: toShanghaiDateTimeInput(match.endAt), venue: match.venue,
+    kickoff: toShanghaiDateTimeInput(match.kickoff), endAt: toShanghaiDateTimeInput(match.endAt), venue: match.venue ?? "",
     round: match.round ?? "", source: match.source, externalMatchId: match.externalMatchId ?? "", homeTeamId: match.homeTeamId,
     awayTeamId: match.awayTeamId, status: match.status, applicationWindowStatus: match.applicationWindowStatus,
     applicationDeadline: toShanghaiDateTimeInput(match.applicationDeadline), publicNote: match.publicNote ?? "", internalNote: match.internalNote ?? "",

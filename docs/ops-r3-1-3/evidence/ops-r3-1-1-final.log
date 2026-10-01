@@ -1,0 +1,26 @@
+{
+  "fixtureSha256": "741c85627e6fb9feff4ef441495127f0bf797582a2a83f1b7d1b306c3bfedae2",
+  "docx": {
+    "group": 30,
+    "knockoutReference": 10,
+    "created": 30,
+    "repeated": 0
+  },
+  "knockout": {
+    "candidates": 1,
+    "autoCreated": 0
+  },
+  "media": {
+    "used": 1,
+    "unused": 1,
+    "references": 31
+  },
+  "availability": {
+    "people": 31,
+    "firstRecordCount": 20,
+    "page2": 1,
+    "datePeople": 30,
+    "afterAdminEntry": 1
+  },
+  "database": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-ops-r3-1-1-zaTtqV"
+}

@@ -4,14 +4,8 @@ import { NextResponse } from "next/server";
 
 import { RefereeServiceError } from "@/lib/referee-service-error";
 
-type RefereeApiErrorStatus = 400 | 404 | 408 | 409 | 413 | 415 | 429;
-
-export class RefereeApiInputError extends Error {
-  constructor(message: string, readonly status: RefereeApiErrorStatus = 400) {
-    super(message);
-    this.name = "RefereeApiInputError";
-  }
-}
+import { RefereeApiInputError } from "@/lib/referee-api-input-error";
+export { RefereeApiInputError } from "@/lib/referee-api-input-error";
 
 export async function readRefereeApiJson(request: Request, invalidMessage: string) {
   try {

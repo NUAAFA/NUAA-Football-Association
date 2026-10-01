@@ -1,0 +1,5 @@
+
+> nuaa-football-association@0.1.0 smoke:unified-admin:prepare
+> tsx scripts/prepare-unified-admin-smoke.ts
+
+{"databasePath":"/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-ops-acceptance-kivmft0i/smoke.db","uploadRoot":"/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-ops-acceptance-kivmft0i/uploads","password":"[REDACTED: isolated fixture credential]","competitionId":"cmuprnde2001pf21g6m7q5601","matchId":"cmuprnde9001uf21glo3xqirg","openMatchSlug":"r1-3a-smoke-open-match","admissionId":"cmuprndea001wf21gfobtf6lm","refereeId":"cmuprnde5001qf21giybqsoqb","accounts":["smoke-super","smoke-content","smoke-competition","smoke-referee","smoke-multi","smoke-content-referee","smoke-content-competition"],"requiredAccounts":["required-super","required-content","required-competition","required-referee"],"coverMediaId":"cmuprndci000of21gcoek0xux","pdfMediaId":"cmuprndco000pf21gc0m1yf72","privateMediaId":"cmuprndcr000qf21g9w4m76jo","disciplineId":"cmuprnddt001lf21gfhzjce6u","draftId":"cmuprnddv001mf21g7t7mluoe"}

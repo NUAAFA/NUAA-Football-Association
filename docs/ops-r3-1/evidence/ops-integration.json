@@ -1,7 +1,6 @@
 {
-  "root": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-ops-r3-1-VVZzIF",
-  "timezone": "Europe/London",
-  "startedAt": "2026-09-28T12:41:12.543Z",
+  "root": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-ops-r3-1-vj6tRS",
+  "startedAt": "2026-10-01T19:02:08.318Z",
   "MIG-01": {
     "before": {
       "Competition": 1,
@@ -66,5 +65,5 @@
     "explicitReasonRequired": true,
     "oldTextScoresIdsVersionsPreserved": true
   },
-  "finishedAt": "2026-09-28T12:41:14.942Z"
+  "finishedAt": "2026-10-01T19:02:09.886Z"
 }

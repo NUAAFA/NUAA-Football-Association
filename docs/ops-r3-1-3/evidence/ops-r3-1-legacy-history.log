@@ -1,0 +1,8 @@
+Error: ENOENT: no such file or directory, realpath '/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-ops-acceptance-e9jmcjt6'
+    at async realpath (node:internal/fs/promises:1889:10)
+    at async main (/Users/xianghanwang/Documents/Codex/NUAAFA/scripts/test-ops-r3-1-legacy-history.ts:10:16) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'realpath',
+  path: '/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-ops-acceptance-e9jmcjt6'
+}

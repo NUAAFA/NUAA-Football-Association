@@ -46,7 +46,7 @@ export default async function OpenMatchDetailPage({
     },
     include: { competition: true, homeTeam: true, awayTeam: true, positionRequirements: { orderBy: { sortOrder: "asc" } } },
   });
-  if (!match) notFound();
+  if (!match || !match.kickoff || !match.venue?.trim()) notFound();
 
   const templateConfigured = hasPositionTemplate(match.competition.format);
 
@@ -137,7 +137,7 @@ export default async function OpenMatchDetailPage({
 
   return (
     <>
-      <JsonLd data={sportsEventJsonLd({ name: `${match.homeTeam.name} vs ${match.awayTeam.name}`, description: `${match.competition.name} · ${match.stage}`, path: `/referees/open-matches/${match.slug}`, status: match.status === "CANCELLED" ? "EventCancelled" : match.status === "COMPLETED" ? "EventCompleted" : "EventScheduled", startDate: match.kickoff.toISOString(), location: match.venue })} />
+      <JsonLd data={sportsEventJsonLd({ name: `${match.homeTeam.name} vs ${match.awayTeam.name}`, description: `${match.competition.name} · ${match.stage}`, path: `/referees/open-matches/${match.slug}`, status: match.status === "CANCELLED" ? "EventCancelled" : match.status === "COMPLETED" ? "EventCompleted" : "EventScheduled", startDate: match.kickoff?.toISOString(), location: match.venue ?? undefined })} />
       <RefereeOpenMatchesShell
         description={`${match.competition.name} · ${match.stage}`}
         eyebrow="MATCH APPOINTMENT"

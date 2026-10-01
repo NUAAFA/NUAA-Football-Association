@@ -48,6 +48,7 @@ export async function getPublicUpcomingAppointments() {
       status: "PUBLISHED",
       match: {
         status: "SCHEDULED",
+        kickoff: { not: null }, venue: { not: null },
         isTestData: false,
         competition: { isTestData: false },
       },
@@ -80,7 +81,7 @@ export async function getPublicAppointmentById(id: string) {
     where: {
       id,
       status: { in: ["PUBLISHED", "COMPLETED"] },
-      match: { isTestData: false, competition: { isTestData: false } },
+      match: { kickoff: { not: null }, venue: { not: null }, isTestData: false, competition: { isTestData: false } },
     },
     select: publicAppointmentSelect,
   });

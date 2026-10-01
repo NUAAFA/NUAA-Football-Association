@@ -1,3 +1,4 @@
+import { assertMatchScheduled, isMatchScheduled, validateMatchSchedule } from "@/lib/match-scheduling";
 import { isKnockoutPlaceholder, validMatchNumber } from "@/lib/competition-match-number";
 import type {
   AdminRole,
@@ -452,6 +453,7 @@ export async function createRefereeApplication(input: {
       include: { competition: true },
     });
     if (!match) throw new RefereeServiceError("比赛不存在。", 404);
+    assertMatchScheduled(match);
     if (match.status !== "SCHEDULED" || match.applicationWindowStatus !== "OPEN") {
       throw new RefereeServiceError("该场比赛当前不接受执裁意向。", 409);
     }
@@ -547,6 +549,7 @@ export async function createAdminApplicationException(input: {
       include: { competition: true },
     });
     if (!match) throw new RefereeServiceError("比赛不存在。", 404);
+    assertMatchScheduled(match);
     assertPositionTemplateConfigured(match.competition.format);
     const allowed = new Set(getPositionTemplate(match.competition.format).map((item) => item.key));
     const preferred = [...new Set(input.preferredPositions)];
@@ -615,9 +618,9 @@ export async function createMatch(input: {
   groupId?: string | null;
   roundId?: string | null;
   stage: string;
-  kickoff: Date;
+  kickoff: Date | null;
   endAt?: Date;
-  venue: string;
+  venue: string | null;
   round?: string;
   source?: DataSource;
   externalMatchId?: string;
@@ -635,17 +638,7 @@ export async function createMatch(input: {
   if (input.homeTeamId === input.awayTeamId) {
     throw new RefereeServiceError("比赛双方不能相同。");
   }
-  if (input.endAt && input.endAt <= input.kickoff) {
-    throw new RefereeServiceError("比赛结束时间必须晚于开球时间。");
-  }
-  if (
-    input.applicationWindowStatus === "OPEN" &&
-    (!input.applicationDeadline ||
-      input.applicationDeadline <= new Date() ||
-      input.applicationDeadline >= input.kickoff)
-  ) {
-    throw new RefereeServiceError("开放报名时，截止时间须晚于当前时间且早于开球时间。");
-  }
+  validateMatchSchedule(input);
   const competition = await prisma.competition.findUnique({
     where: { id: input.competitionId },
     include: { teams: true },
@@ -700,17 +693,7 @@ export async function createMatchFromSelections(
   },
   actor?: AdminActor,
 ) {
-  if (input.endAt && input.endAt <= input.kickoff) {
-    throw new RefereeServiceError("比赛结束时间必须晚于开球时间。");
-  }
-  if (
-    input.applicationWindowStatus === "OPEN" &&
-    (!input.applicationDeadline ||
-      input.applicationDeadline <= new Date() ||
-      input.applicationDeadline >= input.kickoff)
-  ) {
-    throw new RefereeServiceError("开放报名时，截止时间须晚于当前时间且早于开球时间。");
-  }
+  validateMatchSchedule(input);
   if (input.status === "COMPLETED") throw new RefereeServiceError("请通过确认赛果入口标记比赛完赛。", 409);
   if (!validMatchNumber(input.matchNumber)) throw new RefereeServiceError("场序须为 1–99999 的整数。");
   return prisma.$transaction(async (tx) => {
@@ -782,23 +765,13 @@ export async function updateMatch(
 ) {
   const existing = await prisma.match.findUnique({ where: { id } });
   if (!existing) throw new RefereeServiceError("比赛不存在。", 404);
-  if (input.status === "COMPLETED" && (existing.status !== "COMPLETED" || input.kickoff > new Date() || (input.endAt && input.endAt > new Date()) || existing.homeScore === null || existing.awayScore === null)) throw new RefereeServiceError("请通过确认赛果入口标记比赛完赛，未来比赛不能结束。", 409);
+  if (input.status === "COMPLETED" && (existing.status !== "COMPLETED" || (!input.kickoff || input.kickoff > new Date()) || (input.endAt && input.endAt > new Date()) || existing.homeScore === null || existing.awayScore === null)) throw new RefereeServiceError("请通过确认赛果入口标记比赛完赛，未来比赛不能结束。", 409);
   if (existing.status === "COMPLETED" && (input.status !== existing.status || input.homeTeamId !== existing.homeTeamId || input.awayTeamId !== existing.awayTeamId || input.competitionId !== existing.competitionId)) throw new RefereeServiceError("已确认赛果的比赛不可更换参赛球队或状态，请使用赛果更正。", 409);
   if (!validMatchNumber(input.matchNumber)) throw new RefereeServiceError("场序须为 1–99999 的整数。");
   if (input.homeTeamId === input.awayTeamId) {
     throw new RefereeServiceError("比赛双方不能相同。");
   }
-  if (input.endAt && input.endAt <= input.kickoff) {
-    throw new RefereeServiceError("比赛结束时间必须晚于开球时间。");
-  }
-  if (
-    input.applicationWindowStatus === "OPEN" &&
-    (!input.applicationDeadline ||
-      input.applicationDeadline <= new Date() ||
-      input.applicationDeadline >= input.kickoff)
-  ) {
-    throw new RefereeServiceError("开放报名时，截止时间须晚于当前时间且早于开球时间。");
-  }
+  validateMatchSchedule(input);
   const competition = await prisma.competition.findUnique({
     where: { id: input.competitionId },
     include: { teams: true },
@@ -813,9 +786,10 @@ export async function updateMatch(
   const match = await prisma.$transaction(async (tx) => {
     const current = await tx.match.findUnique({ where: { id } });
     if (!current) throw new RefereeServiceError("比赛不存在。", 404);
-    if (input.status === "COMPLETED" && (current.status !== "COMPLETED" || input.kickoff > new Date() || (input.endAt && input.endAt > new Date()) || current.homeScore === null || current.awayScore === null)) throw new RefereeServiceError("请通过确认赛果入口标记比赛完赛。", 409);
+    if (input.status === "COMPLETED" && (current.status !== "COMPLETED" || (!input.kickoff || input.kickoff > new Date()) || (input.endAt && input.endAt > new Date()) || current.homeScore === null || current.awayScore === null)) throw new RefereeServiceError("请通过确认赛果入口标记比赛完赛。", 409);
     if (current.status === "COMPLETED" && (input.status !== current.status || input.homeTeamId !== current.homeTeamId || input.awayTeamId !== current.awayTeamId || input.competitionId !== current.competitionId)) throw new RefereeServiceError("已确认赛果的比赛不可更换参赛球队或状态。", 409);
     const existing = current;
+    if (!isMatchScheduled(input) && await tx.refereeAppointment.count({ where: { matchId: id, status: { in: ["PUBLISHED", "COMPLETED"] } } })) throw new RefereeServiceError("已有正式裁判任务，不能清空比赛时间或场地；请先撤回选派。", 409);
     await assertMatchStructure(tx, { ...input, stageId: input.stageId === undefined ? existing.stageId : input.stageId, groupId: input.groupId === undefined ? existing.groupId : input.groupId, roundId: input.roundId === undefined ? existing.roundId : input.roundId });
     const structureChanged = input.stageId !== undefined && input.stageId !== existing.stageId || input.groupId !== undefined && input.groupId !== existing.groupId || input.roundId !== undefined && input.roundId !== existing.roundId;
     if (existing.status === "COMPLETED" && structureChanged && (!input.structureChangeReason?.trim() || input.structureChangeReason.length > 500)) throw new RefereeServiceError("已完赛比赛重新归类将影响积分及人工确认，请填写核对原因。", 409);
@@ -935,7 +909,7 @@ export async function deleteMatchSafely(
           competitionName: match.competition.name,
           homeTeamId: match.homeTeam.id,
           awayTeamId: match.awayTeam.id,
-          kickoff: match.kickoff.toISOString(),
+          kickoff: match.kickoff?.toISOString() ?? null,
         },
         preservedApplicationHistory: true,
         preservedAppointmentHistory: true,
@@ -1166,6 +1140,7 @@ export async function publishAppointment(
       include: { positions: true, match: { include: { competition: true } } },
     });
     if (!appointment) throw new RefereeServiceError("请先保存选派草稿。", 409);
+    assertMatchScheduled(appointment.match);
     assertPositionTemplateConfigured(appointment.match.competition.format);
     assertAppointmentTransition(appointment.status, "publish");
     if (appointment.match.status !== "SCHEDULED") {
@@ -1291,7 +1266,8 @@ export async function completeAppointment(
     const appointment = await tx.refereeAppointment.findUnique({ where: { matchId }, include: { match: true } });
     assertAppointmentTransition(appointment?.status ?? "NONE", "complete");
     if (!appointment) throw new RefereeServiceError("只有已发布选派可以标记完成。", 409);
-    if (appointment.match.status !== "COMPLETED" || appointment.match.kickoff > new Date() || appointment.match.homeScore === null || appointment.match.awayScore === null) throw new RefereeServiceError("须先确认真实完赛及双方比分，不能提前标记执裁完成。", 409);
+    assertMatchScheduled(appointment.match);
+    if (appointment.match.status !== "COMPLETED" || (!appointment.match.kickoff || appointment.match.kickoff > new Date()) || appointment.match.homeScore === null || appointment.match.awayScore === null) throw new RefereeServiceError("须先确认真实完赛及双方比分，不能提前标记执裁完成。", 409);
     if (!reason.trim()) throw new RefereeServiceError("请填写人工完成原因。");
     const version = await saveAppointmentVersion(tx, appointment.id, "COMPLETED", reason, "", actor?.id);
     const updated = await tx.refereeAppointment.update({
@@ -1351,7 +1327,7 @@ export async function confirmMatchResult(matchId: string, input: { homeScore: nu
   return prisma.$transaction(async (tx) => {
     const match = await tx.match.findUnique({ where: { id: matchId }, include: { structureStage: true, appointment: true } });
     if (!match) throw new RefereeServiceError("比赛不存在。", 404);
-    if (match.status === "CANCELLED" || match.kickoff > new Date() || !input.actualEnded || (match.endAt && match.endAt > new Date())) throw new RefereeServiceError("取消、未来或尚未确认结束的比赛不能确认赛果。", 409);
+    if (match.status === "CANCELLED" || !isMatchScheduled(match) || !match.kickoff || match.kickoff > new Date() || !input.actualEnded || (match.endAt && match.endAt > new Date())) throw new RefereeServiceError("取消、未来或尚未确认结束的比赛不能确认赛果。", 409);
     if (input.homePenaltyScore !== null && (match.structureStage?.type !== "KNOCKOUT" || input.homeScore !== input.awayScore || input.homePenaltyScore === input.awayPenaltyScore)) throw new RefereeServiceError("点球仅用于淘汰赛场上平局，且点球比分应分出胜负。");
     const unchanged = match.status === "COMPLETED" && match.homeScore === input.homeScore && match.awayScore === input.awayScore && match.homePenaltyScore === input.homePenaltyScore && match.awayPenaltyScore === input.awayPenaltyScore;
     if (unchanged && (input.expectedVersion === match.resultVersion || input.expectedVersion + 1 === match.resultVersion)) return match;

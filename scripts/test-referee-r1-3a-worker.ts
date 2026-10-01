@@ -380,13 +380,13 @@ async function main() {
         competitionId: targetCompetition.id,
         stage: `R1-3A 场次 ${matchSequence}`,
         kickoff,
-        endAt: new Date(kickoff.getTime() + 120 * 60_000),
+        endAt: new Date(kickoff!.getTime() + 120 * 60_000),
         venue: `R1-3A 场地 ${matchSequence}`,
         homeTeamId: targetCompetition.teams[0].id,
         awayTeamId: targetCompetition.teams[1].id,
         status: "SCHEDULED",
         applicationWindowStatus: options.open === false ? "CLOSED" : "OPEN",
-        applicationDeadline: options.open === false ? undefined : new Date(kickoff.getTime() - 24 * 60 * 60_000),
+        applicationDeadline: options.open === false ? undefined : new Date(kickoff!.getTime() - 24 * 60 * 60_000),
         positionCounts: { REFEREE: 1 },
       }, { id: refereeActor.id, role: "REFEREE_MANAGER" });
     };
@@ -520,8 +520,8 @@ async function main() {
     const unavailableMatch = await createMatch({ open: false });
     await r1.saveRefereeAvailability({
       refereeId: approvedReferee.id,
-      startAt: unavailableMatch.kickoff,
-      endAt: new Date(unavailableMatch.kickoff.getTime() + 60 * 60_000),
+      startAt: unavailableMatch.kickoff!,
+      endAt: new Date(unavailableMatch.kickoff!.getTime() + 60 * 60_000),
       kind: "UNAVAILABLE",
       note: "课程冲突",
       actor: { type: "REFEREE", id: approvedReferee.id },

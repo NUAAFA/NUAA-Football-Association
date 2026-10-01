@@ -1,0 +1,36 @@
+[
+  {
+    "id": "cmuprl93w000wvh1gir627xiv",
+    "action": "COMPETITION_IMPORT_COMMITTED",
+    "entityId": "cmupqqaur001rkm1g5hsu8hud",
+    "summary": "完成赛程批量导入",
+    "metadata": {
+      "competitionId": "cmupqqaur001rkm1g5hsu8hud",
+      "importType": "MATCH",
+      "inputMethod": "DOCX",
+      "inputHash": "67f7b09e660d15a00a334b73edac1ea2db24bf04866fd3cd09de6140aa2a21a4",
+      "totalRows": 28,
+      "excludedRowNumbers": [
+        29,
+        30
+      ],
+      "teamMappings": {
+        "SQA 项目队": "cmupqqauw0023km1gxgl1rp4h"
+      },
+      "groupMappings": {},
+      "createdTeams": 0,
+      "reusedTeams": 12,
+      "createdMatches": 28,
+      "skippedMatches": 0,
+      "warnings": 28,
+      "actor": {
+        "id": "cmupqqat5001nkm1g8ifcc1ey",
+        "displayName": "R313隔离验收",
+        "roles": [
+          "SUPER_ADMIN"
+        ]
+      }
+    },
+    "createdAt": "2026-10-01T16:44:35.804+00:00"
+  }
+]

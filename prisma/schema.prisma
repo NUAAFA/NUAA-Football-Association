@@ -231,6 +231,8 @@ model TeamDirectorySettings {
 }
 
 model Match {
+  tentativeDate     String?
+  tentativeSchedule String?
   matchNumber       Int?
   stageId           String?
   groupId           String?
@@ -247,9 +249,9 @@ model Match {
   slug                    String                     @unique
   competitionId           String
   stage                   String
-  kickoff                 DateTime
+  kickoff                 DateTime?
   endAt                   DateTime?
-  venue                   String
+  venue                   String?
   round                   String?
   source                  DataSource                 @default(MANUAL)
   externalMatchId         String?
@@ -777,6 +779,8 @@ model CompetitionStage {
 }
 
 model CompetitionGroup {
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
   id            String                @id @default(cuid())
   stageId       String
   name          String

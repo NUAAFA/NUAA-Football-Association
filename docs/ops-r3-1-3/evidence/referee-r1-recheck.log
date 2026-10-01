@@ -1,0 +1,24 @@
+
+> nuaa-football-association@0.1.0 test:referee-r1
+> tsx scripts/test-referee-r1.ts
+
+{
+  "additiveMigrationPreservedIdsAndHistory": true,
+  "legacySessionsPreserved": true,
+  "normalizedCapabilitiesBackfilled": true,
+  "authoritativeCollegeMappingsSeeded": true,
+  "persistentAdminAuthentication": true,
+  "adminRoleAuthorization": true,
+  "adminPasswordChangeInvalidatesOtherSessions": true,
+  "collegeConflictWarning": true,
+  "unavailableHardConflict": true,
+  "matchOverlapHardConflict": true,
+  "hardConflictCannotBeOverridden": true,
+  "overrideReasonRequiredAndAudited": true,
+  "acknowledgementBoundToVersion": true,
+  "republishInvalidatesOldAcknowledgement": true,
+  "conflictReportLifecycle": true,
+  "completedHistoryVisible": true,
+  "completedStatistics": true,
+  "publicDtoDoesNotLeakSensitiveData": true
+}

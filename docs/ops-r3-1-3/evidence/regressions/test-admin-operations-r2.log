@@ -1,0 +1,27 @@
+
+> nuaa-football-association@0.1.0 test:admin-operations-r2
+> tsx scripts/test-admin-operations-r2.ts
+
+{
+  "onboardingAndStudentLogin": true,
+  "publicCodeAndCollegeMapping": true,
+  "defaultsPrivacyAndPasswordHandling": true,
+  "compatibilityScan": {
+    "totalReferees": 6,
+    "totalActiveAccounts": 4,
+    "missingStudentId": 1,
+    "activeMissingStudentId": 1,
+    "duplicateStudentIdGroups": 1,
+    "unsafeLoginMigrationBlockers": 2
+  },
+  "competitionTeamIsolation": true,
+  "representativeJointFreeformTeams": true,
+  "safeDeleteRbacConflictAudit": true,
+  "trainingCandidateSelectable": true,
+  "availabilityCalendarPersistence": true,
+  "structuredConflictAndStatistics": true,
+  "operationalUiContracts": true,
+  "sqliteIntegrityCheck": "ok",
+  "foreignKeyViolations": 0,
+  "cleanupProbe": "cmupwii5f00149z1g1rvkm5gn"
+}

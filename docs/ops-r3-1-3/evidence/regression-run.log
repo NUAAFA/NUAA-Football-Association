@@ -1,0 +1,57 @@
+PASS npm run test:ops-r3-1-2
+PASS npm run test:referee-match-deletion
+PASS npm run test:competition-import
+PASS npm run test:competition-import:http
+PASS npm run test:unified-admin-r1
+PASS npm run test:unified-admin-r1-2
+PASS npm run test:unified-admin-rbac
+PASS npm run test:referee-flow
+FAIL npm run test:referee-r1
+
+> nuaa-football-association@0.1.0 test:referee-r1
+> tsx scripts/test-referee-r1.ts
+
+PrismaClientKnownRequestError: 
+Invalid `verifier.match.findUniqueOrThrow()` invocation in
+/Users/xianghanwang/Documents/Codex/NUAAFA/scripts/test-referee-r1-worker.ts:91:46
+
+  88   where: { id: "legacy-referee" },
+  89   include: { capabilities: true },
+  90 });
+→ 91 const legacyMatch = await verifier.match.findUniqueOrThrow(
+Database error. Code: `1`. Message: `SQLITE_ERROR: no such column: main.Match.tentativeDate`
+    at Jr.handleRequestError (/Users/xianghanwang/Documents/Codex/NUAAFA/src/generated/prisma-v29/runtime/client.js:69:8286)
+    at Jr.handleAndLogRequestError (/Users/xianghanwang/Documents/Codex/NUAAFA/src/generated/prisma-v29/runtime/client.js:69:7581)
+    at Jr.request (/Users/xianghanwang/Documents/Codex/NUAAFA/src/generated/prisma-v29/runtime/client.js:69:7288)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async a (/Users/xianghanwang/Documents/Codex/NUAAFA/src/generated/prisma-v29/runtime/client.js:103:6862)
+    at async main (/Users/xianghanwang/Documents/Codex/NUAAFA/scripts/test-referee-r1-worker.ts:91:25)
+
+PASS npm run test:referee-r1-3a
+PASS npm run test:referee-fix2
+PASS npm run test:referee-fix3
+PASS npm run test:referee-fix5
+FAIL npm run test:admin-operations-r2
+
+> nuaa-football-association@0.1.0 test:admin-operations-r2
+> tsx scripts/test-admin-operations-r2.ts
+
+Error: TEAM_DELETED audit is missing.
+    at assert (/Users/xianghanwang/Documents/Codex/NUAAFA/scripts/test-admin-operations-r2-worker.ts:10:25)
+    at main (/Users/xianghanwang/Documents/Codex/NUAAFA/scripts/test-admin-operations-r2-worker.ts:123:5)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+
+PASS npm run test:admin-operations-r2.1
+PASS npm run test:referee-r1-3a:migration:fresh
+PASS npm run test:unified-admin-migration
+PASS npm run test:admin-operations-r2:migration
+PASS npm run test:security-csv
+PASS npm run test:security-admission
+PASS npm run test:security-appointments
+PASS npm run test:security-api-errors
+PASS npm run test:team-directory-r1
+PASS npm run test:team-directory-r1-1
+PASS npm run test:public-competition-dynamic
+PASS npm run test:public-competition-dynamic:http
+PASS npm run check:unicode
+PASS npm run lint

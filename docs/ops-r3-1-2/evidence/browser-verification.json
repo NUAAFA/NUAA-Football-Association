@@ -1,0 +1,82 @@
+{
+  "date": "2026-10-01",
+  "environment": "isolated localhost:3193, temporary SQLite only",
+  "agentBrowserVerification": true,
+  "humanAcceptance": "PENDING",
+  "workflow": {
+    "source": "original Football China DOCX fixture",
+    "initialMismatch": {
+      "group": "B组",
+      "teams": [
+        "航空能动联队"
+      ]
+    },
+    "repair": "Preview inline grouping modal, return and revalidate without reselecting file",
+    "createdPendingMatches": 30,
+    "lightweightSchedule": {
+      "matchNumber": 29,
+      "kickoffBeijing": "2030-10-01 18:30",
+      "venue": "隔离湖西足球场",
+      "verifiedStatus": "已安排",
+      "remainingPendingMatches": 29
+    }
+  },
+  "scalability": {
+    "groupingStageGroups": 17,
+    "competitionTeams": 72,
+    "publicScheduleGroupOptions": 12,
+    "publicStandingsGroupOptionsAcrossStages": 18,
+    "selectedGroup": "H组",
+    "adminScheduleGroupOptions": 17
+  },
+  "overflowMeasurements": [
+    {
+      "surface": "admin grouping desktop",
+      "pageWidth": 1280,
+      "pageScrollWidth": 1280
+    },
+    {
+      "surface": "admin grouping mobile",
+      "pageWidth": 390,
+      "pageScrollWidth": 390,
+      "groupingWidth": 322,
+      "groupingScrollWidth": 322,
+      "gridWidth": 286,
+      "gridScrollWidth": 286
+    },
+    {
+      "surface": "public schedule mobile",
+      "pageWidth": 390,
+      "pageScrollWidth": 390,
+      "filtersWidth": 356,
+      "filtersScrollWidth": 356
+    },
+    {
+      "surface": "public standings mobile",
+      "pageWidth": 390,
+      "pageScrollWidth": 390,
+      "filtersWidth": 356,
+      "filtersScrollWidth": 356
+    },
+    {
+      "surface": "admin H group standings desktop",
+      "pageWidth": 1280,
+      "pageScrollWidth": 1280
+    },
+    {
+      "surface": "admin H group standings mobile",
+      "pageWidth": 390,
+      "pageScrollWidth": 390
+    },
+    {
+      "surface": "admin H group schedule mobile",
+      "pageWidth": 390,
+      "pageScrollWidth": 390
+    }
+  ],
+  "screenshots": [
+    "grouping-desktop.png",
+    "scheduled-match.png",
+    "standings-mobile.png"
+  ]
+}

@@ -34,6 +34,7 @@ export default async function AdminMatchDetailPage({ params, appointmentOnly = f
     getCompletedRefereeStatistics(),
   ]);
   if (!match) notFound();
+  if (!match.kickoff || !match.venue?.trim()) return <><h1>{match.homeTeam.name} vs {match.awayTeam.name} · 待排期</h1><p>比赛时间 / 场地待安排。安排后才能开放报名、发布选派和进入正式任务。</p><Link href={`/admin/matches/${match.id}`}>查看比赛 / 安排比赛</Link></>;
   const templateConfigured = hasPositionTemplate(match.competition.format);
   const targetEnd = match.endAt ?? new Date(match.kickoff.getTime() + 60_000);
   const matchDay = getBeijingDayBounds(match.kickoff);
@@ -68,7 +69,7 @@ export default async function AdminMatchDetailPage({ params, appointmentOnly = f
     refereeId,
     resolveMatchAvailability(
       candidateAvailability.filter((item) => item.refereeId === refereeId),
-      match.kickoff,
+      match.kickoff!,
       targetEnd,
     ),
   ]));

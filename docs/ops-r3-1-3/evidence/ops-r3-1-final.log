@@ -1,0 +1,69 @@
+{
+  "root": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-ops-r3-1-vj6tRS",
+  "startedAt": "2026-10-01T19:02:08.318Z",
+  "MIG-01": {
+    "before": {
+      "Competition": 1,
+      "Team": 2,
+      "Match": 1,
+      "MediaAsset": 1,
+      "ContentPost": 1,
+      "DisciplineDetail": 1,
+      "Referee": 1,
+      "RefereeAppointment": 1,
+      "AppointmentVersion": 1,
+      "AppointmentPosition": 1,
+      "AuditLog": 1
+    },
+    "after": {
+      "Competition": 1,
+      "Team": 2,
+      "Match": 1,
+      "MediaAsset": 1,
+      "ContentPost": 1,
+      "DisciplineDetail": 1,
+      "Referee": 1,
+      "RefereeAppointment": 1,
+      "AppointmentVersion": 1,
+      "AppointmentPosition": 1,
+      "AuditLog": 1
+    },
+    "foreignKeys": 0,
+    "integrity": "ok",
+    "redeploy": "no-op",
+    "legacyText": "preserved"
+  },
+  "NAV-01": "PASS",
+  "ADM-01/02": {
+    "pendingBeyond300": true,
+    "concurrentRejectWinners": 1,
+    "concurrentApproveAccounts": 1,
+    "failedReviewRolledBack": true
+  },
+  "STR-01/02/IMP-01/02/03/04": {
+    "imported": 36,
+    "duplicateCreated": 0,
+    "grouped": true,
+    "previewWrites": 0
+  },
+  "RES-extra": {
+    "optimisticRaceWinners": 1,
+    "penaltyScoreSeparate": "1:1 (5:4)",
+    "missingNegativeFractionFutureCancelledRejected": true
+  },
+  "REF-01/02/03/04/RES-01/02/TAB-01/02/QUAL-01": "PASS",
+  "CMS-query-matrix": {
+    "combinations": 9,
+    "matchedRowsEach": 2,
+    "twoPageUniqueRows": 18,
+    "searchBySlug": 6,
+    "privateCoverBodyRejected": true,
+    "coverBodyUseDeduplicated": 1
+  },
+  "CMS-01/02/03/MED-01": "PASS",
+  "STR-historical-classification": {
+    "explicitReasonRequired": true,
+    "oldTextScoresIdsVersionsPreserved": true
+  },
+  "finishedAt": "2026-10-01T19:02:09.886Z"
+}
