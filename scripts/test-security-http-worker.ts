@@ -52,6 +52,79 @@ async function expectMemberGate(label: string, response: Response) {
   assert(body.code === "MEMBER_PASSWORD_CHANGE_REQUIRED", `${label}: canonical code mismatch.`);
 }
 
+async function verifyAvailabilityDetailAuthorization(adminCookie: string) {
+  const { prisma } = await import("../src/lib/prisma");
+  const records = await Promise.all(["AVAILABLE", "UNAVAILABLE"].map((kind, index) =>
+    prisma.refereeAvailability.create({ data: {
+      refereeId,
+      kind: kind as "AVAILABLE" | "UNAVAILABLE",
+      startAt: new Date(`2030-02-0${index + 1}T02:00:00Z`),
+      endAt: new Date(`2030-02-0${index + 1}T04:00:00Z`),
+      note: `Isolated availability authorization ${kind}`,
+    } }),
+  ));
+  const detailPath = `/api/referees/admin/availability/${refereeId}`;
+  const getWithoutOrigin = (pathname: string, cookie?: string) => fetch(`${baseUrl}${pathname}`, {
+    headers: cookie ? { cookie } : {},
+    redirect: "manual",
+  });
+  const detail = await expectStatus("availability detail read permission without Origin", await getWithoutOrigin(detailPath, adminCookie), 200);
+  const data = await detail.json() as { referee?: { id?: string }; records?: Array<{ id: string; kind: string }>; total?: number };
+  assert(data.referee?.id === refereeId && data.total === 2, "Authorized availability detail did not return the isolated referee and records.");
+  assert(records.every((record) => data.records?.some((item) => item.id === record.id)), "Authorized detail omitted availability records.");
+  const filtered = await expectStatus("availability detail filtered read without Origin", await getWithoutOrigin(`${detailPath}?kind=AVAILABLE`, adminCookie), 200);
+  const filteredData = await filtered.json() as { total?: number; records?: Array<{ kind: string }> };
+  assert(filteredData.total === 1 && filteredData.records?.[0]?.kind === "AVAILABLE", "Detail kind filter changed.");
+  await expectStatus("availability detail no session without Origin", await getWithoutOrigin(detailPath), 401);
+  await expectStatus("availability detail missing referee", await getWithoutOrigin("/api/referees/admin/availability/missing-referee", adminCookie), 404);
+
+  async function adminLoginCookie(username: string) {
+    const response = await expectStatus(`${username} availability fixture login`, await fetch(`${baseUrl}/api/referees/admin/login`, {
+      method: "POST",
+      headers: { origin: mutationOrigin, "content-type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    }), 200);
+    const cookie = response.headers.get("set-cookie")?.match(/nuaa_referee_admin=[^;]+/u)?.[0];
+    assert(cookie, "Availability fixture login did not set a cookie.");
+    return cookie;
+  }
+  const contentCookie = await adminLoginCookie("smoke-content");
+  await expectStatus("availability detail role denied without Origin", await getWithoutOrigin(detailPath, contentCookie), 403);
+  const requiredCookie = await adminLoginCookie("required-referee");
+  const requiredResponse = await expectStatus("availability detail password-change gate", await getWithoutOrigin(detailPath, requiredCookie), 403);
+  assert((await requiredResponse.json() as { code?: string }).code === "ADMIN_PASSWORD_CHANGE_REQUIRED", "Detail bypassed the required-password gate.");
+  await expectStatus("other admin content GET still role denied", await getWithoutOrigin("/api/admin/content/posts", adminCookie), 403);
+
+  const before = JSON.stringify({
+    availability: await prisma.refereeAvailability.findMany({ orderBy: { id: "asc" } }),
+    accounts: await prisma.adminAccount.findMany({ orderBy: { id: "asc" } }),
+    teams: await prisma.team.findMany({ orderBy: { id: "asc" } }),
+  });
+  const mutations = [
+    { path: "/api/referees/admin/availability", method: "POST", body: { refereeId, startAt: "2030-03-01T10:00", endAt: "2030-03-01T12:00", kind: "AVAILABLE" } },
+    { path: "/api/referees/admin/availability", method: "DELETE", body: { refereeId, id: records[0].id } },
+    { path: "/api/referees/admin/accounts/missing-account", method: "PATCH", body: { name: "blocked" } },
+    { path: "/api/referees/admin/teams", method: "POST", body: { name: "blocked" } },
+  ];
+  for (const mutation of mutations) {
+    for (const origin of [null, "https://attacker.invalid"]) {
+      const response = await expectStatus(`${mutation.method} ${mutation.path} ${origin ? "foreign" : "missing"} Origin blocked`, await fetch(`${baseUrl}${mutation.path}`, {
+        method: mutation.method,
+        headers: { cookie: adminCookie, "content-type": "application/json", ...(origin ? { origin } : {}) },
+        body: JSON.stringify(mutation.body),
+      }), 403);
+      assert((await response.json() as { error?: string }).error === "请求来源无效。", "A mutation failed outside its Origin guard.");
+    }
+  }
+  const after = JSON.stringify({
+    availability: await prisma.refereeAvailability.findMany({ orderBy: { id: "asc" } }),
+    accounts: await prisma.adminAccount.findMany({ orderBy: { id: "asc" } }),
+    teams: await prisma.team.findMany({ orderBy: { id: "asc" } }),
+  });
+  assert(after === before, "Rejected mutations changed isolated business data.");
+  console.log("PASS availability detail GET: production-mode no-Origin read, session/RBAC/password gates, unchanged POST/PATCH/DELETE Origin guards and zero rejected writes.");
+}
+
 async function main() {
   process.env.DATABASE_URL = `file:${required("SECURITY_HTTP_DATABASE_PATH").replaceAll("\\", "/")}`;
   const { prisma } = await import("../src/lib/prisma");
@@ -91,6 +164,8 @@ async function main() {
     }), 200);
     const adminCookie = adminLogin.headers.get("set-cookie")?.match(/nuaa_referee_admin=[^;]+/u)?.[0];
     assert(adminCookie, "Referee admin login did not set a cookie.");
+
+    await verifyAvailabilityDetailAuthorization(adminCookie);
 
     const appointment = await prisma.refereeAppointment.create({
       data: {

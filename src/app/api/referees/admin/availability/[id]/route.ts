@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { authorizeLegacyAdminRequest } from "@/lib/legacy-admin-authorization";
 import { getAdminAvailabilityDetail } from "@/lib/admin-availability-page";
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
-  const authorization = await authorizeLegacyAdminRequest(request, "referees:read");
+  const authorization = await authorizeLegacyAdminRequest(request, "referees:read", { mutation: false });
   if (!authorization.ok) return authorization.response;
   const query = new URL(request.url).searchParams;
   const kind = query.get("kind");
