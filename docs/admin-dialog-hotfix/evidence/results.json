@@ -1,0 +1,233 @@
+{
+  "status": "PASS",
+  "startedAt": "2026-10-02T08:37:23.671Z",
+  "finishedAt": "2026-10-02T08:37:37.790Z",
+  "browserVersion": "154.0.8037.93",
+  "results": [
+    {
+      "viewport": "1440x900",
+      "joint": {
+        "top": 16,
+        "bottom": 884,
+        "left": 240,
+        "right": 1200,
+        "height": 900,
+        "width": 1440,
+        "bodyHeight": 728,
+        "scrollHeight": 1716,
+        "overflow": "auto"
+      },
+      "structure": {
+        "top": 16,
+        "bottom": 884,
+        "left": 240,
+        "right": 1200,
+        "height": 900,
+        "width": 1440,
+        "bodyHeight": 728,
+        "scrollHeight": 1119,
+        "overflow": "auto"
+      },
+      "wheel": true,
+      "keyboardScroll": true,
+      "touch": false
+    },
+    {
+      "viewport": "1024x768",
+      "joint": {
+        "top": 16,
+        "bottom": 752,
+        "left": 32,
+        "right": 992,
+        "height": 768,
+        "width": 1024,
+        "bodyHeight": 596,
+        "scrollHeight": 1716,
+        "overflow": "auto"
+      },
+      "structure": {
+        "top": 16,
+        "bottom": 752,
+        "left": 32,
+        "right": 992,
+        "height": 768,
+        "width": 1024,
+        "bodyHeight": 596,
+        "scrollHeight": 1169,
+        "overflow": "auto"
+      },
+      "wheel": true,
+      "keyboardScroll": true,
+      "touch": false
+    },
+    {
+      "viewport": "768x768",
+      "joint": {
+        "top": 16,
+        "bottom": 752,
+        "left": 16,
+        "right": 752,
+        "height": 768,
+        "width": 768,
+        "bodyHeight": 596,
+        "scrollHeight": 1716,
+        "overflow": "auto"
+      },
+      "structure": {
+        "top": 16,
+        "bottom": 752,
+        "left": 16,
+        "right": 752,
+        "height": 768,
+        "width": 768,
+        "bodyHeight": 596,
+        "scrollHeight": 1277,
+        "overflow": "auto"
+      },
+      "wheel": true,
+      "keyboardScroll": true,
+      "touch": false
+    },
+    {
+      "id": "DIALOG-FORM",
+      "requiredValidation": true,
+      "associatedSubmit": true,
+      "isolatedJointCreate": true
+    },
+    {
+      "viewport": "390x700",
+      "joint": {
+        "top": 16,
+        "bottom": 684,
+        "left": 16,
+        "right": 374,
+        "height": 700,
+        "width": 390,
+        "bodyHeight": 489,
+        "scrollHeight": 1992,
+        "overflow": "auto"
+      },
+      "structure": {
+        "top": 16,
+        "bottom": 684,
+        "left": 16,
+        "right": 374,
+        "height": 700,
+        "width": 390,
+        "bodyHeight": 489,
+        "scrollHeight": 2572,
+        "overflow": "auto"
+      },
+      "wheel": true,
+      "keyboardScroll": true,
+      "touch": true
+    },
+    {
+      "viewport": "360x700",
+      "joint": {
+        "top": 16,
+        "bottom": 684,
+        "left": 16,
+        "right": 344,
+        "height": 700,
+        "width": 360,
+        "bodyHeight": 489,
+        "scrollHeight": 1992,
+        "overflow": "auto"
+      },
+      "structure": {
+        "top": 16,
+        "bottom": 684,
+        "left": 16,
+        "right": 344,
+        "height": 700,
+        "width": 360,
+        "bodyHeight": 489,
+        "scrollHeight": 2572,
+        "overflow": "auto"
+      },
+      "wheel": true,
+      "keyboardScroll": true,
+      "touch": true
+    },
+    {
+      "viewport": "1280x720",
+      "joint": {
+        "top": 16,
+        "bottom": 704,
+        "left": 160,
+        "right": 1120,
+        "height": 720,
+        "width": 1280,
+        "bodyHeight": 548,
+        "scrollHeight": 1716,
+        "overflow": "auto"
+      },
+      "structure": {
+        "top": 16,
+        "bottom": 704,
+        "left": 160,
+        "right": 1120,
+        "height": 720,
+        "width": 1280,
+        "bodyHeight": 548,
+        "scrollHeight": 1119,
+        "overflow": "auto"
+      },
+      "wheel": true,
+      "keyboardScroll": true,
+      "touch": false
+    },
+    {
+      "viewport": "1440x700",
+      "joint": {
+        "top": 16,
+        "bottom": 684,
+        "left": 240,
+        "right": 1200,
+        "height": 700,
+        "width": 1440,
+        "bodyHeight": 528,
+        "scrollHeight": 1716,
+        "overflow": "auto"
+      },
+      "structure": {
+        "top": 16,
+        "bottom": 684,
+        "left": 240,
+        "right": 1200,
+        "height": 700,
+        "width": 1440,
+        "bodyHeight": 528,
+        "scrollHeight": 1119,
+        "overflow": "auto"
+      },
+      "wheel": true,
+      "keyboardScroll": true,
+      "touch": false
+    },
+    {
+      "id": "DIALOG-04",
+      "restore": true,
+      "backgroundWheel": true,
+      "focus": true
+    },
+    {
+      "id": "DIALOG-05",
+      "entries": [
+        "添加球队/组织/联合队/自由组队",
+        "阶段与轮次",
+        "新建小组",
+        "修改小组",
+        "从本赛事移除",
+        "确认更换分组",
+        "调整同分次序",
+        "确认出线球队",
+        "确认导入所选赛程",
+        "管理球队分组"
+      ],
+      "nestedLock": true
+    }
+  ],
+  "errors": []
+}

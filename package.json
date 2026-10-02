@@ -68,7 +68,9 @@
     "rc:check": "node scripts/release-candidate-check.mjs",
     "health:check": "node scripts/health-check.mjs",
     "test:ops-r3-1-3": "tsx scripts/test-ops-r3-1-3.ts",
-    "test:ops-r3-1-3:http": "tsx scripts/test-ops-r3-1-3-http.ts"
+    "test:ops-r3-1-3:http": "tsx scripts/test-ops-r3-1-3-http.ts",
+    "typecheck": "tsc --noEmit",
+    "test:admin-dialog:browser": "node scripts/test-admin-dialog-browser.mjs"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",

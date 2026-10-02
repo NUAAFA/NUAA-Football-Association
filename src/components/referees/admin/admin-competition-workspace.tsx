@@ -5,7 +5,7 @@ import { MatchSchedulingForm } from "@/components/admin/match-scheduling-form";
 import Link from "next/link";
 import { adminTabKeyboard } from "@/lib/admin-tab-keyboard";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState, type ReactNode } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 
 import { AdminCompetitionDangerActions } from "@/components/referees/admin/admin-competition-danger-actions";
 import { OrganizationCheckboxSelector } from "@/components/referees/admin/organization-checkbox-selector";
@@ -62,6 +62,8 @@ export function AdminCompetitionWorkspace({
   const [selected, setSelected] = useState<string[]>([]);
   const [jointSelected, setJointSelected] = useState<string[]>([]);
   const [jointName, setJointName] = useState("");
+  const [jointOpen, setJointOpen] = useState(false);
+  const jointFormId = useId();
   const [importText, setImportText] = useState("");
   const [importPreview, setImportPreview] = useState<TeamImportPreview>(() => parsePastedTeamNames("", teams.map((team) => team.name)));
   const [message, setMessage] = useState("");
@@ -120,16 +122,16 @@ export function AdminCompetitionWorkspace({
     </section> : null}
 
     {section === "teams" ? <section className="admin-panel admin-workspace-team-panel" id="workspace-panel-teams" role="tabpanel" aria-labelledby="workspace-tab-teams" hidden={section !== "teams"}>
-      <header className="admin-panel-header"><div><h2>球队与分组</h2><p>这里只管理“{competition.name}”的参赛球队，不会引入其他赛事的球队。</p></div>{canWrite ? <div className="admin-page-actions"><button className="admin-button" type="button" onClick={() => setAddOpen(true)}>添加球队</button><button className="admin-button admin-button-secondary" type="button" onClick={() => setConfigOpen(true)}>阶段与轮次</button></div> : null}</header>
+      <header className="admin-panel-header"><div><h2>球队与分组</h2><p>这里只管理“{competition.name}”的参赛球队，不会引入其他赛事的球队。</p></div>{canWrite ? <div className="admin-page-actions"><button className="admin-button" type="button" onClick={() => { setJointOpen(false); setAddOpen(true); }}>添加球队</button><button className="admin-button admin-button-secondary" type="button" onClick={() => setConfigOpen(true)}>阶段与轮次</button></div> : null}</header>
       {grouping}
-      {canWrite && addOpen ? <WorkspaceDialog title="添加球队" busy={submitting} onClose={() => setAddOpen(false)}><div className="admin-workspace-operations">
+      {canWrite && addOpen ? <WorkspaceDialog title="添加球队" busy={submitting} onClose={() => setAddOpen(false)} footer={jointOpen ? <button className="admin-button" form={jointFormId} disabled={submitting || !jointName.trim() || jointSelected.length < 2} type="submit">创建联合队</button> : null}><div className="admin-workspace-operations">
         <details><summary>添加组织代表队</summary><div className="admin-operation-body">
           <OrganizationCheckboxSelector legend="选择组织单位" lockedValues={[...existingUnitIds]} onChange={setSelected} options={selectorOptions} searchPlaceholder="搜索学院或书院…" selectedValues={selected} />
           <button className="admin-button" disabled={submitting || !selected.length} onClick={() => void createOrganizationTeams()} type="button">批量创建代表队</button>
         </div></details>
-        <details><summary>创建联合队</summary><div className="admin-operation-body"><label><span>联合队名称</span><input maxLength={80} onChange={(event) => setJointName(event.target.value)} value={jointName} /></label><OrganizationCheckboxSelector legend="关联组织单位（至少两个）" onChange={setJointSelected} options={selectorOptions} selectedValues={jointSelected} /><button className="admin-button" disabled={submitting || !jointName.trim() || jointSelected.length < 2} onClick={() => void createJoint()} type="button">创建联合队</button></div></details>
+        <details onToggle={(event) => setJointOpen(event.currentTarget.open)}><summary>创建联合队</summary><form id={jointFormId} className="admin-operation-body" onSubmit={(event) => { event.preventDefault(); if (!submitting && jointName.trim() && jointSelected.length >= 2) void createJoint(); }}><label><span>联合队名称</span><input name="jointName" required maxLength={80} onChange={(event) => setJointName(event.target.value)} value={jointName} /></label><OrganizationCheckboxSelector legend="关联组织单位（至少两个）" onChange={setJointSelected} options={selectorOptions} selectedValues={jointSelected} /></form></details>
         <details><summary>批量导入自由组队球队</summary><div className="admin-operation-body"><label><span>每行一个球队名称</span><textarea onChange={(event) => previewImport(event.target.value)} rows={7} value={importText} /></label><label className="admin-file-input"><span>或读取 CSV（name / 球队名称列）</span><input accept=".csv,text/csv" onChange={(event) => { const file = event.target.files?.[0]; if (file) void file.text().then((value) => previewImport(value, true)); }} type="file" /></label><p>可创建 {importPreview.names.length} 支；当前赛事已存在 {importPreview.existing.length} 支；输入内重复 {importPreview.duplicates.length} 项。</p>{importPreview.errors.map((error) => <p className="admin-form-message" key={error}>{error}</p>)}<button className="admin-button" disabled={submitting || !importPreview.names.length || Boolean(importPreview.errors.length)} onClick={() => void createFreeformTeams()} type="button">批量导入球队</button></div></details>
-      </div></WorkspaceDialog> : null}
+      <p aria-live="polite" className="admin-form-message">{message}</p></div></WorkspaceDialog> : null}
       <p aria-live="polite" className="admin-form-message">{message}</p>
     </section> : null}
 

@@ -1,0 +1,12 @@
+
+> nuaa-football-association@0.1.0 test:admin-dialog:browser
+> node scripts/test-admin-dialog-browser.mjs
+
+PASS DIALOG-01/02/03 1440x900
+PASS DIALOG-01/02/03 1024x768
+PASS DIALOG-01/02/03 768x768
+PASS DIALOG-01/02/03 390x700
+PASS DIALOG-01/02/03 360x700
+PASS DIALOG-01/02/03 1280x720
+PASS DIALOG-01/02/03 1440x700
+PASS DIALOG-04/05: scroll/focus restore, shared entries, nested locks; no production writes
