@@ -9,6 +9,8 @@ import type {
   TeamType,
 } from "@/generated/prisma-v29/client";
 import { prisma } from "@/lib/prisma";
+import { assertAdminUsernameAvailable } from "@/lib/admin-account-protection";
+import { updateUnifiedAdminAccount } from "@/lib/unified-admin-account-service";
 import { completedAssignmentReviewReason } from "@/lib/referee-completion-evidence";
 import {
   requireAdminServiceAuthorization,
@@ -717,6 +719,7 @@ export async function createAdminAccount(input: {
   const authorizedActor = requireAdminServiceAuthorization(authorization, "system:write");
   const actor: AdminActor = { id: authorizedActor.id, role: "SUPER_ADMIN" };
   const username = input.username.trim().toLowerCase();
+  assertAdminUsernameAvailable(username);
   if (!/^[a-z0-9._-]{3,64}$/.test(username)) {
     throw new RefereeServiceError("管理员账号须为 3 至 64 位字母、数字、点、下划线或连字符。");
   }
@@ -755,23 +758,8 @@ export async function setAdminAccountStatus(
   isActive: boolean,
   authorization: AdminServiceAuthorization<"system:write">,
 ) {
-  const authorizedActor = requireAdminServiceAuthorization(authorization, "system:write");
-  const actor: AdminActor = { id: authorizedActor.id, role: "SUPER_ADMIN" };
-  if (actor.id === id && !isActive) throw new RefereeServiceError("不能停用当前登录账号。");
-  const account = await prisma.adminAccount.update({
-    where: { id },
-    data: { isActive, ...(!isActive ? { sessions: { deleteMany: {} } } : {}) },
-    select: { id: true, username: true, isActive: true },
-  });
-  await audit({
-    actorType: "ADMIN",
-    actorId: actor.id,
-    action: "ADMIN_ACCOUNT_STATUS_UPDATED",
-    entityType: "AdminAccount",
-    entityId: id,
-    summary: `${isActive ? "启用" : "停用"}管理员账号 ${account.username}`,
-  });
-  return account;
+  const account = await updateUnifiedAdminAccount({ id, isActive }, authorization);
+  return { id: account.id, username: account.username, isActive: account.isActive };
 }
 
 export async function changeAdminPassword(input: {

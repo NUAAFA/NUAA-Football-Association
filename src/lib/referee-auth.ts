@@ -67,6 +67,7 @@ export async function createAdminSession(username: string, password: string) {
   });
   return {
     explicitRoles: account?.unifiedRoles.map(({ role }) => role) ?? [],
+    username: account?.username,
     legacyRole: account?.role,
     isLegacy: !account,
     mustChangePassword: account?.mustChangePassword ?? false,

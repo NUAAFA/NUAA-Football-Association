@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "checks": [
+    "Owner pinned first, protected label and no destructive controls",
+    "Compact role cards, checkbox sizing, native dialog Escape and focus restoration",
+    "Delegated SUPER_ADMIN denied all owner mutations through current and legacy APIs; cross-origin delete rejected",
+    "Owner UI role change, disable and re-enable persist after refresh",
+    "Reset modal confirmation, old session revoked, new password login and forced-change API gate",
+    "Delete requires exact username in UI and API; list refreshes and all sessions are revoked",
+    "Create account via UI; 390px and 1024px dialog scroll with reachable fixed footer"
+  ],
+  "browser": "154.0.8037.93",
+  "errors": [],
+  "isolatedDatabase": true
+}

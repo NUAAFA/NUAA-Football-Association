@@ -30,8 +30,8 @@ function lockPageScroll() {
   };
 }
 
-export function WorkspaceDialog({ title, onClose, children, footer, busy = false }: {
-  title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; busy?: boolean;
+export function WorkspaceDialog({ title, onClose, children, footer, busy = false, className = "" }: {
+  title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; busy?: boolean; className?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -45,7 +45,7 @@ export function WorkspaceDialog({ title, onClose, children, footer, busy = false
       if (previous?.isConnected) previous.focus({ preventScroll: true });
     };
   }, []);
-  return <dialog ref={ref} className="ops-workspace-dialog" aria-label={title}
+  return <dialog ref={ref} className={`ops-workspace-dialog ${className}`} aria-label={title}
     onCancel={(event) => { event.preventDefault(); event.stopPropagation(); if (!busy) onClose(); }}>
     <header className="admin-panel-header"><h2>{title}</h2><button className="admin-button admin-button-secondary" type="button" disabled={busy} onClick={onClose}>关闭</button></header>
     <div className="admin-panel-body ops-workspace-dialog-body" tabIndex={0}>{children}</div>

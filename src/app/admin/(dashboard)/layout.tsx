@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { UnifiedAdminShell } from "@/components/admin/unified-admin-shell";
+import { isProtectedAdminAccount } from "@/lib/admin-account-protection";
 import { getAdminSession } from "@/lib/referee-auth";
 import {
   getUnifiedAdminActor,
@@ -38,7 +39,7 @@ export default async function UnifiedAdminLayout({ children }: { children: React
       allowedModules={allowedModules}
       isLegacy={actor.isLegacy}
       mustChangePassword={passwordChangeRequired}
-      roleLabels={actor.roles.map((role) => unifiedAdminRoleLabels[role])}
+      roleLabels={session.adminAccount && isProtectedAdminAccount(session.adminAccount) ? ["最高管理员"] : actor.roles.map((role) => unifiedAdminRoleLabels[role])}
     >
       {passwordChangeRequired ? null : children}
     </UnifiedAdminShell>

@@ -53,7 +53,7 @@ async function main() {
   try {
     const passwordHash = await hashPassword("Legacy-Super-Password-2026!");
     const legacySuper = await verifier.adminAccount.create({
-      data: { username: "nuaafa", displayName: "现有实名管理员", passwordHash, role: "SUPER_ADMIN" },
+      data: { username: "legacy-super", displayName: "现有实名管理员", passwordHash, role: "SUPER_ADMIN" },
     });
     const superActor: UnifiedAdminActor = {
       id: "service-test-super",
@@ -246,12 +246,63 @@ async function main() {
       await verifier.auditLog.count({ where: { entityId: explicitSuper.id } }) === lastSuperAuditCount,
       "Rejected last-SUPER_ADMIN mutations produced partial writes or audit rows.",
     );
+    const owner = await verifier.adminAccount.create({
+      data: { username: "nuaafa", displayName: "NUAAFA", passwordHash, role: "SUPER_ADMIN" },
+    });
+    const ownerActor: UnifiedAdminActor = { ...superActor, id: owner.id };
+    const ownerAuthorization = capabilities.issueTestAdminServiceAuthorization("system:write", ownerActor);
+    const delegateAuthorization = capabilities.issueTestAdminServiceAuthorization("system:write", { ...superActor, id: explicitSuper.id });
+    const ownerBefore = await verifier.adminAccount.findUniqueOrThrow({ where: { id: owner.id } });
+    const auditCountBefore = await verifier.auditLog.count();
+    for (const grant of [delegateAuthorization, ownerAuthorization, systemAuthorization]) {
+      await rejects(() => accounts.updateUnifiedAdminAccount({ id: owner.id, roles: ["CONTENT_EDITOR"] }, grant), "最高管理员账号受保护");
+      for (const isActive of [false, true]) {
+        await rejects(() => accounts.updateUnifiedAdminAccount({ id: owner.id, isActive }, grant), "最高管理员账号受保护");
+        await rejects(() => refereeR1Service.setAdminAccountStatus(owner.id, isActive, grant), "最高管理员账号受保护");
+      }
+      await rejects(() => accounts.resetUnifiedAdminPassword({ id: owner.id, password: "Forbidden-Reset-2026!" }, grant), "最高管理员账号受保护");
+      await rejects(() => accounts.deleteUnifiedAdminAccount({ id: owner.id, confirmUsername: "nuaafa" }, grant), "最高管理员账号受保护");
+    }
+    assert(JSON.stringify(await verifier.adminAccount.findUniqueOrThrow({ where: { id: owner.id } })) === JSON.stringify(ownerBefore), "Owner protection changed account data.");
+    assert(await verifier.auditLog.count() === auditCountBefore, "Rejected owner mutations wrote audit records.");
+    assert(rbac.resolveUnifiedAdminRoles({ username: "nuaafa", explicitRoles: ["CONTENT_EDITOR"], legacyRole: "REFEREE_MANAGER" }).join() === "SUPER_ADMIN", "Owner did not retain highest authority.");
+    const listed = await accounts.listUnifiedAdminAccounts(ownerActor);
+    assert(listed[0].id === owner.id && listed[0].isProtected && !listed[0].canManage && listed[0].isCurrent, "Protected owner UI metadata/ordering missing.");
+    await rejects(() => accounts.createUnifiedAdminAccount({ username: " NUAAFA ", displayName: "Forged owner", password: "Forged-Password-2026!", roles: ["SUPER_ADMIN"] }, delegateAuthorization), "系统保留账号");
+    await rejects(() => refereeR1Service.createAdminAccount({ username: "NUAAFA", displayName: "Forged owner", password: "Forged-Password-2026!", role: "SUPER_ADMIN" }, delegateAuthorization), "系统保留账号");
+
+    await verifier.adminSession.create({ data: { adminAccountId: content.id, tokenHash: "password-reset-session", expiresAt: new Date(Date.now() + 60_000) } });
+    const beforeReset = await verifier.adminAccount.findUniqueOrThrow({ where: { id: content.id }, include: { unifiedRoles: true } });
+    await rejects(() => accounts.resetUnifiedAdminPassword({ id: content.id, password: "short" }, ownerAuthorization), "12 至 256");
+    assert(await verifier.adminSession.count({ where: { adminAccountId: content.id } }) === 1, "Failed reset removed a session.");
+    await accounts.resetUnifiedAdminPassword({ id: content.id, password: "Reset-Password-2026!" }, ownerAuthorization);
+    const reset = await verifier.adminAccount.findUniqueOrThrow({ where: { id: content.id } });
+    assert(reset.mustChangePassword && await verifyPassword("Reset-Password-2026!", reset.passwordHash) && reset.passwordHash !== beforeReset.passwordHash, "Password reset did not persist hashed password/required change.");
+    assert(await verifier.adminSession.count({ where: { adminAccountId: content.id } }) === 0, "Password reset left live sessions.");
+    await rejects(() => accounts.deleteUnifiedAdminAccount({ id: explicitSuper.id, confirmUsername: explicitSuper.username }, delegateAuthorization), "不能删除当前登录账号");
+    await rejects(() => accounts.resetUnifiedAdminPassword({ id: explicitSuper.id, password: "Self-Reset-Password!" }, delegateAuthorization), "个人菜单");
+    await accounts.updateUnifiedAdminAccount({ id: explicitSuper.id, roles: ["REFEREE_ADMIN"], isActive: false }, ownerAuthorization);
+    const post = await verifier.contentPost.create({ data: { slug: "retained-after-admin-delete", title: "历史新闻", summary: "保留内容", content: { type: "doc" }, authorAdminId: content.id } });
+    await verifier.adminSession.create({ data: { adminAccountId: content.id, tokenHash: "delete-session", expiresAt: new Date(Date.now() + 60_000) } });
+    await rejects(() => accounts.deleteUnifiedAdminAccount({ id: content.id, confirmUsername: "wrong" }, ownerAuthorization), "完整账号");
+    assert(await verifier.adminSession.count({ where: { adminAccountId: content.id } }) === 1, "Failed delete removed session.");
+    await accounts.deleteUnifiedAdminAccount({ id: content.id, confirmUsername: content.username }, ownerAuthorization);
+    assert(!await verifier.adminAccount.findUnique({ where: { id: content.id } }), "Deleted account persisted.");
+    assert(await verifier.adminRoleAssignment.count({ where: { adminAccountId: content.id } }) === 0, "Delete left role assignments.");
+    assert(await verifier.adminSession.count({ where: { tokenHash: "delete-session" } }) === 0, "Delete left a synthetic legacy session.");
+    assert((await verifier.contentPost.findUniqueOrThrow({ where: { id: post.id } })).authorAdminId === null, "Delete failed to retain historical content.");
+    assert(await verifier.auditLog.count({ where: { entityId: content.id, action: "ADMIN_ACCOUNT_CREATED" } }) === 1, "Delete removed historical audit records.");
+    await rejects(() => accounts.deleteUnifiedAdminAccount({ id: content.id, confirmUsername: content.username }, ownerAuthorization), "不存在");
+    const resetAudit = await verifier.auditLog.findFirstOrThrow({ where: { entityId: content.id, action: "ADMIN_PASSWORD_RESET" } });
+    assert(!JSON.stringify(resetAudit).includes("Reset-Password-2026!") && !JSON.stringify(resetAudit).includes(reset.passwordHash), "Password reset audit leaked credentials.");
+    console.log("PASS protected owner, delegated SUPER_ADMIN restrictions, reserved login, owner authority, password reset/session invalidation, confirmed deletion/history retention");
+
     await rejects(() => accounts.createUnifiedAdminAccount(
       { username: "wrong-role", displayName: "越权账号", password: "Wrong-Role-Password-2026!", roles: ["CONTENT_EDITOR"] },
       capabilities.issueTestAdminServiceAuthorization("system:write", { ...superActor, roles: ["CONTENT_EDITOR"] }),
     ), "没有执行此操作的权限");
 
-    const stored = await verifier.adminAccount.findUniqueOrThrow({ where: { id: content.id }, include: { unifiedRoles: true } });
+    const stored = beforeReset;
     assert(stored.passwordHash !== "Content-Password-2026!" && stored.unifiedRoles.length === 2, "Password hashing or role persistence failed.");
     const auditRows = await verifier.auditLog.findMany({ where: { entityType: "AdminAccount" }, orderBy: { createdAt: "asc" } });
     const auditText = auditRows.map((row) => `${row.summary}\n${row.metadata ?? ""}`).join("\n");

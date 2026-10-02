@@ -719,3 +719,52 @@
   .ops-import-mapping td:nth-child(3)::before { content: "确认真实球队"; }
   .ops-import-mapping select { max-width: 100%; width: 100%; }
 }
+
+/* Account management: scoped controls keep global form input rules off checkboxes. */
+.admin-accounts-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px 0; }
+.admin-accounts-toolbar p { display: grid; gap: 4px; }
+.admin-accounts-toolbar p strong { font-size: 14px; color: #253954; }
+.admin-accounts-toolbar p span { font-size: 12px; color: var(--admin-muted); }
+.admin-accounts-toolbar > button { flex-shrink: 0; }
+.admin-accounts-workspace > .admin-form-message:empty { display: none; }
+.admin-accounts-workspace > .admin-form-message:not(:empty) { margin: 14px 20px; padding: 10px 14px; border-radius: 8px; background: #edf8f3; color: #22674f; }
+.admin-accounts-table { margin-top: 18px; }
+.admin-accounts-table td { vertical-align: middle; }
+.admin-accounts-table tr[data-protected="true"] { background: #f3f7fd; }
+.admin-account-identity { display: flex; align-items: center; gap: 12px; min-width: 170px; }
+.admin-account-avatar { display: grid; place-items: center; flex: 0 0 36px; height: 36px; border-radius: 12px; color: #315f93; background: #e8eff8; font-weight: 800; }
+.admin-account-identity > div { display: grid; gap: 4px; }
+.admin-account-identity small, .admin-account-protected-copy, .admin-account-login { color: var(--admin-muted); font-size: 12px; }
+.admin-account-roles { display: flex; flex-wrap: wrap; gap: 6px; min-width: 145px; }
+.admin-account-roles > span { padding: 4px 8px; border: 1px solid #dfe7f2; border-radius: 6px; background: #f8fafd; color: #45617f; font-size: 12px; font-weight: 650; white-space: nowrap; }
+.admin-account-roles > .admin-owner-badge { color: #775712; border-color: #ead9a7; background: #fff7df; }
+.admin-account-protected-copy { display: block; margin-top: 5px; }
+.admin-account-actions { display: flex; flex-wrap: wrap; gap: 6px; min-width: 260px; }
+.admin-account-actions button { padding: 6px 10px; border: 1px solid #dbe4f0; border-radius: 7px; background: white; color: #315f93; font-size: 12px; font-weight: 650; cursor: pointer; }
+.admin-account-actions button:hover { background: #edf4ff; border-color: #a6bfdc; }
+.admin-account-actions button:focus-visible { outline: 3px solid #a6bfdc; outline-offset: 2px; }
+.admin-account-actions button.admin-account-delete { color: #ad3e46; }
+.admin-account-lock, .admin-account-actions > small { color: var(--admin-muted); font-size: 12px; }
+.admin-account-dialog { width: min(560px, calc(100vw - 32px)); }
+.admin-account-dialog-identity { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; background: #f4f7fb; border-radius: 10px; }
+.admin-account-dialog-identity span { color: var(--admin-muted); font-size: 13px; }
+.admin-account-form .admin-role-selector { gap: 8px; }
+.admin-account-form .admin-role-selector legend { margin-bottom: 12px; font-size: 14px; }
+.admin-account-form .admin-role-selector legend small { margin-left: 8px; font-size: 12px; color: var(--admin-muted); font-weight: 400; }
+.admin-account-form .admin-role-selector label { display: flex; align-items: center; gap: 12px; padding: 14px; background: white; border: 1px solid #dfe6ef; border-radius: 10px; cursor: pointer; }
+.admin-account-form .admin-role-selector label[data-selected="true"] { border-color: #7b9ecb; background: #f0f6ff; }
+.admin-account-form .admin-role-selector label[data-disabled="true"] { opacity: .5; cursor: default; }
+.admin-account-form .admin-role-selector input[type="checkbox"] { flex: 0 0 18px; width: 18px; height: 18px; min-height: 18px; padding: 0; margin: 0; accent-color: #245b9e; }
+.admin-account-form .admin-role-selector label > span { display: grid; gap: 4px; margin: 0; min-width: 0; }
+.admin-account-form .admin-role-selector strong { font-size: 14px; color: #243a54; }
+.admin-account-form .admin-role-selector small, .admin-account-form .admin-role-selector > p { font-size: 12px; font-weight: 400; line-height: 1.6; color: var(--admin-muted); }
+.admin-account-notice { padding: 12px 14px; border-radius: 10px; background: #f1f6fd; color: #45617f; font-size: 13px; line-height: 1.75; }
+.admin-account-danger-notice { background: #fff3f3; color: #9e4148; }
+.admin-account-error { color: #b33d48; font-size: 13px; }
+.admin-account-danger-button { background: #aa3945; border-color: #aa3945; }
+.admin-account-actions button:disabled { opacity: .5; cursor: default; }
+@media (max-width: 600px) {
+  .admin-accounts-toolbar { align-items: flex-start; flex-direction: column; }
+  .admin-accounts-toolbar > button { width: 100%; }
+  .admin-account-dialog-identity { align-items: flex-start; flex-direction: column; }
+}

@@ -4,6 +4,8 @@ import { NextResponse } from "next/server";
 import {
   createUnifiedAdminAccount,
   updateUnifiedAdminAccount,
+  resetUnifiedAdminPassword,
+  deleteUnifiedAdminAccount,
 } from "@/lib/unified-admin-account-service";
 import {
   authorizeUnifiedAdminServiceRequest,
@@ -65,6 +67,15 @@ export async function PATCH(request: Request) {
   try {
     const { authorization } = await authorizeUnifiedAdminServiceRequest(request, "system:write", { mutation: true });
     const body = await readBody(request);
+    if (body.action === "reset-password") {
+      const input = readInput(() => ({
+        id: readShortText(body.id, "管理员账号", 64),
+        password: readShortText(body.password, "初始密码", 256),
+      }));
+      await resetUnifiedAdminPassword(input, authorization);
+      return NextResponse.json({ ok: true });
+    }
+    if (body.action !== undefined) throw new UnifiedAdminInputError("管理员操作无效。");
     const hasRoles = Object.hasOwn(body, "roles");
     const hasStatus = Object.hasOwn(body, "isActive");
     if (!hasRoles && !hasStatus) throw new UnifiedAdminInputError("没有需要更新的管理员账号内容。");
@@ -77,5 +88,20 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ ok: true, account });
   } catch (error) {
     return unifiedAdminErrorResponse(error, "管理员账号更新失败。");
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { authorization } = await authorizeUnifiedAdminServiceRequest(request, "system:write", { mutation: true });
+    const body = await readBody(request);
+    const input = readInput(() => ({
+      id: readShortText(body.id, "管理员账号", 64),
+      confirmUsername: readShortText(body.confirmUsername, "确认账号", 64),
+    }));
+    await deleteUnifiedAdminAccount(input, authorization);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return unifiedAdminErrorResponse(error, "管理员账号删除失败。");
   }
 }

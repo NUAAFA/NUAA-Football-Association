@@ -1,5 +1,6 @@
 import type { UnifiedAdminRole } from "@/generated/prisma-v29/client";
 import { prisma } from "@/lib/prisma";
+import { protectedAdminUsername } from "@/lib/admin-account-protection";
 import { getAdminActor, getAdminSession } from "@/lib/referee-auth";
 
 export type UnifiedAdminPermission =
@@ -94,7 +95,9 @@ export function resolveUnifiedAdminRoles(input: {
   explicitRoles: readonly UnifiedAdminRole[];
   legacyRole?: "SUPER_ADMIN" | "REFEREE_MANAGER";
   isLegacy?: boolean;
+  username?: string;
 }) {
+  if (input.username === protectedAdminUsername) return ["SUPER_ADMIN"] satisfies UnifiedAdminRole[];
   if (input.isLegacy) return ["SUPER_ADMIN"] satisfies UnifiedAdminRole[];
   if (input.explicitRoles.includes("SUPER_ADMIN")) {
     return ["SUPER_ADMIN"] satisfies UnifiedAdminRole[];
@@ -159,6 +162,7 @@ export async function getUnifiedAdminActor(
       explicitRoles: assignments.map(({ role }) => role),
       legacyRole: legacyActor.role,
       isLegacy: legacyActor.isLegacy,
+      username: currentSession.adminAccount?.username,
     }),
   };
 }

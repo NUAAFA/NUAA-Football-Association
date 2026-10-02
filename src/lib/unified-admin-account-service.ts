@@ -1,6 +1,7 @@
 import type { UnifiedAdminRole } from "@/generated/prisma-v29/client";
 
 import { prisma } from "@/lib/prisma";
+import { assertAdminAccountMutable, assertAdminUsernameAvailable, isProtectedAdminAccount } from "@/lib/admin-account-protection";
 import { hashPassword } from "@/lib/referee-security";
 import { RefereeServiceError } from "@/lib/referee-service-error";
 import {
@@ -39,10 +40,12 @@ function legacyRoleFor(roles: readonly UnifiedAdminRole[]) {
 }
 
 function effectiveRoles(account: {
+  username: string;
   role: "SUPER_ADMIN" | "REFEREE_MANAGER";
   unifiedRoles: Array<{ role: UnifiedAdminRole }>;
 }) {
   return resolveUnifiedAdminRoles({
+    username: account.username,
     explicitRoles: account.unifiedRoles.map(({ role }) => role),
     legacyRole: account.role,
   });
@@ -65,9 +68,12 @@ export async function listUnifiedAdminAccounts(actor: UnifiedAdminActor) {
     select: accountSelect,
     orderBy: { username: "asc" },
   });
-  return accounts.map((account) => ({
+  return accounts.sort((a, b) => Number(isProtectedAdminAccount(b)) - Number(isProtectedAdminAccount(a))).map((account) => ({
     ...account,
     roles: effectiveRoles(account),
+    isProtected: isProtectedAdminAccount(account),
+    canManage: !isProtectedAdminAccount(account),
+    isCurrent: actor.id === account.id,
   }));
 }
 
@@ -79,6 +85,7 @@ export async function createUnifiedAdminAccount(input: {
 }, authorization: AdminServiceAuthorization<"system:write">) {
   const actor = requireAdminServiceAuthorization(authorization, "system:write");
   const username = input.username.trim().toLowerCase();
+  assertAdminUsernameAvailable(username);
   const displayName = input.displayName.trim();
   const roles = assertRoles(input.roles);
   if (!/^[a-z0-9._-]{3,64}$/.test(username)) {
@@ -140,6 +147,7 @@ export async function updateUnifiedAdminAccount(input: {
     });
     const current = accounts.find((account) => account.id === input.id);
     if (!current) throw new RefereeServiceError("管理员账号不存在。", 404);
+    assertAdminAccountMutable(current);
     if (actor.id === current.id && input.isActive === false) {
       throw new RefereeServiceError("不能停用当前登录账号。");
     }
@@ -214,5 +222,58 @@ export async function updateUnifiedAdminAccount(input: {
       });
     }
     return { ...account, roles: nextRoles };
+  });
+}
+
+export async function resetUnifiedAdminPassword(input: {
+  id: string;
+  password: string;
+}, authorization: AdminServiceAuthorization<"system:write">) {
+  const actor = requireAdminServiceAuthorization(authorization, "system:write");
+  if (input.password.length < 12 || input.password.length > 256) {
+    throw new RefereeServiceError("管理员初始密码须为 12 至 256 个字符。");
+  }
+  const passwordHash = await hashPassword(input.password);
+  await prisma.$transaction(async (tx) => {
+    const account = await tx.adminAccount.findUnique({ where: { id: input.id }, select: accountSelect });
+    if (!account) throw new RefereeServiceError("管理员账号不存在。", 404);
+    assertAdminAccountMutable(account);
+    if (actor.id === account.id) throw new RefereeServiceError("请通过个人菜单修改自己的密码。");
+    await tx.adminSession.deleteMany({ where: { adminAccountId: account.id } });
+    await tx.adminAccount.update({ where: { id: account.id }, data: { passwordHash, mustChangePassword: true } });
+    await tx.auditLog.create({ data: {
+      actorType: "ADMIN", actorId: actor.id, action: "ADMIN_PASSWORD_RESET",
+      entityType: "AdminAccount", entityId: account.id,
+      summary: `重置管理员账号 ${account.username} 的密码`,
+      metadata: safeMetadata({ accountId: account.id, username: account.username }),
+    } });
+  });
+}
+
+export async function deleteUnifiedAdminAccount(input: {
+  id: string;
+  confirmUsername: string;
+}, authorization: AdminServiceAuthorization<"system:write">) {
+  const actor = requireAdminServiceAuthorization(authorization, "system:write");
+  await prisma.$transaction(async (tx) => {
+    const accounts = await tx.adminAccount.findMany({ select: accountSelect });
+    const account = accounts.find(({ id }) => id === input.id);
+    if (!account) throw new RefereeServiceError("管理员账号不存在。", 404);
+    assertAdminAccountMutable(account);
+    if (actor.id === account.id) throw new RefereeServiceError("不能删除当前登录账号。");
+    if (input.confirmUsername !== account.username) throw new RefereeServiceError("请输入要删除的完整账号以确认。");
+    if (!accounts.some((other) => other.id !== account.id && other.isActive && effectiveRoles(other).includes("SUPER_ADMIN"))) {
+      throw new RefereeServiceError("系统必须保留至少一个已启用的超级管理员。", 409);
+    }
+    // Delete sessions first: the legacy nullable FK must never turn a deleted
+    // named account's session into a privileged synthetic legacy session.
+    await tx.adminSession.deleteMany({ where: { adminAccountId: account.id } });
+    await tx.adminAccount.delete({ where: { id: account.id } });
+    await tx.auditLog.create({ data: {
+      actorType: "ADMIN", actorId: actor.id, action: "ADMIN_ACCOUNT_DELETED",
+      entityType: "AdminAccount", entityId: account.id,
+      summary: `删除管理员账号 ${account.username}（${account.displayName}），保留业务历史`,
+      metadata: safeMetadata({ accountId: account.id, username: account.username, roles: effectiveRoles(account), isActive: account.isActive }),
+    } });
   });
 }
