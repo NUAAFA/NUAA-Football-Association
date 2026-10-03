@@ -2,8 +2,6 @@ import { spawn } from "node:child_process";
 import { rm } from "node:fs/promises";
 import path from "node:path";
 
-import { createClient } from "@libsql/client";
-
 async function removeDatabase(databasePath: string) {
   for (const target of [databasePath, `${databasePath}-wal`, `${databasePath}-shm`]) {
     await rm(target, { force: true, maxRetries: 10, retryDelay: 100 });
@@ -26,6 +24,37 @@ async function runPrisma(args: string[], databaseUrl: string) {
   if (exitCode !== 0) throw new Error(`prisma ${args.join(" ")} failed with exit code ${exitCode}.`);
 }
 
+async function checkDatabase(databaseUrl: string) {
+  // Native SQLite handles may outlive client.close() on Windows. A separate
+  // process guarantees handle release before the parent removes the fixture.
+  const probe = `
+    import { createClient } from "@libsql/client";
+    const client = createClient({ url: process.argv[1] });
+    try {
+      const integrity = await client.execute("PRAGMA integrity_check");
+      const foreignKeys = await client.execute("PRAGMA foreign_key_check");
+      if (integrity.rows[0].integrity_check !== "ok") throw new Error("Fresh database integrity_check failed.");
+      if (foreignKeys.rows.length) throw new Error("Fresh database contains foreign key violations.");
+      console.log(JSON.stringify({
+        freshMigrationDeploy: true,
+        prismaMigrateStatusUpToDate: true,
+        integrityCheck: "ok",
+        foreignKeyViolations: 0,
+      }, null, 2));
+    } finally {
+      client.close();
+    }
+  `;
+  const exitCode = await new Promise<number>((resolve, reject) => {
+    const child = spawn(process.execPath, ["--input-type=module", "-e", probe, databaseUrl], {
+      stdio: "inherit",
+    });
+    child.once("error", reject);
+    child.once("exit", (code) => resolve(code ?? 1));
+  });
+  if (exitCode !== 0) throw new Error(`Fresh database integrity probe failed with exit code ${exitCode}.`);
+}
+
 async function main() {
   const databasePath = path.resolve("prisma/r13a-fresh2.db");
   const prismaDirectory = `${path.resolve("prisma")}${path.sep}`;
@@ -43,18 +72,7 @@ async function main() {
   try {
     await runPrisma(["migrate", "deploy"], prismaDatabaseUrl);
     await runPrisma(["migrate", "status"], prismaDatabaseUrl);
-    const client = createClient({ url: databaseUrl });
-    const integrity = await client.execute("PRAGMA integrity_check");
-    const foreignKeys = await client.execute("PRAGMA foreign_key_check");
-    client.close();
-    if (integrity.rows[0].integrity_check !== "ok") throw new Error("Fresh database integrity_check failed.");
-    if (foreignKeys.rows.length) throw new Error("Fresh database contains foreign key violations.");
-    console.log(JSON.stringify({
-      freshMigrationDeploy: true,
-      prismaMigrateStatusUpToDate: true,
-      integrityCheck: "ok",
-      foreignKeyViolations: 0,
-    }, null, 2));
+    await checkDatabase(databaseUrl);
   } finally {
     await removeDatabase(databasePath);
   }
