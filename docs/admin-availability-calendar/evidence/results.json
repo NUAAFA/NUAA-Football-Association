@@ -1,0 +1,11 @@
+{
+  "status": "PASS",
+  "results": [
+    "HTTP: 401/403/400/404, GET without Origin, complete month with both kinds, existing paged endpoint preserved",
+    "1440x900: full calendar, day selection, multi-day records, month switching, dialog bounds/overflow and keyboard focus",
+    "1024x768: full calendar, day selection, multi-day records, month switching, dialog bounds/overflow and keyboard focus",
+    "390x700: full calendar, day selection, multi-day records, month switching, dialog bounds/overflow and keyboard focus",
+    "360x700: full calendar, day selection, multi-day records, month switching, dialog bounds/overflow and keyboard focus"
+  ],
+  "errors": []
+}

@@ -1,5 +1,6 @@
 import { Prisma } from "@/generated/prisma-v29/client";
 import { prisma } from "@/lib/prisma";
+import { calendarDays, calendarDayBounds, shiftCalendarDay } from "@/lib/referee-availability-calendar";
 
 export type AvailabilityKindFilter = "AVAILABLE" | "UNAVAILABLE" | "";
 function dayStart(value: string) { return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00+08:00`)) ? new Date(`${value}T00:00:00+08:00`) : null; }
@@ -58,4 +59,20 @@ export async function getAdminAvailabilityDetail(refereeId: string, input: { dat
   const records = await prisma.refereeAvailability.findMany({ where, orderBy: [{ startAt: "asc" }, { id: "asc" }], skip: (page - 1) * pageSize, take: pageSize,
     select: { id: true, refereeId: true, kind: true, startAt: true, endAt: true, competitionFormat: true, note: true } });
   return { referee, records, total, page, pageSize, totalPages };
+}
+
+// Read the complete visible calendar interval, including overlapping multi-day records.
+// Table filters must not hide the opposite kind or other days inside the month.
+export async function getAdminAvailabilityCalendar(refereeId: string, month: string) {
+  const days = calendarDays(month);
+  const start = new Date(calendarDayBounds(days[0]).start);
+  const end = new Date(calendarDayBounds(shiftCalendarDay(days.at(-1)!, 1)).start);
+  const referee = await prisma.referee.findUnique({ where: { id: refereeId }, select: { id: true, status: true } });
+  if (!referee || referee.status === "ARCHIVED") return null;
+  const records = await prisma.refereeAvailability.findMany({
+    where: { refereeId, startAt: { lt: end }, endAt: { gt: start } },
+    orderBy: [{ startAt: "asc" }, { id: "asc" }],
+    select: { id: true, refereeId: true, kind: true, startAt: true, endAt: true, competitionFormat: true, note: true },
+  });
+  return { month, records };
 }
