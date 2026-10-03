@@ -94,7 +94,6 @@ async function securityGate() {
     "@tiptap/starter-kit",
     "baseline-browser-mapping",
     "deepmerge-ts",
-    "fast-uri",
     "mysql2",
     "prisma",
   ];
@@ -106,12 +105,6 @@ async function securityGate() {
     ],
     "baseline-browser-mapping": ["https://github.com/advisories/GHSA-w5vr-8v7q-w6rv"],
     "deepmerge-ts": ["https://github.com/advisories/GHSA-ggr8-5vv4-36mx"],
-    "fast-uri": [
-      "https://github.com/advisories/GHSA-5jgf-p345-68v8",
-      "https://github.com/advisories/GHSA-f65p-4m7j-42xc",
-      "https://github.com/advisories/GHSA-fph4-wmhf-6fwf",
-      "https://github.com/advisories/GHSA-jqff-g426-hqxp",
-    ],
     mysql2: [
       "https://github.com/advisories/GHSA-3f6p-5ww8-9rcr",
       "https://github.com/advisories/GHSA-rgwj-5xj2-c3m3",
@@ -128,11 +121,11 @@ async function securityGate() {
     audit.code !== 0 ||
     names.join("\n") !== expected.join("\n") ||
     metadata?.critical !== 0 ||
-    metadata?.high !== 6 ||
+    metadata?.high !== 5 ||
     metadata?.moderate !== 28 ||
     Object.entries(expectedAdvisories).some(([name, urls]) => actualAdvisories[name].join("\n") !== [...urls].sort().join("\n"))
   ) {
-    throw new Error("Production dependency critical gate or documented advisory inventory differs from the reviewed restoration disposition.");
+    throw new Error("Production dependency critical gate or documented advisory inventory differs from the reviewed dependency disposition.");
   }
   logGate("Critical dependencies 0; documented advisory inventory exact", "KNOWN-ADVISORIES");
   return "READY_WITH_DOCUMENTED_ADVISORIES";
@@ -142,7 +135,7 @@ async function main() {
   if (process.version !== expectedNode) throw new Error(`Node ${expectedNode} is mandatory; current ${process.version}.`);
   logGate(`Node ${expectedNode}`, "PASS");
   const securityClassification = await securityGate();
-  await npm(["ls", "prisma", "@prisma/config", "deepmerge-ts"], "Dependency path");
+  await npm(["ls", "prisma", "@prisma/config", "deepmerge-ts", "fast-uri"], "Dependency path");
   await run(process.execPath, [path.resolve("node_modules/prisma/build/index.js"), "format", "--check"], "Prisma format");
   await run(process.execPath, [path.resolve("node_modules/prisma/build/index.js"), "validate"], "Prisma validate");
   await run(process.execPath, [path.resolve("node_modules/prisma/build/index.js"), "generate"], "Prisma generate");
