@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { availabilityDayState, availabilityDayTime, beijingDateKey, calendarDays, recordsOnCalendarDay } from "../src/lib/referee-availability-calendar";
+import { availabilityDayState, availabilityDayTime, beijingCalendarDateTime, beijingDateKey, calendarDays, isFullCalendarDay, recordsOnCalendarDay } from "../src/lib/referee-availability-calendar";
 
 async function main() {
   const root = await mkdtemp(path.join(os.tmpdir(), "nuaafa-availability-calendar-"));
@@ -41,6 +41,21 @@ async function main() {
     assert.equal(availabilityDayState(day("2026-10-03"), "2026-10-03"), "window");
     assert.equal(availabilityDayState(day("2026-10-26"), "2026-10-26"), "unset");
     assert.equal(availabilityDayTime(day("2026-10-01")[0], "2026-10-01"), "全天");
+    const segment = (start: string, end: string, kind = "UNAVAILABLE") => ({ id: start, refereeId: referee.id, kind, startAt: `2026-10-10T${start}:00+08:00`, endAt: end === "24:00" ? "2026-10-11T00:00:00+08:00" : `2026-10-10T${end}:00+08:00`, competitionFormat: null, note: null });
+    assert.equal(availabilityDayState([segment("00:00", "07:00"), segment("07:00", "24:00")], "2026-10-10"), "unavailable");
+    assert.equal(availabilityDayState([segment("07:00", "24:00")], "2026-10-10"), "window");
+    assert.equal(availabilityDayState([segment("00:00", "07:00"), segment("07:01", "24:00")], "2026-10-10"), "window");
+    assert.equal(availabilityDayState([segment("00:00", "08:00", "AVAILABLE"), segment("08:00", "24:00", "AVAILABLE")], "2026-10-10"), "available");
+    const fullDay = { ...segment("00:00", "24:00"), startAt: beijingCalendarDateTime("2026-10-25", "00:00"), endAt: beijingCalendarDateTime("2026-10-26", "00:00") };
+    assert.equal(fullDay.startAt, "2026-10-24T16:00:00.000Z");
+    assert.equal(Date.parse(fullDay.endAt) - Date.parse(fullDay.startAt), 86400000); // UK DST transition must not turn Beijing all-day into 25 hours.
+    assert(isFullCalendarDay(fullDay));
+    assert.equal(recordsOnCalendarDay([fullDay], "2026-10-26").length, 0);
+    const timezoneCheck = `import assert from 'node:assert/strict'; import {beijingCalendarDateTime,isFullCalendarDay,calendarClock} from './src/lib/referee-availability-calendar.ts'; const r={startAt:beijingCalendarDateTime('2026-10-25','00:00'),endAt:beijingCalendarDateTime('2026-10-26','00:00')}; assert.equal(r.startAt,'2026-10-24T16:00:00.000Z'); assert(isFullCalendarDay(r)); assert.equal(calendarClock(beijingCalendarDateTime('2026-10-25','09:00')),'09:00');`;
+    for (const zone of ["Europe/London", "Asia/Shanghai", "America/Los_Angeles"]) {
+      const check = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", timezoneCheck], { env: { ...process.env, TZ: zone }, encoding: "utf8" });
+      assert.equal(check.status, 0, zone + check.stdout + check.stderr);
+    }
     assert.equal(availabilityDayTime(day("2026-09-28")[0], "2026-09-28"), "00:00–02:00");
     assert(!day("2026-09-29").some((r) => r.id === crossDay.id));
     const november = await getAdminAvailabilityCalendar(referee.id, "2026-11");
@@ -53,10 +68,11 @@ async function main() {
     const { hashPassword } = await import("../src/lib/referee-security");
     const password = "Calendar-Isolated-verify-only!";
     const passwordHash = await hashPassword(password);
+    await prisma.referee.update({ where: { id: referee.id }, data: { studentId: "2026000001", passwordHash, mustChangePassword: false } });
     await prisma.adminAccount.create({ data: { username: "calendar-super", displayName: "隔离验收", passwordHash, role: "SUPER_ADMIN" } });
     await prisma.adminAccount.create({ data: { username: "calendar-content", displayName: "无裁判权限", passwordHash, role: "REFEREE_MANAGER", unifiedRoles: { create: { role: "CONTENT_EDITOR" } } } });
     await writeFile(path.join(root, "fixture.json"), JSON.stringify({ root, databaseUrl: process.env.DATABASE_URL, refereeId: referee.id, archivedId: archived.id, partialId: partial.id, password }, null, 2));
-    console.log("PASS: complete month beyond 20 records, Beijing dates, mixed/partial states, cross-day and midnight boundaries, leap year, referee isolation, safe DTO and archived/missing referee");
+    console.log("PASS: complete month, Beijing all-day across 3 timezones and UK DST, continuous coverage/gaps, cross-day boundaries, referee isolation and safe DTO");
     console.log(`ISOLATED_FIXTURE=${root}`);
   } finally { await prisma.$disconnect(); }
 }

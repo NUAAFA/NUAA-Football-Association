@@ -15,7 +15,7 @@ const out = path.resolve('docs/admin-availability-calendar/evidence');
 await mkdir(out, { recursive: true });
 const port = Number(process.env.CALENDAR_TEST_PORT ?? 3197), origin = `http://127.0.0.1:${port}`;
 const server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '-H', '127.0.0.1', '-p', String(port)], {
-  env: { ...process.env, NODE_ENV: 'production', DATABASE_URL: info.databaseUrl, NUAAFA_UPLOAD_DIR: path.join(root, 'uploads'), REFEREE_ADMIN_SESSION_SECRET: 'calendar-isolated-test-session-secret-32-characters' }, stdio: ['ignore', 'pipe', 'pipe'],
+  env: { ...process.env, NODE_ENV: 'production', DATABASE_URL: info.databaseUrl, NUAAFA_UPLOAD_DIR: path.join(root, 'uploads'), REFEREE_ADMIN_SESSION_SECRET: 'calendar-isolated-test-session-secret-32-characters', REFEREE_MEMBER_SESSION_SECRET: 'calendar-isolated-member-secret-32-characters' }, stdio: ['ignore', 'pipe', 'pipe'],
 });
 let serverLog = '', browser, complete = false;
 server.stdout.on('data', (c) => serverLog += c); server.stderr.on('data', (c) => serverLog += c);
@@ -105,6 +105,49 @@ try {
     assert.notEqual(await page.evaluate(() => document.body.style.position), 'fixed');
     await context.close(); results.push(`${width}x${height}: full calendar, day selection, multi-day records, month switching, dialog bounds/overflow and keyboard focus`);
   }
+  const verifier = await loggedIn('calendar-super');
+  for (const [zone, day] of [['Europe/London', '2026-10-28'], ['Asia/Shanghai', '2026-10-29'], ['America/Los_Angeles', '2026-10-30']]) {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, timezoneId: zone });
+    const login = await context.request.post(origin + '/api/referees/login', { headers: { origin: 'https://nuaafa.cn' }, data: { studentId: '2026000001', password: info.password } });
+    assert.equal(login.status(), 200, await login.text());
+    const cookie = login.headers()['set-cookie'].split(';')[0], split = cookie.indexOf('=');
+    await context.addCookies([{ name: cookie.slice(0, split), value: cookie.slice(split + 1), url: origin, httpOnly: true, secure: false, sameSite: 'Lax' }]);
+    await context.route(origin + '/api/**', async (route) => {
+      if (route.request().method() === 'GET') return route.continue();
+      const response = await route.fetch({ headers: { ...await route.request().allHeaders(), origin: 'https://nuaafa.cn' } });
+      await route.fulfill({ response });
+    });
+    const page = await context.newPage(); page.on('pageerror', (e) => errors.push(e.message));
+    await page.goto(origin + '/referees/workspace/availability');
+    const grid = page.getByRole('region', { name: '可执裁时间月历' });
+    const month = day.slice(0, 7);
+    for (let attempts = 0; !(await grid.getByRole('button', { name: day + '，未设置', exact: true }).count()); attempts++) {
+      assert(attempts < 24);
+      const heading = await grid.getByRole('heading').innerText();
+      const match = /^(\d+) 年 (\d+) 月$/.exec(heading); assert(match, heading);
+      await grid.getByRole('button', { name: `${match[1]}-${match[2].padStart(2, '0')}` < month ? '下个月' : '上个月', exact: true }).click();
+    }
+    await grid.getByRole('button', { name: day + '，未设置', exact: true }).click();
+    await page.getByRole('radio', { name: /整天不可执裁/ }).check();
+    await page.getByRole('button', { name: '保存此日期', exact: true }).click();
+    await grid.getByRole('button', { name: day + '，不可执裁', exact: true }).waitFor();
+    const editor = page.locator('.referee-availability-editor');
+    assert(await editor.getByText('整天不可执裁', { exact: true }).last().isVisible());
+    assert(await editor.getByText('全天 · 两种制式', { exact: true }).isVisible());
+    const saved = await (await verifier.request.get(origin + apiPath + '?month=2026-10')).json();
+    const expectedStart = new Date(day + 'T00:00:00+08:00').toISOString();
+    const record = saved.records.find((r) => r.kind === 'UNAVAILABLE' && r.startAt === expectedStart);
+    assert(record, JSON.stringify(saved)); assert.equal(Date.parse(record.endAt) - Date.parse(record.startAt), 86400000);
+    const adminPage = await verifier.newPage(); await adminPage.goto(origin + '/admin/referees/availability?date=' + day);
+    await adminPage.getByRole('button', { name: '查看详情', exact: true }).click();
+    const dialog = adminPage.getByRole('dialog');
+    await dialog.getByRole('button', { name: day + '，不可执裁', exact: true }).waitFor();
+    assert.equal(await dialog.getByRole('region', { name: '当日时间记录' }).locator('article').count(), 1);
+    assert(await dialog.getByRole('heading', { name: '全天', exact: true }).isVisible());
+    await adminPage.screenshot({ path: path.join(out, `all-day-${zone.replaceAll('/', '-')}.png`) });
+    await adminPage.close(); await context.close(); results.push(zone + ': actual member all-day save, canonical UTC+8 storage, one red all-day admin record');
+  }
+  await verifier.close();
   assert.deepEqual(errors, []); complete = true;
   console.log('PASS: authenticated month API, 4 viewport browser checks in Europe/London, error/retry, deletion refresh and dialog accessibility');
 } finally {

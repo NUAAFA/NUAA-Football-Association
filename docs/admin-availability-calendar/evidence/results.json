@@ -5,7 +5,10 @@
     "1440x900: full calendar, day selection, multi-day records, month switching, dialog bounds/overflow and keyboard focus",
     "1024x768: full calendar, day selection, multi-day records, month switching, dialog bounds/overflow and keyboard focus",
     "390x700: full calendar, day selection, multi-day records, month switching, dialog bounds/overflow and keyboard focus",
-    "360x700: full calendar, day selection, multi-day records, month switching, dialog bounds/overflow and keyboard focus"
+    "360x700: full calendar, day selection, multi-day records, month switching, dialog bounds/overflow and keyboard focus",
+    "Europe/London: actual member all-day save, canonical UTC+8 storage, one red all-day admin record",
+    "Asia/Shanghai: actual member all-day save, canonical UTC+8 storage, one red all-day admin record",
+    "America/Los_Angeles: actual member all-day save, canonical UTC+8 storage, one red all-day admin record"
   ],
   "errors": []
 }

@@ -31,16 +31,39 @@ export function calendarDayBounds(day: string) {
   const start = new Date(`${day}T00:00:00+08:00`).getTime();
   return { start, end: start + 86400000 };
 }
+export function beijingCalendarDateTime(day: string, time: string) {
+  return new Date(`${day}T${time}:00+08:00`).toISOString();
+}
+export function calendarClock(value: string) {
+  return clockFormatter.format(new Date(value));
+}
+export function isFullCalendarDay(record: Pick<CalendarAvailabilityRecord, "startAt" | "endAt">) {
+  const from = Date.parse(record.startAt), to = Date.parse(record.endAt);
+  const { start, end } = calendarDayBounds(beijingDateKey(new Date(from)));
+  return from === start && to === end;
+}
 export function recordsOnCalendarDay(records: CalendarAvailabilityRecord[], day: string) {
   const { start, end } = calendarDayBounds(day);
   return records.filter((r) => Date.parse(r.startAt) < end && Date.parse(r.endAt) > start);
 }
 export function availabilityDayState(records: CalendarAvailabilityRecord[], day: string): AvailabilityCalendarState {
   const { start, end } = calendarDayBounds(day);
-  const coversDay = (r: CalendarAvailabilityRecord) => Date.parse(r.startAt) <= start && Date.parse(r.endAt) >= end;
-  if (records.some((r) => r.kind === "UNAVAILABLE" && coversDay(r))) return "unavailable";
-  if (!records.length) return "unset";
-  if (!records.some((r) => r.kind === "UNAVAILABLE") && records.some((r) => r.kind === "AVAILABLE" && coversDay(r))) return "available";
+  const overlapping = recordsOnCalendarDay(records, day);
+  const coversDay = (kind: string) => {
+    const windows = overlapping.filter((r) => r.kind === kind)
+      .map((r) => ({ from: Math.max(start, Date.parse(r.startAt)), to: Math.min(end, Date.parse(r.endAt)) }))
+      .sort((a, b) => a.from - b.from);
+    let coveredUntil = start;
+    for (const window of windows) {
+      if (window.from > coveredUntil) return false;
+      coveredUntil = Math.max(coveredUntil, window.to);
+      if (coveredUntil >= end) return true;
+    }
+    return false;
+  };
+  if (coversDay("UNAVAILABLE")) return "unavailable";
+  if (!overlapping.length) return "unset";
+  if (!overlapping.some((r) => r.kind === "UNAVAILABLE") && coversDay("AVAILABLE")) return "available";
   return "window";
 }
 export function availabilityDayTime(record: CalendarAvailabilityRecord, day: string) {
