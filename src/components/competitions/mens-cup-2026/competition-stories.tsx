@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { ArchiveDocuments } from "@/components/competitions/archive/archive-documents";
 import { ArchiveGallery } from "@/components/competitions/archive/archive-gallery";
 import { mensIntercollegeCup2026 } from "@/data/mens-intercollege-cup-2026";
 import type { ArchiveGalleryImage } from "@/types";
@@ -58,10 +59,10 @@ export function CompetitionStories() {
       <section className="cup-archive-section cup-archive-section-tint" id="media" aria-labelledby="cup-media-title">
         <div className="page-shell">
           <div className="cup-section-heading"><div><p>PHOTO ARCHIVE</p><h2 id="cup-media-title">赛事影像</h2></div><span>查看赛前、比赛与收官阶段的赛事影像。</span></div>
-          <ArchiveGallery images={gallery} ariaLabel="2026男子足球院际杯赛事照片" />
-          <div className="cup-document-callout"><div><p>OFFICIAL DOCUMENT</p><h3>赛事秩序册</h3><span>下载赛事秩序册，查看赛事组织与竞赛资料。</span></div><a href={competition.guidebook} download>下载 PDF <span aria-hidden="true">↓</span></a></div>
+          <ArchiveGallery images={gallery} showCaptions ariaLabel="2026男子足球院际杯赛事照片" />
         </div>
       </section>
+      <ArchiveDocuments href={competition.guidebook} source={competition.source} />
     </>
   );
 }

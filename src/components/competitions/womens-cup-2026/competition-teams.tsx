@@ -8,7 +8,7 @@ export function WomensCompetitionTeams() {
       <div className="page-shell">
         <div className="cup-section-heading">
           <div><p>TEAMS & RECORDS</p><h2 id="womens-teams-title">球队名单与赛事记录</h2></div>
-          <span>赛事汇总记录24名注册球员，下方展示公开名单信息。</span>
+          <span>赛事汇总记录24名注册球员，公开名单来源尚不完整，下方仅展示已公开信息。</span>
         </div>
         <div className="cup-team-list cup-womens-roster-list">
           {rosters.map((roster, index) => (
@@ -21,11 +21,11 @@ export function WomensCompetitionTeams() {
               </summary>
               <div className="cup-team-roster">
                 <section>
-                  <h4>球员名单</h4>
+                  <h3>球员名单</h3>
                   {roster.players.length ? <div>{roster.players.map((player) => <span key={`${roster.team}-${player.number}`}><b>{player.number}</b>{player.name}</span>)}</div> : <p>暂无公开球员姓名。</p>}
                 </section>
                 <section>
-                  <h4>工作人员</h4>
+                  <h3>工作人员</h3>
                   {roster.staff.length ? <div>{roster.staff.map((person) => <span key={`${person.role}-${person.name}`}><b>{person.role}</b>{person.name}</span>)}</div> : <p>暂无公开工作人员姓名。</p>}
                 </section>
               </div>

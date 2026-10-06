@@ -1,0 +1,178 @@
+/* Rich archive presentation is opt-in and scoped to the two real 2026 cups. */
+:global(html):has(.page) { scroll-behavior: auto; }
+.page {
+  --archive-nav-height: 52px;
+  background: var(--color-surface-canvas);
+  color: var(--color-text-strong);
+}
+.header { padding-block: var(--spacing-4) var(--spacing-5); background: var(--color-surface-raised); border-bottom: 1px solid var(--color-border-subtle); }
+.breadcrumbs { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-3); color: var(--color-text-muted); font-size: var(--font-size-caption); }
+.breadcrumbs a { display: inline-flex; align-items: center; min-height: 44px; color: var(--color-brand-action); }
+.identity { display: grid; grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr); gap: var(--spacing-7); align-items: center; padding-block: var(--spacing-3) var(--spacing-5); }
+.identityMeta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-3); }
+.identityMeta p { color: var(--color-brand-action); font-size: var(--font-size-caption); font-weight: var(--font-weight-bold); letter-spacing: var(--letter-spacing-label); }
+.identityMeta > span { padding: var(--spacing-1) var(--spacing-2); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-control); color: var(--color-text-body); font-size: var(--font-size-caption); }
+.identity h1 { margin-top: var(--spacing-3); max-width: 26em; font-size: clamp(1.8rem, 2.9vw, 2.5rem); line-height: 1.35; font-weight: var(--font-weight-heavy); letter-spacing: var(--letter-spacing-heading); }
+.description { margin-top: var(--spacing-3); color: var(--color-text-body); font-size: var(--font-size-meta); line-height: var(--line-height-reading); }
+.actions { display: flex; flex-wrap: wrap; gap: var(--spacing-3); margin-top: var(--spacing-4); }
+.actions a { display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-4); min-height: 44px; padding: var(--spacing-2) var(--spacing-4); border: 1px solid var(--color-border-strong); border-radius: var(--radius-control); color: var(--color-brand-action); font-size: var(--font-size-action); font-weight: var(--font-weight-bold); }
+.actions a:first-child { background: var(--color-brand-action); border-color: var(--color-brand-action); color: var(--color-text-on-dark); }
+.headerImage { position: relative; height: 230px; margin: 0; overflow: hidden; border-radius: var(--radius-card); background: var(--color-brand-deep); }
+.headerImage img { object-fit: cover; object-position: center 55%; }
+.headerImage figcaption { position: absolute; inset: auto 0 0; padding: var(--spacing-3); background: linear-gradient(transparent, rgba(7,21,47,.85)); color: var(--color-text-on-dark); font-size: var(--font-size-caption); }
+.summary { display: grid; grid-template-columns: 1.2fr 1.3fr 1fr .7fr; margin: 0; border-block: 1px solid var(--color-border-subtle); font-variant-numeric: tabular-nums; }
+.summary > div { padding: var(--spacing-3) var(--spacing-4); border-right: 1px solid var(--color-border-subtle); }
+.summary > div:first-child { padding-left: 0; }
+.summary > div:last-child { border-right: 0; }
+.summary dt { color: var(--color-text-muted); font-size: var(--font-size-caption); }
+.summary dd { margin: var(--spacing-1) 0 0; font-size: var(--font-size-meta); font-weight: var(--font-weight-bold); }
+.navigation { position: sticky; z-index: 45; top: var(--header-height); min-height: var(--archive-nav-height); background: var(--color-surface-raised); border-bottom: 1px solid var(--color-border-subtle); scroll-margin-top: var(--header-height); }
+.desktopNavigation { display: flex; overflow-x: auto; }
+.navigation a { flex: 1 0 auto; display: flex; align-items: center; justify-content: center; min-height: 52px; padding-inline: var(--spacing-3); border-bottom: 2px solid transparent; color: var(--color-text-body); font-size: var(--font-size-action); font-weight: var(--font-weight-semibold); white-space: nowrap; }
+.navigation a:hover { background: var(--color-info-surface); border-bottom-color: var(--color-brand-action); color: var(--color-brand-action); }
+.mobileNavigation { display: none; }
+.page :where(a, summary, [tabindex]):focus-visible { outline: 3px solid var(--focus-ring); outline-offset: -3px; }
+.page :global(.cup-archive-section) { padding-block: clamp(36px, 4vw, 56px); scroll-margin-top: calc(var(--archive-nav-height) + var(--spacing-4)); }
+.page :global([id^="match-"]) { scroll-margin-top: calc(var(--archive-nav-height) + var(--spacing-4)); }
+.page > :global(.share-actions) { margin-block: var(--spacing-3); }
+.page :global(.cup-section-heading) { margin-bottom: var(--spacing-5); gap: var(--spacing-5); }
+.page :global(.cup-section-heading) h2 { font-size: clamp(1.5rem, 2.4vw, 2rem); line-height: var(--line-height-heading); }
+.page :global(.cup-section-heading) > div > p { color: var(--color-brand-action); font-size: var(--font-size-caption); }
+.page :global(.cup-section-heading-light) > div > p { color: var(--color-brand-sky-soft); }
+.page :global(.cup-section-heading) > span { font-size: var(--font-size-meta); }
+.page :global(.cup-archive-section:target) :global(.cup-section-heading) h2 { text-decoration: underline; text-decoration-color: var(--color-brand-sky); text-underline-offset: .25em; }
+.page :global(.cup-overview-primary), .page :global(.cup-overview-secondary) section, .page :global(.cup-womens-overview) > article { padding: var(--spacing-5); }
+.page :global(.cup-overview-primary) > p, .page :global(.cup-overview-secondary) section > p, .page :global(.cup-scorers-panel) header p, .page :global(.cup-discipline-panel) section > p, .page :global(.cup-red-card-panel) > div:first-child p, .page :global(.cup-awards-panel) > div:first-child p { color: var(--color-brand-action); }
+.page :global(.cup-final-timeline) li :is(time, strong, span), .page :global(.cup-shootout-row) > span { font-size: var(--font-size-meta); }
+.page :global(.cup-final-timeline) li span, .page :global(.cup-shootout-head) { color: var(--color-text-on-dark-muted); }
+.page :global(.cup-discipline-row) { font-size: var(--font-size-caption); }
+.page :global(.cup-scorers-panel) header > span { font-size: var(--font-size-caption); }
+.page :global(.cup-overview-primary) h3, .page :global(.cup-womens-overview) h3 { font-size: var(--font-size-card-title); }
+.page :global(.cup-overview-primary) :is(dt, dd), .page :global(.cup-overview-secondary) ul, .page :global(.cup-womens-overview) p:last-child { font-size: var(--font-size-meta); line-height: var(--line-height-reading); }
+.page :global(.cup-overview-stats) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.page :global(.cup-womens-stat-strip) { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.page :global(.cup-overview-stats) > div { min-height: 74px; padding: var(--spacing-3); }
+.page :global(.cup-overview-stats) strong { font-size: var(--font-size-card-title); }
+.page :global(.cup-overview-stats) span { font-size: var(--font-size-caption); }
+.page :global(.cup-standing-groups) { grid-template-columns: 1fr; gap: var(--spacing-5); }
+.page :global(.cup-standing-group) > header { padding: var(--spacing-3) var(--spacing-4); }
+.page :global(.cup-standing-group) > header > :is(span, p) { font-size: var(--font-size-caption); }
+.page :global(.cup-standing-table-wrap), .page :global(.cup-stat-table-wrap) { display: block; max-width: 100%; overflow-x: auto; }
+.page :global(.cup-standing-table), .page :global(.cup-stat-table) { min-width: 680px; }
+.page :global(.cup-standing-mobile), .page :global(.cup-stat-mobile) { display: none; }
+.page :global(.cup-standing-table) :is(th, td), .page :global(.cup-stat-table) :is(th, td) { height: 48px; font-size: var(--font-size-meta); }
+.page :global(.cup-standing-table) td:last-child, .page :global(.cup-stat-table) td:last-child { font-size: var(--font-size-body); }
+.page :global(.cup-team-list) summary { min-height: 80px; }
+.page :global(.cup-team-list) summary > b { text-align: center; font-variant-numeric: tabular-nums; }
+.page :global(.cup-team-list) summary > b small { display: block; margin-top: var(--spacing-1); font-size: var(--font-size-caption); font-weight: var(--font-weight-regular); white-space: nowrap; }
+.page :global(.cup-team-roster) { padding: var(--spacing-5); gap: var(--spacing-5); }
+.page :global(.cup-team-roster) > section > p { margin-block: var(--spacing-2); }
+.page :global(.cup-team-roster) > section > div { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.page :global(.cup-team-roster) > section > div > span { min-height: 44px; padding: var(--spacing-2); font-size: var(--font-size-meta); }
+.page :global(.cup-womens-roster-list .cup-team-roster) > section:last-child > div { grid-template-columns: 1fr; }
+.page :global(.cup-official-overview) > article { min-height: 132px; }
+.page :global(.cup-assignment-list) { grid-template-columns: 1fr; }
+.page :global(.cup-assignment-list) details:nth-child(n) { border: 1px solid var(--color-border-subtle); border-top: 0; }
+.page :global(.cup-assignment-list) details:first-child { border-top: 1px solid var(--color-border-subtle); }
+.page :global(.cup-assignment-list) summary { min-height: 76px; }
+.page :global(.cup-assignment-list) details dl { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.page :global(.cup-knockout-grid) { margin-top: var(--spacing-5); }
+.page :global(.cup-knockout-grid) :is(header, article > div) { font-size: var(--font-size-caption); }
+.page :global(.cup-final-image) { min-height: 320px; }
+.page :global(.cup-final-scorecard) { padding: var(--spacing-5); }
+.page :global(.cup-final-scorecard) :is(span, dt, .cup-final-penalty) { font-size: var(--font-size-meta); }
+.page :global(.cup-final-timeline) li, .page :global(.cup-shootout-head), .page :global(.cup-shootout-row) { font-size: var(--font-size-meta); }
+.page :global(.cup-final-ranking) > div { min-height: 100px; padding: var(--spacing-4); }
+.page :global(.cup-final-ranking) small { font-size: var(--font-size-caption); }
+.page :global(.cup-final-ranking) strong { font-size: var(--font-size-meta); }
+.page :global(.cup-awards-panel) { color: var(--color-text-strong); }
+.page :global(.cup-awards-panel) > div:last-child { background: var(--color-surface-raised); color: var(--color-text-strong); }
+.page :global(.cup-awards-panel) article { min-height: 130px; padding: var(--spacing-4); }
+.page :global(.cup-awards-panel) article strong { font-size: var(--font-size-card-title); }
+.page :global(.cup-womens-podium) article, .page :global(.cup-womens-podium) article:first-child { min-height: 160px; padding: var(--spacing-4); }
+.page :global(.cup-womens-podium) article { color: var(--color-text-strong); }
+.page :global(.cup-womens-podium) article:first-child { color: var(--color-text-on-dark); }
+.page :global(.cup-womens-podium) article:first-child > p { color: var(--color-brand-sky-soft); }
+.page :global(.cup-womens-awards) article { min-height: 124px; padding: var(--spacing-4); }
+.page :global(.cup-womens-awards) strong { padding-top: var(--spacing-3); font-size: var(--font-size-card-title); }
+.page :global(.cup-womens-rule-grid) section { min-height: 125px; padding: var(--spacing-4); }
+.page :global(.cup-womens-rule-grid) :is(span, p), .page :global(.cup-womens-record-grid) :is(article span, article small, dt) { font-size: var(--font-size-caption); line-height: var(--line-height-reading); }
+.page :global(.cup-womens-record-grid) > section { min-height: 0; padding: var(--spacing-5); }
+.page :global(.cup-story-list) > a > div { min-height: 180px; }
+.page :global(.cup-story-list) > a.is-featured > div { min-height: 260px; }
+.page :global(.cup-story-list) article > :is(span, b), .page :global(.cup-womens-story-card) article > :is(span, b) { font-size: var(--font-size-caption); }
+.page :global(.cup-story-list) article > p, .page :global(.cup-womens-story-card) p { font-size: var(--font-size-meta); line-height: var(--line-height-reading); }
+.page :global(.cup-story-list) .is-featured h3, .page :global(.cup-womens-story-card) h3 { font-size: var(--font-size-card-title); }
+.page :global(.cup-womens-story-card) > div { min-height: 280px; }
+.page :global(.cup-gallery-balanced) { columns: 3; column-gap: var(--spacing-3); margin-top: var(--spacing-5); }
+.page :global(.cup-gallery-balanced) figure { background: var(--color-surface-raised); border: 1px solid var(--color-border-subtle); margin-bottom: var(--spacing-3); }
+.page :global(.cup-gallery-balanced) a { display: block; min-height: 44px; }
+.page :global(.cup-gallery-balanced) figcaption { padding: var(--spacing-2); color: var(--color-text-body); font-size: var(--font-size-caption); line-height: 1.5; }
+.document { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--spacing-5); align-items: center; padding: var(--spacing-5); border-block: 1px solid var(--color-border-subtle); background: var(--color-surface-raised); }
+.fileType { padding: var(--spacing-2); border: 1px solid var(--color-border-strong); color: var(--color-brand-action); font-size: var(--font-size-caption); font-weight: var(--font-weight-bold); }
+.document h3 { font-size: var(--font-size-card-title); }
+.document p { margin-top: var(--spacing-1); color: var(--color-text-muted); font-size: var(--font-size-meta); line-height: var(--line-height-reading); }
+.documentActions { display: flex; flex-wrap: wrap; gap: var(--spacing-3); }
+.documentActions a, .returnLinks a { display: inline-flex; align-items: center; min-height: 44px; padding-inline: var(--spacing-3); color: var(--color-brand-action); font-size: var(--font-size-action); font-weight: var(--font-weight-semibold); }
+.documentActions a { border: 1px solid var(--color-border-strong); border-radius: var(--radius-control); }
+.returnLinks { border-top: 1px solid var(--color-border-subtle); padding-block: var(--spacing-3); }
+.returnLinks > div { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--spacing-3); }
+.returnLinks span { color: var(--color-text-muted); font-size: var(--font-size-caption); }
+@media (max-width: 1080px) {
+  .identity { gap: var(--spacing-5); }
+  .page :global(.cup-gallery-balanced) { columns: 2; }
+  .page :global(.cup-womens-stat-strip) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 820px) {
+  .identity { grid-template-columns: minmax(0, 1fr); }
+  .headerImage { display: none; }
+  .desktopNavigation { display: none; }
+  .mobileNavigation { display: block; }
+  .mobileNavigation summary { display: flex; align-items: center; justify-content: space-between; min-height: 52px; color: var(--color-brand-action); font-size: var(--font-size-action); font-weight: var(--font-weight-bold); cursor: pointer; }
+  .mobileNavigation summary::after { content: "+"; font-size: var(--font-size-card-title); }
+  .mobileNavigation[open] summary::after { content: "−"; }
+  .mobileNavigation summary span { margin-left: auto; margin-right: var(--spacing-3); color: var(--color-text-muted); font-size: var(--font-size-caption); font-weight: var(--font-weight-regular); }
+  .mobileNavigation > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding-bottom: var(--spacing-2); }
+  .navigation a { min-height: 44px; padding-inline: var(--spacing-1); }
+  .page :global(.cup-team-roster) > section > div { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .header { padding-block: var(--spacing-2) var(--spacing-4); }
+  .identity { padding-top: var(--spacing-2); gap: var(--spacing-3); }
+  .identity h1 { font-size: 1.55rem; }
+  .identityMeta p { letter-spacing: .04em; }
+  .identityMeta { gap: var(--spacing-2); }
+  .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .summary > div { padding: var(--spacing-2); }
+  .summary > div:nth-child(odd) { padding-left: 0; }
+  .summary > div:nth-child(even) { border-right: 0; }
+  .summary > div:nth-child(-n+2) { border-bottom: 1px solid var(--color-border-subtle); }
+  .actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-2); }
+  .actions a { padding: var(--spacing-2); gap: var(--spacing-2); font-size: var(--font-size-meta); }
+  .page :global(.cup-section-heading) { gap: var(--spacing-2); }
+  .page :global(.cup-overview-stats), .page :global(.cup-womens-stat-strip) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .page :global(.cup-team-list) summary { grid-template-columns: 30px minmax(0, 1fr) 62px 18px; padding-inline: var(--spacing-2); }
+  .page :global(.cup-team-roster) { padding: var(--spacing-4); }
+  .page :global(.cup-team-roster) > section > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .page :global(.cup-assignment-list) details dl { grid-template-columns: repeat(2, minmax(0, 1fr)); padding-left: var(--spacing-4); }
+  .page :global(.cup-final-image) { min-height: 220px; }
+  .page :global(.cup-final-ranking) { grid-template-columns: 1fr; }
+  .page :global(.cup-final-ranking) > div { min-height: 68px; display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: var(--spacing-3); }
+  .page :global(.cup-final-ranking) span { grid-row: auto; }
+  .page :global(.cup-final-ranking) strong, .page :global(.cup-final-ranking) small { margin: 0; }
+  .page :global(.cup-womens-podium) article, .page :global(.cup-womens-podium) article:first-child { min-height: 130px; }
+  .page :global(.cup-womens-awards) article { min-height: 110px; }
+  .page :global(.cup-womens-rule-grid) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .page :global(.cup-story-list) > a:not(.is-featured) { grid-template-columns: 100px minmax(0, 1fr); }
+  .page :global(.cup-story-list) > a:not(.is-featured) > div { min-height: 160px; }
+  .page :global(.cup-story-list) article { min-height: 0; padding: var(--spacing-3); }
+  .page :global(.cup-story-list) > a.is-featured > div, .page :global(.cup-womens-story-card) > div { min-height: 200px; }
+  .page :global(.cup-gallery-balanced) { columns: 2; column-gap: var(--spacing-2); }
+  .document { grid-template-columns: auto minmax(0, 1fr); gap: var(--spacing-3); padding: var(--spacing-4); }
+  .documentActions { grid-column: 1 / -1; }
+  .documentActions a { flex: 1; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page { scroll-behavior: auto; }
+  .page :global(.cup-team-list) summary > i, .page :global(.cup-assignment-list) summary > i { transition: none; }
+}

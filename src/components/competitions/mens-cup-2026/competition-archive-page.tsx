@@ -1,4 +1,4 @@
-import { CompetitionArchiveLayout } from "@/components/competitions/archive/competition-archive-layout";
+import { RichArchiveLayout } from "@/components/competitions/archive/rich-archive-layout";
 import { ShareActions } from "@/components/share/share-actions";
 import { mensIntercollegeCup2026 } from "@/data/mens-intercollege-cup-2026";
 
@@ -15,7 +15,9 @@ export function CompetitionArchivePage() {
   const { competition } = mensIntercollegeCup2026;
 
   return (
-    <CompetitionArchiveLayout
+    <RichArchiveLayout
+      hasDocuments
+      hasStatistics
       titleId="cup-archive-title"
       title={competition.name}
       eyebrow="OFFICIAL COMPETITION ARCHIVE · 2026"
@@ -41,6 +43,6 @@ export function CompetitionArchivePage() {
       <CompetitionFinal />
       <CompetitionStatistics />
       <CompetitionStories />
-    </CompetitionArchiveLayout>
+    </RichArchiveLayout>
   );
 }

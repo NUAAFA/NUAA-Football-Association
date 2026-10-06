@@ -6,7 +6,7 @@ export function CompetitionOverview() {
   const { competition } = mensIntercollegeCup2026;
   const overviewStats = [
     [competition.summary.teams, "参赛球队"],
-    [competition.summary.registeredPlayers, "注册球员"],
+    [competition.summary.registeredPlayers, "注册球员（赛事汇总）"],
     [competition.summary.matches, "完成比赛"],
     [competition.summary.goals, "赛事进球"],
   ] as const;
@@ -55,7 +55,7 @@ export function CompetitionOverview() {
         <div className="cup-overview-stats" aria-label="赛事核心数据">
           {overviewStats.map(([value, label]) => <div key={label}><strong>{value}</strong><span>{label}</span></div>)}
         </div>
-        <p className="cup-source-note">资料来源：{competition.source}。</p>
+        <p className="cup-source-note">资料来源：{competition.source}。169为赛事汇总人数，不代表下方公开名单的逐人列举总数。</p>
       </div>
     </section>
   );
