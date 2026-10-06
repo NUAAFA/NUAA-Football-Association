@@ -14,7 +14,20 @@ export async function RefereeHub() {
   return (
     <RefereePage current="/referees" eyebrow="REFEREE CENTRE" title="裁判中心"
       description="查询校园足球裁判名录与正式选派，查阅竞赛规则、培训资料和比赛工作文件。已启用账号的裁判员可登录工作区处理个人执裁事务。"
-      actions={<><LinkButton href="/referees/assignments">查看选派公告</LinkButton><LinkButton href="/referees/login" tone="secondary">裁判员登录</LinkButton></>}>
+      actions={<><LinkButton href="/referees/assignments">查看选派公告</LinkButton><LinkButton href="/referees/login" tone="secondary">裁判员登录</LinkButton></>}
+      headerAside={
+        <aside className={styles.headerContact} id="referee-contact" aria-labelledby="referee-contact-title">
+          <h2 id="referee-contact-title">裁判事务联系</h2>
+          <p className={styles.contactName}><strong>{refereeContact.name}</strong><span>{refereeContact.role}</span></p>
+          <ul role="list" className={styles.contactScope} aria-label="咨询范围">
+            {refereeContact.responsibilities.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+          <dl className={styles.contactChannels}>
+            <div><dt>公开邮箱</dt><dd><a className={styles.contactEmail} href={`mailto:${refereeContact.email}`}>{refereeContact.email}</a></dd></div>
+            <div><dt>咨询 QQ</dt><dd><span className={styles.contactValue}>{refereeContact.qq}</span></dd></div>
+          </dl>
+        </aside>
+      }>
       <RefereeSection id="current-assignments" title="当前选派公告" description="协会正式发布的未来比赛裁判组选派；调整以最新公告为准。"
         action={<Link id="referee-affair-assignments" className={styles.textLink} href="/referees/assignments">全部选派公告 →</Link>}>
         {appointments.length ? <ul role="list" className={styles.serviceList}>{appointments.slice(0, 2).map((item) => <li key={item.id}>
@@ -31,17 +44,10 @@ export async function RefereeHub() {
       <RefereeSection id="referee-resources" title="学习与工作资料" description="从竞赛规则到比赛报告，按用途查阅现有正式资料。">
         <ul role="list" className={styles.serviceList}>{refereeLearningEntries.map((entry) => <li key={entry.id}><Link href={entry.href}><div><h3>{entry.title}</h3><p>{entry.description}</p></div><span aria-hidden="true">→</span></Link></li>)}</ul>
       </RefereeSection>
-      <div className={styles.twoColumns}>
-        <section className={styles.panel} id="referee-affair-join" aria-labelledby="join-title">
-          <h2 id="join-title">加入裁判队伍</h2><p>招新群状态：{refereeRecruitment.statusLabel}。查看现有招募流程与准入申请说明，后续安排以协会通知为准。</p>
-          <Link className={styles.textLink} href="/referees/recruitment">了解参与流程 →</Link>
-        </section>
-        <aside className={styles.panel} id="referee-contact" aria-labelledby="referee-contact-title">
-          <h2 id="referee-contact-title">裁判事务联系</h2><p>{refereeContact.name} · {refereeContact.role}</p>
-          <ul role="list" className={styles.tags}>{refereeContact.responsibilities.map((item) => <li key={item}>{item}</li>)}</ul>
-          <dl className={styles.groupFacts}><div><dt>公开邮箱</dt><dd><a className={styles.textLink} href={`mailto:${refereeContact.email}`}>{refereeContact.email}</a></dd></div><div><dt>咨询 QQ</dt><dd>{refereeContact.qq}</dd></div></dl>
-        </aside>
-      </div>
+      <section className={styles.panel} id="referee-affair-join" aria-labelledby="join-title">
+        <h2 id="join-title">加入裁判队伍</h2><p>招新群状态：{refereeRecruitment.statusLabel}。查看现有招募流程与准入申请说明，后续安排以协会通知为准。</p>
+        <Link className={styles.textLink} href="/referees/recruitment">了解参与流程 →</Link>
+      </section>
     </RefereePage>
   );
 }

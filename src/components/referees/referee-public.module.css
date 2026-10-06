@@ -11,6 +11,23 @@
 .header h1 { margin-block: var(--spacing-3); font-size: clamp(2rem, 3.4vw, 3rem); font-weight: var(--font-weight-heavy); line-height: var(--line-height-heading); }
 .lead { max-width: var(--container-reading); color: var(--color-text-body); line-height: var(--line-height-reading); }
 .actions { display: flex; flex-wrap: wrap; gap: var(--spacing-3); margin-top: var(--spacing-5); }
+.headerWithAside { padding-block: var(--spacing-6); }
+.headerGrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); gap: var(--spacing-7); align-items: center; }
+.headerCopy { min-width: 0; }
+.headerWithAside .actions { margin-top: var(--spacing-4); }
+.headerContact { min-width: 0; padding: var(--spacing-5); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-control); background: var(--color-surface-canvas); }
+.headerContact h2 { font-size: var(--font-size-body); font-weight: var(--font-weight-semibold); line-height: var(--line-height-heading); }
+.contactName { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--spacing-2); margin-top: var(--spacing-2); }
+.contactName strong { font-weight: var(--font-weight-semibold); }
+.contactName span { color: var(--color-text-muted); font-size: var(--font-size-meta); }
+.contactScope { display: flex; flex-wrap: wrap; gap: 0 var(--spacing-3); margin-top: var(--spacing-1); color: var(--color-text-muted); font-size: var(--font-size-meta); line-height: 1.5; }
+.contactChannels { display: grid; margin-top: var(--spacing-2); font-size: var(--font-size-meta); }
+.contactChannels > div { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--spacing-3); }
+.contactChannels dt { color: var(--color-text-muted); }
+.contactChannels dd { min-width: 0; margin: 0; }
+.contactEmail { display: inline-flex; align-items: center; min-height: 44px; max-width: 100%; color: var(--color-brand-action); text-decoration: underline; text-underline-offset: 3px; user-select: all; }
+.contactEmail:hover { color: var(--color-brand-action-hover); }
+.contactValue { display: inline-block; font-variant-numeric: tabular-nums; user-select: all; }
 .nav { border-block: 1px solid var(--color-border-subtle); background: var(--color-surface-raised); }
 .nav ul { display: flex; flex-wrap: wrap; gap: 0 var(--spacing-4); padding-block: var(--spacing-2); }
 .nav a { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: var(--spacing-2) var(--spacing-1); border-bottom: 2px solid transparent; color: var(--color-text-muted); font-size: var(--font-size-meta); font-weight: var(--font-weight-semibold); }
@@ -83,8 +100,19 @@
 .formPanel :global(.referee-form) button { min-height: 46px; border-radius: var(--radius-control); font-size: var(--font-size-action); }
 .formPanel :global(.referee-form-note), .formPanel :global(.referee-form-message) { font-size: var(--font-size-meta); }
 
+@media (max-width: 1023px) {
+  .headerGrid { grid-template-columns: minmax(0, 1fr); gap: var(--spacing-5); }
+}
+
 @media (max-width: 767px) {
   .header { padding-block: var(--spacing-6); }
+  .headerWithAside { padding-block: var(--spacing-5); }
+  .headerGrid { gap: var(--spacing-4); }
+  .headerWithAside h1 { margin-block: var(--spacing-2); }
+  .headerWithAside .actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .headerWithAside .actions > :global(.ui-button) { min-width: 0; width: 100%; padding-inline: var(--spacing-3); }
+  .headerContact { padding: var(--spacing-3) var(--spacing-4); }
+  .contactName { margin-top: var(--spacing-1); }
   .content { gap: var(--spacing-6); padding-block: var(--spacing-6) var(--spacing-7); }
   .nav ul { gap: 0 var(--spacing-3); }
   .twoColumns { grid-template-columns: minmax(0, 1fr); }
