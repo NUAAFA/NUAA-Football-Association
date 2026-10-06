@@ -1,6 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
+import { FormalPageHeader } from "@/components/competitions/formal-page-header";
+import formal from "@/components/competitions/formal-services.module.css";
+import styles from "./history.module.css";
+
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { coreCompetitionDirectory } from "@/data/competition-directory";
@@ -25,69 +29,77 @@ export default function CompetitionHistoryPage() {
   return (
     <>
       <SiteHeader />
-      <main className="functional-page competition-history-v25" id="main-content">
-        <section className="functional-hero"><div className="detail-shell"><p>COMPETITION ARCHIVE</p><h1>历届赛事</h1><p>按年度查看赛事信息、赛果、球队与新闻报道。</p></div></section>
-        <section className="functional-section"><div className="detail-shell">
-          <div className="v25-section-heading"><div><p>2026 ARCHIVE NODE</p><h2>2026 年度赛事档案</h2></div><p>查看2026男子、女子足球院际杯赛事档案。</p></div>
-          <div className="history-year-node">
-            <div className="history-year-marker"><strong>2026</strong><span>年度赛事档案</span></div>
-            <div className="history-archive-list">
-              {archives2026.map((competition) => <article key={competition.id}><div><span>{competition.formatLabel} · {competition.campus}</span><h3>{competition.name}</h3><p>{competition.summary}</p></div><dl><div><dt>赛事状态</dt><dd>{competition.statusLabel}</dd></div><div><dt>比赛周期</dt><dd>{competition.matchWindow}</dd></div></dl><Link href={competition.detailHref}>查看完整赛事档案 →</Link></article>)}
-            </div>
+      <main className={formal.page} id="main-content">
+        <FormalPageHeader title="历届赛事" eyebrow="COMPETITION HISTORY" description="按年度查找已结束赛事的完整档案与已核实的历史记录。" />
+        <div className="page-shell">
+          <nav className={styles.years} aria-label="赛事年度索引">
+            <span>浏览年度</span>
+            <a href="#history-2026">2026 · 赛事档案</a>
+            {historicalCompetitionYears.map((year) => <a key={year.year} href={`#history-${year.year}`}>{year.year} · 历史记录</a>)}
+          </nav>
+        </div>
+        <section className={formal.section} id="history-2026" aria-labelledby="archives-title"><div className="page-shell">
+          <div className={formal.sectionHeading}><h2 id="archives-title">2026 年度赛事档案</h2><p>男子、女子足球院际杯已结束，进入档案查看赛果、球队与赛事报道。</p></div>
+          <div className={styles.archives}>
+              {archives2026.map((competition) => <article key={competition.id}><div><span>{competition.formatLabel} · {competition.campus}</span><h3>{competition.name}</h3><p>{competition.summary}</p></div><dl><div><dt>赛事状态</dt><dd>{competition.statusLabel}</dd></div><div><dt>比赛周期</dt><dd>{competition.matchWindow}</dd></div></dl><Link className="ui-button ui-button-secondary" href={competition.detailHref} aria-label={`查看${competition.name}完整赛事档案`}>查看完整赛事档案 <span aria-hidden="true">→</span></Link></article>)}
           </div>
         </div></section>
-        <section className="functional-section functional-section-tint history-exhibition"><div className="detail-shell">
-          <div className="v25-section-heading"><div><p>EARLIER YEARS</p><h2>历届赛事回顾</h2></div><p>按年度回顾已归档的校园足球赛事。</p></div>
-          <div className="historical-year-list">
+        <div className="page-shell">
+          <div className={styles.history}>
             {historicalCompetitionYears.map((year) => (
-              <section className="historical-year" key={year.year} aria-labelledby={`history-${year.year}`}>
-                <header><strong id={`history-${year.year}`}>{year.year}</strong><span>年度赛事记录</span></header>
-                <div className="historical-competition-grid">
+              <section className={formal.section} id={`history-${year.year}`} key={year.year} aria-labelledby={`year-title-${year.year}`}>
+                <header className={formal.sectionHeading}><h2 id={`year-title-${year.year}`}>{year.year} 年度赛事记录</h2><p>{year.competitions.length} 项已核实记录 · 展开查看现有赛果、名次与裁判信息。</p></header>
+                <div className={styles.records}>
                   {year.competitions.map((competition) => (
-                    <article className="historical-competition-card" key={competition.id}>
-                      <div className="historical-card-heading">
+                    <article className={styles.record} key={competition.id}>
+                      <div className={styles.recordHeading}>
                         <span>{competition.format ?? "历史赛事"}</span>
                         <h3>{competition.name}</h3>
                       </div>
-                      {competition.teamCount || competition.startDate || competition.venue ? (
-                        <dl className="historical-card-meta">
-                          {competition.teamCount ? <div><dt>参赛队伍</dt><dd>{competition.teamCount}支</dd></div> : null}
-                          {competition.startDate ? <div><dt>赛事起始日期</dt><dd>{competition.startDate}</dd></div> : null}
-                          {competition.venue ? <div><dt>决赛场地</dt><dd>{competition.venue}</dd></div> : null}
-                        </dl>
-                      ) : null}
-                      {competition.final ? (
-                        <section className="historical-final">
-                          <span>决赛</span>
-                          <div><strong>{competition.final.home}</strong><b>{competition.final.score}</b><strong>{competition.final.away}</strong></div>
-                          <small>{competition.final.date}</small>
-                        </section>
-                      ) : null}
-                      {competition.standings?.length ? (
-                        <section className="historical-ranking">
-                          <h4>{year.year === 2024 ? "公开名次" : "最终名次"}</h4>
-                          <ol>
-                            {competition.standings.map((standing) => (
-                              <li key={`${competition.id}-${standing.position}`}>
-                                <span>{standing.position}</span>
-                                <div><strong>{standing.team}</strong>{standing.record ? <small>{standing.record}{standing.goals ? ` · 进/失 ${standing.goals}` : ""}</small> : null}</div>
-                                {standing.points !== undefined ? <b>{standing.points}分</b> : null}
-                              </li>
-                            ))}
-                          </ol>
-                        </section>
-                      ) : null}
-                      {competition.officials?.length ? (
-                        <section className="historical-officials"><h4>决赛裁判组</h4><dl>{competition.officials.map((official) => <div key={official.role}><dt>{official.role}</dt><dd>{official.name}</dd></div>)}</dl></section>
-                      ) : null}
-                      {competition.note ? <p className="historical-note">{competition.note}</p> : null}
+                      <details className={styles.details}>
+                        <summary aria-label={`查看${competition.name}历史记录`}>查看历史记录<span aria-hidden="true">＋</span></summary>
+                        <div className={styles.recordBody}>
+                          {competition.teamCount || competition.startDate || competition.venue ? (
+                            <dl className={styles.facts}>
+                              {competition.teamCount ? <div><dt>参赛队伍</dt><dd>{competition.teamCount}支</dd></div> : null}
+                              {competition.startDate ? <div><dt>赛事起始日期</dt><dd>{competition.startDate}</dd></div> : null}
+                              {competition.venue ? <div><dt>决赛场地</dt><dd>{competition.venue}</dd></div> : null}
+                            </dl>
+                          ) : null}
+                          {competition.final ? (
+                            <section className={styles.final}>
+                              <span>决赛</span>
+                              <div><strong>{competition.final.home}</strong><b>{competition.final.score}</b><strong>{competition.final.away}</strong></div>
+                              <small>{competition.final.date}</small>
+                            </section>
+                          ) : null}
+                          {competition.standings?.length ? (
+                            <section className={styles.ranking}>
+                              <h4>{year.year === 2024 ? "公开名次" : "最终名次"}</h4>
+                              <ol>
+                                {competition.standings.map((standing) => (
+                                  <li key={`${competition.id}-${standing.position}`}>
+                                    <span>{standing.position}</span>
+                                    <div><strong>{standing.team}</strong>{standing.record ? <small>{standing.record}{standing.goals ? ` · 进/失 ${standing.goals}` : ""}</small> : null}</div>
+                                    {standing.points !== undefined ? <b>{standing.points}分</b> : null}
+                                  </li>
+                                ))}
+                              </ol>
+                            </section>
+                          ) : null}
+                          {competition.officials?.length ? (
+                            <section className={styles.officials}><h4>决赛裁判组</h4><dl>{competition.officials.map((official) => <div key={official.role}><dt>{official.role}</dt><dd>{official.name}</dd></div>)}</dl></section>
+                          ) : null}
+                          {competition.note ? <p className={styles.note}>{competition.note}</p> : null}
+                        </div>
+                      </details>
                     </article>
                   ))}
                 </div>
               </section>
             ))}
           </div>
-        </div></section>
+        </div>
       </main>
       <SiteFooter />
     </>

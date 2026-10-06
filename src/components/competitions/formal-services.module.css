@@ -1,0 +1,87 @@
+.page {
+  min-width: 0;
+  background: var(--color-surface-canvas);
+  color: var(--color-text-strong);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-reading);
+  overflow-wrap: anywhere;
+}
+.header {
+  padding-block: var(--spacing-5) var(--spacing-7);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-raised);
+}
+.breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-3);
+  margin-bottom: var(--spacing-4);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-meta);
+}
+.breadcrumb a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--color-brand-action);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.eyebrow {
+  color: var(--color-brand-action);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-label);
+}
+.header h1 {
+  margin-top: var(--spacing-2);
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: var(--letter-spacing-heading);
+  line-height: var(--line-height-heading);
+}
+.description {
+  max-width: var(--container-reading);
+  margin-top: var(--spacing-3);
+  color: var(--color-text-body);
+}
+.section {
+  padding-block: var(--spacing-7);
+  scroll-margin-top: calc(var(--header-height) + var(--spacing-5));
+}
+.section + .section { border-top: 1px solid var(--color-border-subtle); }
+.sectionHeading { margin-bottom: var(--spacing-5); }
+.sectionHeading h2 {
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-heading);
+  line-height: var(--line-height-heading);
+}
+.sectionHeading p { margin-top: var(--spacing-2); color: var(--color-text-muted); }
+.notice {
+  padding: var(--spacing-5);
+  border-left: var(--spacing-1) solid var(--color-brand-action);
+  background: var(--color-info-surface);
+}
+.notice p { margin-top: var(--spacing-2); color: var(--color-text-body); }
+.empty {
+  padding: var(--spacing-5);
+  border: 1px dashed var(--color-border-strong);
+  background: var(--color-surface-subtle);
+}
+.empty p { margin-top: var(--spacing-2); color: var(--color-text-muted); }
+.actions { display: flex; flex-wrap: wrap; gap: var(--spacing-3); }
+.page a:focus-visible,
+.page summary:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
+.page a:visited { color: var(--color-brand-nuaa); }
+.page a:hover { text-decoration: underline; text-underline-offset: 4px; }
+@media (max-width: 600px) {
+  .header { padding-bottom: var(--spacing-6); }
+  .section { padding-block: var(--spacing-6); }
+  .page { font-size: var(--font-size-body-mobile); }
+  .notice, .empty { padding: var(--spacing-4); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page a, .page summary { transition: none; animation: none; }
+}
