@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
+
 import type { ArchiveNavigationItem } from "./archive-section-nav";
 import styles from "./rich-archive.module.css";
 
 export function RichArchiveNavigation({ items }: { items: readonly ArchiveNavigationItem[] }) {
-  const links = items.map((item) => <a href={`#${item.id}`} key={item.id}>{item.label}</a>);
+  const links = items.map((item) => <Link href={`#${item.id}`} key={item.id}>{item.label}</Link>);
   return (
     <nav className={styles.navigation} aria-label="赛事档案章节" id="archive-navigation">
       <div className={`page-shell ${styles.desktopNavigation}`}>{links}</div>

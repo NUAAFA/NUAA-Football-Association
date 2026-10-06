@@ -57,6 +57,8 @@
 .page :global(.cup-standing-groups) { grid-template-columns: 1fr; gap: var(--spacing-5); }
 .page :global(.cup-standing-group) > header { padding: var(--spacing-3) var(--spacing-4); }
 .page :global(.cup-standing-group) > header > :is(span, p) { font-size: var(--font-size-caption); }
+/* Let the statistics grid shrink so the table region owns its overflow. */
+.page :global(.cup-statistics-layout) > * { min-width: 0; }
 .page :global(.cup-standing-table-wrap), .page :global(.cup-stat-table-wrap) { display: block; max-width: 100%; overflow-x: auto; }
 .page :global(.cup-standing-table), .page :global(.cup-stat-table) { min-width: 680px; }
 .page :global(.cup-standing-mobile), .page :global(.cup-stat-mobile) { display: none; }
