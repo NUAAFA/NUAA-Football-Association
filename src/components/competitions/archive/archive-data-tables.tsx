@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { TableContainer } from "@/components/ui/foundation-primitives";
 
+import styles from "./archive-match-table.module.css";
+
 export type ArchiveMatchRow = {
   id: string;
   number: string;
@@ -17,18 +19,24 @@ export type ArchiveMatchRow = {
 
 export function ArchiveMatchTable({ rows, caption }: { rows: readonly ArchiveMatchRow[]; caption: string }) {
   return (
-    <>
-      <TableContainer className="cup-results-table-wrap" label={caption}>
-        <table className="cup-results-table">
-          <caption>{caption}</caption>
-          <thead><tr><th scope="col">场次</th><th scope="col">阶段</th><th scope="col">日期 / 时间</th><th scope="col">主队</th><th scope="col">比分</th><th scope="col">客队</th><th scope="col">场地</th><th scope="col">入口</th></tr></thead>
-          <tbody>{rows.map((row) => <tr id={row.id} key={row.id}><td>{row.number}</td><td>{row.stage}</td><td><strong>{row.date}</strong><small>{row.time}</small></td><td><strong>{row.homeTeam}</strong></td><td><b>{row.score}</b>{row.scoreNote ? <small>{row.scoreNote}</small> : null}</td><td><strong>{row.awayTeam}</strong></td><td>{row.venue}</td><td><Link href={`#${row.id}`}>比赛详情</Link><Link href="#officials">裁判选派</Link></td></tr>)}</tbody>
-        </table>
-      </TableContainer>
-      <div className="cup-results-mobile" aria-label={`${caption}移动端列表`}>
-        {rows.map((row) => <article id={`mobile-${row.id}`} key={row.id}><header><span>{row.number} · {row.stage}</span><time>{row.date} {row.time}</time></header><div><strong>{row.homeTeam}</strong><b>{row.score}{row.scoreNote ? <small>{row.scoreNote}</small> : null}</b><strong>{row.awayTeam}</strong></div><footer><span>{row.venue}</span><Link href="#officials">裁判选派 →</Link></footer></article>)}
-      </div>
-    </>
+    <TableContainer className={`cup-results-table-wrap ${styles.region}`} label={caption}>
+      <table className={`cup-results-table ${styles.table}`} role="table">
+        <caption>{caption}</caption>
+        <thead role="rowgroup"><tr role="row"><th scope="col">场次</th><th scope="col">阶段</th><th scope="col">日期 / 时间</th><th scope="col">主队</th><th scope="col">比分</th><th scope="col">客队</th><th scope="col">场地</th><th scope="col">入口</th></tr></thead>
+        <tbody role="rowgroup">{rows.map((row) => (
+          <tr className={styles.match} id={row.id} key={row.id} role="row">
+            <td role="cell">{row.number}<span className={styles.mobileStage}> · {row.stage}</span></td>
+            <td role="cell">{row.stage}</td>
+            <td role="cell"><strong>{row.date}</strong><small>{row.time}</small></td>
+            <td role="cell"><strong>{row.homeTeam}</strong></td>
+            <td role="cell"><b>{row.score}</b>{row.scoreNote ? <small>{row.scoreNote}</small> : null}</td>
+            <td role="cell"><strong>{row.awayTeam}</strong></td>
+            <td role="cell">{row.venue}</td>
+            <td role="cell"><Link href={`#${row.id}`}>比赛详情</Link><Link href="#officials">裁判选派</Link></td>
+          </tr>
+        ))}</tbody>
+      </table>
+    </TableContainer>
   );
 }
 
@@ -57,7 +65,7 @@ export function ArchiveStandingTable({ rows, caption }: { rows: readonly Archive
         </table>
       </TableContainer>
       <div className="cup-standing-mobile" aria-label={`${caption}移动端列表`}>
-        {rows.map((row) => <div key={row.id}><span>{row.position}</span><section><strong>{row.team}</strong><small>{row.played}场 · {row.won}胜 {row.drawn}平 {row.lost}负 · 净胜{row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}</small></section><b>{row.points}<small>分</small></b></div>)}
+        {rows.map((row) => <div key={row.id}><span>{row.position}</span><section><strong>{row.team}</strong><small>{row.played}场 · {row.won}胜 {row.drawn}平 {row.lost}负 · 进{row.goalsFor} 失{row.goalsAgainst} · 净胜{row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}</small></section><b>{row.points}<small>分</small></b></div>)}
       </div>
     </>
   );
