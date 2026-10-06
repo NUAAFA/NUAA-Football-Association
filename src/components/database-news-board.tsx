@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { newsDetailHref } from "@/components/news/news-navigation";
 
 import { NewsEditorial, type EditorialItem } from "@/components/news/news-editorial";
 import styles from "@/components/news/news-listing.module.css";
@@ -19,10 +20,10 @@ function dateLabel(value: Date | null) {
   return new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(value);
 }
 
-export function DatabaseNewsBoard({ items, nextCursor }: { items: PublicListItem[]; nextCursor: string | null }) {
+export function DatabaseNewsBoard({ items, nextCursor, cursor }: { items: PublicListItem[]; nextCursor: string | null; cursor?: string }) {
   const present = (item: PublicListItem): EditorialItem => ({
     id: item.slug,
-    href: `/news/${item.slug}`,
+    href: newsDetailHref(`/news/${item.slug}`, { cursor }),
     title: item.title,
     summary: item.summary,
     category: item.type === "DISCIPLINE" ? "纪律决定" : item.type === "ANNOUNCEMENT" ? "通知公告" : "新闻",

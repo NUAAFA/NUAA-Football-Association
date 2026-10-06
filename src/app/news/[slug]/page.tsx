@@ -1,11 +1,10 @@
-import Image from "next/image";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { ArchiveGallery } from "@/components/competitions/archive/archive-gallery";
 import { JsonLd } from "@/components/seo/json-ld";
-import { ShareActions } from "@/components/share/share-actions";
-import { DetailPageLayout } from "@/components/templates/detail-page-layout";
+import { NewsArticleFigure, NewsArticleLayout } from "@/components/news/news-article-layout";
+import { newsDetailHref, newsListHref } from "@/components/news/news-navigation";
 import { DatabaseNewsDetail } from "@/components/database-news-detail";
 import {
   freshmanCupPreparationNews,
@@ -34,8 +33,25 @@ import { SITE_NAME } from "@/lib/site-metadata";
 import { getPublishedContentDetailBySlug } from "@/lib/admin-content-service";
 import { isDatabaseContentSource } from "@/lib/content-source";
 
+import jointMeeting from "../../../../public/images/competitions/2026-mens-intercollege-cup/joint-meeting.jpg";
+import sunset from "../../../../public/images/competitions/2026-mens-intercollege-cup/stadium-sunset.jpg";
+import livePoster from "../../../../public/images/competitions/2026-mens-intercollege-cup/final-live-poster.jpg";
+import mensChampions from "../../../../public/images/competitions/2026-mens-intercollege-cup/champion-zhihui-team.jpg";
+import finalCelebration from "../../../../public/images/competitions/2026-mens-intercollege-cup/final-celebration-zhihui.jpg";
+import womensGroup from "../../../../public/images/competitions/2026-womens-intercollege-cup/16-event-group-photo.jpg";
+
+const articlePhotos = {
+  "2026-mens-cup-joint-meeting": jointMeeting,
+  "2026-mens-cup-final-preview": sunset,
+  "2026-mens-cup-final-live": livePoster,
+  "2026-mens-cup-closing": mensChampions,
+  "2026-mens-cup-final-report": finalCelebration,
+  "2026-womens-intercollege-cup-closing": womensGroup,
+};
+
 type NewsDetailPageProps = {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ filter?: string | string[]; cursor?: string | string[] }>;
 };
 
 export const dynamic = "force-dynamic";
@@ -52,7 +68,8 @@ export function generateStaticParams() {
 }
 
 function contentDate(dateLabel: string) {
-  return `${dateLabel.replaceAll(".", "-")}T12:00:00+08:00`;
+  const normalized = dateLabel.replaceAll(".", "-").trim();
+  return normalized.includes(" ") ? `${normalized.replace(" ", "T")}:00+08:00` : `${normalized}T12:00:00+08:00`;
 }
 
 export async function generateMetadata({ params }: NewsDetailPageProps): Promise<Metadata> {
@@ -105,9 +122,14 @@ export async function generateMetadata({ params }: NewsDetailPageProps): Promise
   };
 }
 
-export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
+export default async function NewsDetailPage({ params, searchParams }: NewsDetailPageProps) {
   const { slug } = await params;
-  if (isDatabaseContentSource()) return <DatabaseNewsDetail slug={slug} />;
+  const query = await searchParams;
+  const listContext = {
+    filter: typeof query.filter === "string" ? query.filter : undefined,
+    cursor: typeof query.cursor === "string" ? query.cursor : undefined,
+  };
+  if (isDatabaseContentSource()) return <DatabaseNewsDetail slug={slug} listContext={listContext} />;
   const isWomensCupStory = Boolean(getWomensCupNewsItem(slug));
   const isFreshmanCupStory = Boolean(getFreshmanCupContentItem(slug));
   const disciplineDecision = getDisciplineDecision(slug);
@@ -131,9 +153,9 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
     ...officialMensCupNews,
     ...disciplineDecisions,
   ]
-    .filter((item) => item.id !== story.id)
+    .filter((item) => item.id !== story.id && item.category === story.category)
     .slice(0, 3)
-    .map((item) => ({ title: item.title, href: item.href, meta: `${item.category} · ${item.dateLabel}` }));
+    .map((item) => ({ title: item.title, href: newsDetailHref(item.href, listContext), meta: `${item.category} · ${item.dateLabel}` }));
 
   const image = "image" in story ? story.image : "/brand/nuaa-fa-logo.jpg";
   const imageAlt = "imageAlt" in story
@@ -146,74 +168,50 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
     ? story.updatedAt ?? contentDate(story.dateLabel)
     : contentDate(story.dateLabel);
 
+  const competition = isFreshmanCupStory
+    ? { label: "2026新生杯赛事详情", href: "/competitions/freshman-cup" }
+    : isWomensCupStory
+      ? { label: "2026女子足球院际杯赛事档案", href: "/competitions/2026-womens-intercollege-cup" }
+      : getMensCupNewsItem(slug)
+        ? { label: "2026男子足球院际杯赛事档案", href: "/competitions/2026-mens-intercollege-cup" }
+        : undefined;
+  const formal = isDisciplineDecision || story.category === "通知公告";
+  const moreFilter = formal ? "notices" : story.category === "赛事新闻" || story.category === "比赛战报" ? "events" : "news";
+  const photo = articlePhotos[slug as keyof typeof articlePhotos];
+
   return (
-    <DetailPageLayout
-      eyebrow={
-        isDisciplineDecision
-          ? "DISCIPLINARY DECISION / 纪律决定"
-          : isFreshmanCupStory
-          ? "2026 FRESHMAN CUP / OFFICIAL UPDATE"
-          : isWomensCupStory
-            ? "OFFICIAL NEWS / 2026 WOMEN'S CUP"
-            : "OFFICIAL NEWS / 2026 MEN'S CUP"
-      }
+    <NewsArticleLayout
       title={story.title}
-      description={story.summary}
-      statusLabel={
-        isDisciplineDecision
-          ? "纪律决定 · 正式发布"
-          : isFreshmanCupStory
-          ? `${story.category} · 正式发布`
-          : "正式报道 · 2026赛季已归档"
-      }
-      meta={{
-        source: story.source ?? "湖区FA公众号",
-        published: story.dateLabel,
-        updated: story.dateLabel,
-        sourceLabel: isDisciplineDecision ? "发布单位" : "来源",
-      }}
-      attachments={[{
-        label: isDisciplineDecision
-          ? "查看 / 下载处罚决定原件（PDF）"
-          : isFreshmanCupStory
-          ? "2026新生杯赛事详情"
-          : isWomensCupStory
-            ? "2026女子足球院际杯赛事档案"
-            : "2026男子足球院际杯完整赛事档案",
-        href: isDisciplineDecision && disciplineDecision
-          ? disciplineDecision.pdfHref
-          : isFreshmanCupStory
-          ? "/competitions/freshman-cup"
-          : isWomensCupStory
-            ? "/competitions/2026-womens-intercollege-cup"
-            : "/competitions/2026-mens-intercollege-cup",
-      }]}
+      summary={story.summary}
+      category={story.category}
+      dateLabel={story.dateLabel}
+      dateTime={publishedAt}
+      source={story.source}
+      formal={formal}
+      decision={isDisciplineDecision}
+      context={competition ?? (disciplineDecision ? { label: disciplineDecision.scope } : undefined)}
+      returnHref={newsListHref(listContext)}
+      moreHref={newsListHref({ filter: moreFilter })}
+      moreLabel={formal ? "更多通知公告" : moreFilter === "events" ? "更多赛事报道" : "更多新闻"}
+      attachments={disciplineDecision ? [{
+        title: `${disciplineDecision.title}（原件）`,
+        href: disciplineDecision.pdfHref,
+        fileType: disciplineDecision.fileType,
+        source: disciplineDecision.source,
+        date: disciplineDecision.dateLabel,
+        version: disciplineDecision.version,
+      }] : []}
       related={related}
     >
-      <JsonLd
-        data={newsArticleJsonLd({
-          title: story.title,
-          summary: story.summary,
-          path: `/news/${story.id}`,
-          publishedAt,
-          updatedAt,
-          image,
-        })}
-      />
-      <ShareActions title={story.title} text={story.summary} />
-      {!isDisciplineDecision ? (
-        <figure className={`detail-story-figure${isFreshmanCupStory ? " detail-story-figure-brand" : ""}`}>
-          <Image src={image} alt={imageAlt} fill sizes="(max-width: 720px) 100vw, 780px" />
-        </figure>
-      ) : null}
-      <p className="detail-article-lead">{story.summary}</p>
+      <JsonLd data={newsArticleJsonLd({ title: story.title, summary: story.summary, path: `/news/${story.id}`, publishedAt, updatedAt, image })} />
+      {photo ? <NewsArticleFigure src={photo} alt={imageAlt} caption={imageAlt} /> : null}
       {article.blocks.map((block, index) =>
         block.type === "paragraph" ? (
           <p key={`${story.id}-paragraph-${index}`}>{block.text}</p>
         ) : block.type === "heading" ? (
           <h2 key={`${story.id}-heading-${index}`}>{block.text}</h2>
         ) : (
-          <ul className="detail-story-list" key={`${story.id}-list-${index}`}>
+          <ul key={`${story.id}-list-${index}`}>
             {block.items.map((item) => <li key={item}>{item}</li>)}
           </ul>
         ),
@@ -223,11 +221,11 @@ export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
       ) : isWomensCupStory ? (
         <>
           <h2>赛事影像</h2>
-          <ArchiveGallery images={womensCupGallery} ariaLabel="2026女子足球院际杯收官报道原始照片" className="detail-archive-gallery" />
+          <ArchiveGallery images={womensCupGallery} ariaLabel="2026女子足球院际杯收官报道原始照片" className="detail-archive-gallery" showCaptions />
         </>
-      ) : (
+      ) : !isDisciplineDecision ? (
         <blockquote>本文数据来自赛事秩序册、足球中国赛事后台及湖区FA公众号归档资料。</blockquote>
-      )}
-    </DetailPageLayout>
+      ) : null}
+    </NewsArticleLayout>
   );
 }

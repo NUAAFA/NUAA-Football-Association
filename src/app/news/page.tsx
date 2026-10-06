@@ -36,7 +36,7 @@ export default async function NewsPage({ searchParams }: PageProps<"/news">) {
             <p className={styles.description}>记录赛场故事，发布协会动态与正式通知。</p>
           </header>
           {databasePage
-            ? <DatabaseNewsBoard items={databasePage.items} nextCursor={databasePage.nextCursor} />
+            ? <DatabaseNewsBoard items={databasePage.items} nextCursor={databasePage.nextCursor} cursor={cursor} />
             : <PublicNewsBoard news={newsFeed} notices={publicAnnouncements} />}
           <div className={styles.contact}>
             <SectionContactCard contact={publicSectionContacts.news} note="新闻投稿与内容纠错" />
