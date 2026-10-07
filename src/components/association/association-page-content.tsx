@@ -17,6 +17,7 @@ import {
 } from "@/data/association";
 import { ASSOCIATION_EMAIL, bilibiliPlatform, douyinPlatform, wechatPlatform } from "@/data/platforms";
 
+import { MemberDirectory } from "./member-directory";
 import styles from "./association.module.css";
 
 const sectionLinks = [
@@ -81,24 +82,46 @@ export function AssociationPageContent() {
             </section>
           </div>
 
-          {/* B-1 only connects the existing member and history presentation to the local container. */}
-          <section className={`association-current-team ${styles.legacySection}`} aria-labelledby="association-current-team-title">
-            <div><p>CURRENT TEAM</p><h2 id="association-current-team-title">现任足协成员</h2><span>{currentAssociationTeam.termNote}</span></div>
-            <dl>
-              {currentAssociationTeam.positions.map((item, index) => (
-                <div key={`${item.role}-${item.name}-${index}`}><dt>{item.role}</dt><dd>{item.name}</dd></div>
-              ))}
-            </dl>
-            <small>{currentAssociationTeam.note}</small>
+          <section className={styles.memberSection} aria-labelledby="association-current-team-title">
+            <header className={styles.sectionHeading}>
+              <span className={styles.eyebrow}>ORGANIZATION & CURRENT TEAM</span>
+              <h2 id="association-current-team-title">组织与现任</h2>
+            </header>
+            <div className={styles.currentLayout}>
+              <section aria-labelledby="association-current-directory-title" data-current-members>
+                <h3 id="association-current-directory-title">{currentAssociationTeam.label}</h3>
+                <p className={styles.termLabel}>{currentAssociationTeam.termNote}</p>
+                <MemberDirectory positions={currentAssociationTeam.positions} />
+                <small className={styles.recordNote}>{currentAssociationTeam.note}</small>
+              </section>
+              <section className={styles.roleFramework} aria-labelledby="association-role-framework-title">
+                <h3 id="association-role-framework-title">协会岗位框架</h3>
+                <ul>{associationRoleFramework.map((role) => <li key={role}>{role}</li>)}</ul>
+              </section>
+            </div>
           </section>
 
           <section className={`archive-timeline ${styles.legacySection}`} aria-labelledby="archive-timeline-title"><div><p>TIMELINE</p><h2 id="archive-timeline-title">发展记录</h2><span>记录协会组织建设与校园足球赛事体系的发展历程。</span></div><ol>{associationTimeline.map((entry) => <li key={entry.period}><time>{entry.period}</time><section><h3>{entry.label}</h3><p>{entry.description}</p></section></li>)}</ol></section>
 
-          <section className={`association-structure ${styles.legacySection}`} aria-labelledby="association-structure-title">
-            <div><p>ORGANIZATION</p><h2 id="association-structure-title">组织架构与历届成员</h2><span>查看协会岗位框架与历届成员记录。</span></div>
-            <div className="association-role-strip" aria-label="协会岗位框架">{associationRoleFramework.map((role) => <span key={role}>{role}</span>)}</div>
-            <div className="association-term-list">
-              {associationTerms.map((term) => <article key={term.term}><header><span>{term.term}</span><time>{term.academicYear}</time></header>{term.positions.length ? <dl>{term.positions.map((item) => <div key={item.role}><dt>{item.role}</dt><dd>{item.name}</dd></div>)}</dl> : null}{term.unassignedMembers.length ? <><p><strong>岗位信息待补充成员</strong></p><ul>{term.unassignedMembers.map((member) => <li key={member}>{member}</li>)}</ul></> : null}<small>{term.roleNote}</small></article>)}
+          <section className={styles.memberSection} aria-labelledby="association-structure-title" data-historical-members>
+            <header className={styles.sectionHeading}>
+              <span className={styles.eyebrow}>MEMBER ARCHIVE</span>
+              <h2 id="association-structure-title">历届成员</h2>
+              <p className={styles.recordNote}>以下为已公开记录，未列出的任期或岗位不代表不存在。</p>
+            </header>
+            <div className={styles.termArchive}>
+              {associationTerms.map((term, index) => (
+                <details className={styles.termDisclosure} key={term.term} open={index === associationTerms.length - 1}>
+                  <summary>
+                    <h3><span>{term.term}</span><time>{term.academicYear}</time></h3>
+                  </summary>
+                  <div className={styles.termContent}>
+                    {term.positions.length ? <MemberDirectory positions={term.positions} /> : null}
+                    {term.unassignedMembers.length ? <><p><strong>岗位信息待补充成员</strong></p><ul>{term.unassignedMembers.map((member) => <li key={member}>{member}</li>)}</ul></> : null}
+                    <small className={styles.recordNote}>{term.roleNote}</small>
+                  </div>
+                </details>
+              ))}
             </div>
           </section>
 
