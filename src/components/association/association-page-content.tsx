@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import { SiteFooter } from "@/components/layout/site-footer";
@@ -15,7 +16,14 @@ import {
   associationTerms,
   currentAssociationTeam,
 } from "@/data/association";
-import { ASSOCIATION_EMAIL, bilibiliPlatform, douyinPlatform, wechatPlatform } from "@/data/platforms";
+import {
+  ASSOCIATION_EMAIL,
+  bilibiliPlatform,
+  douyinPlatform,
+  emailPlatform,
+  footballChinaPlatform,
+  wechatPlatform,
+} from "@/data/platforms";
 
 import { MemberDirectory } from "./member-directory";
 import styles from "./association.module.css";
@@ -48,7 +56,6 @@ export function AssociationPageContent() {
             <p className={styles.lead}>因热爱，奔赴绿茵。了解协会身份、工作范围与发展记录。</p>
             <div className={styles.actions}>
               <LinkButton href="/join">加入我们 <span aria-hidden="true">→</span></LinkButton>
-              <ShareActions title={associationIdentity.formalName} />
             </div>
           </div>
         </header>
@@ -101,9 +108,26 @@ export function AssociationPageContent() {
             </div>
           </section>
 
-          <section className={`archive-timeline ${styles.legacySection}`} aria-labelledby="archive-timeline-title"><div><p>TIMELINE</p><h2 id="archive-timeline-title">发展记录</h2><span>记录协会组织建设与校园足球赛事体系的发展历程。</span></div><ol>{associationTimeline.map((entry) => <li key={entry.period}><time>{entry.period}</time><section><h3>{entry.label}</h3><p>{entry.description}</p></section></li>)}</ol></section>
+          <section className={`${styles.contentSection} ${styles.timelineSection}`} aria-labelledby="archive-timeline-title" data-development-history>
+            <header className={styles.sectionHeading}>
+              <span className={styles.eyebrow} lang="en">Development record</span>
+              <h2 id="archive-timeline-title">发展记录</h2>
+              <p className={styles.sectionIntro}>记录协会组织建设与校园足球赛事体系的发展历程。</p>
+            </header>
+            <ol className={styles.timelineList} role="list">
+              {associationTimeline.map((entry) => (
+                <li key={entry.period}>
+                  <span className={styles.period}>{entry.period}</span>
+                  <div>
+                    <h3>{entry.label}</h3>
+                    <p>{entry.description}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </section>
 
-          <section className={styles.memberSection} aria-labelledby="association-structure-title" data-historical-members>
+          <section className={`${styles.memberSection} ${styles.archiveSection}`} aria-labelledby="association-structure-title" data-historical-members>
             <header className={styles.sectionHeading}>
               <span className={styles.eyebrow}>MEMBER ARCHIVE</span>
               <h2 id="association-structure-title">历届成员</h2>
@@ -125,24 +149,93 @@ export function AssociationPageContent() {
             </div>
           </section>
 
-          <section className={`association-governance ${styles.legacySection}`} aria-labelledby="association-governance-title">
-            <article><p>COMPETITION SERVICES</p><h2 id="association-governance-title">赛事服务</h2><ul>{associationDataGovernance.map((item) => <li key={item}>{item}</li>)}</ul></article>
+          <section className={styles.contentSection} aria-labelledby="association-governance-title" data-competition-services>
+            <header className={styles.sectionHeading}>
+              <span className={styles.eyebrow} lang="en">Football services</span>
+              <h2 id="association-governance-title">赛事服务</h2>
+            </header>
+            <div className={styles.serviceLayout}>
+              <div>
+                <ul className={styles.serviceList}>{associationDataGovernance.map((item) => <li key={item}>{item}</li>)}</ul>
+                <div className={styles.serviceLinks}>
+                  <Link className={styles.textLink} href="/competitions">进入赛事中心 <span aria-hidden="true">→</span></Link>
+                  <Link className={styles.textLink} href="/referees#referee-contact">裁判事务联系 <span aria-hidden="true">→</span></Link>
+                </div>
+              </div>
+              <aside className={styles.participation} aria-labelledby="association-participation-title">
+                <h3 id="association-participation-title">{footballChinaPlatform.name}</h3>
+                <p>{footballChinaPlatform.label}</p>
+                <a className={styles.textLink} href={footballChinaPlatform.href} target={footballChinaPlatform.target} rel={footballChinaPlatform.rel}>
+                  {footballChinaPlatform.linkLabel} <span aria-hidden="true">↗</span>
+                </a>
+                <small>{footballChinaPlatform.scopeNotice}</small>
+                <small>外部平台 · HTTP 入口</small>
+              </aside>
+            </div>
           </section>
-          <section className={`association-contact-section ${styles.legacySection}`} aria-labelledby="association-contact-title">
-            <div><p>CONTACT US</p><h2 id="association-contact-title">联系我们</h2><span>赛事、裁判、媒体合作与内容纠错可通过以下公开渠道联系。</span></div>
-            <dl>
-              <div><dt>协会名称</dt><dd>{associationIdentity.formalName}</dd></div>
-              <div><dt>服务范围</dt><dd>{associationScope.representedCampus}</dd></div>
-              <div><dt>公开邮箱</dt><dd><a href={`mailto:${ASSOCIATION_EMAIL}`}>{ASSOCIATION_EMAIL}</a></dd></div>
-              <div><dt>微信公众号</dt><dd>{wechatPlatform.name}</dd></div>
-              <div><dt>哔哩哔哩</dt><dd><a href={bilibiliPlatform.href} rel="noopener noreferrer" target="_blank">{bilibiliPlatform.name}</a><small className={styles.platformScope}>{bilibiliPlatform.label}</small></dd></div>
-              <div><dt>抖音</dt><dd>{douyinPlatform.name} · {douyinPlatform.label}</dd></div>
-              <div><dt>裁判事务</dt><dd><Link href="/referees#referee-contact">进入裁判中心联系区</Link></dd></div>
-              <div><dt>赛事事务</dt><dd><Link href="/competitions">进入赛事中心</Link></dd></div>
-              <div><dt>新闻投稿与纠错</dt><dd><a href={`mailto:${ASSOCIATION_EMAIL}`}>{ASSOCIATION_EMAIL}</a></dd></div>
+          <section className={styles.contentSection} aria-labelledby="association-contact-title" data-official-channels>
+            <header className={styles.sectionHeading}>
+              <span className={styles.eyebrow} lang="en">Official channels</span>
+              <h2 id="association-contact-title">官方渠道</h2>
+              <p className={styles.sectionIntro}>赛事、裁判、媒体合作与内容纠错可通过以下公开渠道联系。</p>
+            </header>
+            <dl className={styles.channels}>
+              <div className={styles.channel} data-platform={wechatPlatform.id}>
+                <dt>{wechatPlatform.label}</dt>
+                <dd>
+                  <div className={styles.channelCopy}>
+                    <strong className={styles.channelName}>{wechatPlatform.name}</strong>
+                    <p>{wechatPlatform.description}</p>
+                    <small>在微信中搜索“{wechatPlatform.name}”。</small>
+                    <a className={styles.textLink} href={wechatPlatform.qrImage} target="_blank" rel="noopener noreferrer">查看湖区FA二维码原图 <span aria-hidden="true">↗</span></a>
+                  </div>
+                  <a className={styles.qrLink} href={wechatPlatform.qrImage} target="_blank" rel="noopener noreferrer" aria-label="查看湖区FA微信公众号二维码原图，在新标签页打开">
+                    <Image src={wechatPlatform.qrImage} alt={wechatPlatform.qrAlt} width={64} height={64} unoptimized />
+                  </a>
+                </dd>
+              </div>
+              <div className={styles.channel} data-platform={douyinPlatform.id}>
+                <dt>抖音</dt>
+                <dd>
+                  <div className={styles.channelCopy}>
+                    <strong className={styles.channelName}>{douyinPlatform.name}</strong>
+                    <small>{douyinPlatform.label}</small>
+                    <p>{douyinPlatform.description}</p>
+                    <div className={styles.channelLinks}>
+                      <Link className={styles.textLink} href={douyinPlatform.href}>前往抖音频道 <span aria-hidden="true">→</span></Link>
+                      <a className={styles.textLink} href={douyinPlatform.qrImage} target="_blank" rel="noopener noreferrer">查看二维码原图 <span aria-hidden="true">↗</span></a>
+                    </div>
+                  </div>
+                  <a className={styles.qrLink} href={douyinPlatform.qrImage} target="_blank" rel="noopener noreferrer" aria-label="查看南航足协抖音号 nuaafa 二维码原图，在新标签页打开">
+                    <Image src={douyinPlatform.qrImage} alt={douyinPlatform.qrAlt} width={64} height={64} unoptimized />
+                  </a>
+                </dd>
+              </div>
+              <div className={styles.channel} data-platform={bilibiliPlatform.id}>
+                <dt>哔哩哔哩 · {bilibiliPlatform.label}</dt>
+                <dd>
+                  <div className={styles.channelCopy}>
+                    <strong className={styles.channelName}>{bilibiliPlatform.name}</strong>
+                    <p>{bilibiliPlatform.description}</p>
+                    <a className={styles.textLink} href={bilibiliPlatform.href} target={bilibiliPlatform.target} rel={bilibiliPlatform.rel}>{bilibiliPlatform.linkLabel} <span aria-hidden="true">↗</span></a>
+                  </div>
+                </dd>
+              </div>
+              <div className={styles.channel} data-platform={emailPlatform.id}>
+                <dt>公开邮箱</dt>
+                <dd>
+                  <div className={styles.channelCopy}>
+                    <a className={`${styles.textLink} ${styles.emailLink}`} href={emailPlatform.href}>{emailPlatform.label}</a>
+                    <p>{emailPlatform.description}</p>
+                  </div>
+                </dd>
+              </div>
             </dl>
           </section>
-          <Link className={styles.textLink} href="/">← 返回首页</Link>
+          <div className={styles.utility} data-association-utility>
+            <Link className={styles.textLink} href="/">← 返回首页</Link>
+            <ShareActions title={associationIdentity.formalName} />
+          </div>
         </div>
       </main>
       <SiteFooter />
