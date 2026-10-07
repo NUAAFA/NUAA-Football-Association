@@ -1,36 +1,53 @@
 import type { Metadata } from "next";
 
 import { DouyinQrCard } from "@/components/media/douyin-qr-card";
+import { MediaCollection } from "@/components/media/media-collection";
+import styles from "@/components/media/media.module.css";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SectionContactCard } from "@/components/ui/section-contact-card";
 import { publicSectionContacts } from "@/data/contacts";
+import { mediaCollections } from "@/data/media-collections";
 import { bilibiliPlatform } from "@/data/platforms";
+import { isDatabaseContentSource } from "@/lib/content-source";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/media" },
   title: "影像资料",
-  description: "南京航空航天大学天目湖足球协会官方抖音二维码与南航校园足球共享视频平台入口。",
+  description: "校园足球赛事影像发现入口：浏览2026女子与男子足球院际杯精选照片，继续查看完整赛事影像与官方影像平台。",
   openGraph: {
     title: "影像资料｜南京航空航天大学天目湖足球协会",
-    description: "查看南航足协官方媒体账号与校园足球影像资料。",
+    description: "浏览南航校园足球赛事照片、完整赛事影像与官方影像平台。",
     url: "/media",
   },
 };
 
 export default function MediaPage() {
+  const showReports = !isDatabaseContentSource();
+
   return (
     <>
       <SiteHeader />
-      <main className="detail-page media-index-page" id="main-content">
-        <section className="detail-hero">
-          <div className="page-shell detail-hero-inner">
-            <p className="detail-eyebrow">MEDIA</p>
+      <main className={styles.page} id="main-content">
+        <header className={styles.header}>
+          <div className={styles.shell}>
+            <p className={styles.eyebrow}>NUAA CAMPUS FOOTBALL / MEDIA</p>
             <h1>影像资料</h1>
-            <p className="detail-lead">汇集天目湖足球协会官方媒体账号与校园足球影像资料。</p>
-            <span className="detail-status">官方平台与影像档案</span>
+            <p className={styles.lead}>校园足球赛事影像发现入口</p>
           </div>
-        </section>
+        </header>
+        <nav className={styles.navigation} aria-label="影像资料页内导航">
+          <ul className={styles.shell}>
+            <li><a href="#womens-cup-2026">女子院际杯</a></li>
+            <li><a href="#mens-cup-2026">男子院际杯</a></li>
+            <li><a href="#douyin">官方影像平台</a></li>
+          </ul>
+        </nav>
+        <div className={`${styles.shell} ${styles.collections}`}>
+          {mediaCollections.map((collection) => (
+            <MediaCollection key={collection.id} collection={collection} showReport={showReports} />
+          ))}
+        </div>
         <section className="media-platform-section">
           <div className="page-shell">
             <DouyinQrCard />

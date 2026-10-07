@@ -1,0 +1,169 @@
+.page {
+  min-height: 60vh;
+  background: var(--color-surface-canvas);
+  color: var(--color-text-strong);
+}
+
+.shell {
+  width: min(var(--container-wide), calc(100% - var(--page-gutter-total)));
+  margin-inline: auto;
+}
+
+.header {
+  padding-block: var(--spacing-5);
+  border-top: 4px solid var(--color-brand-action);
+  background: var(--color-surface-raised);
+}
+
+.eyebrow {
+  color: var(--color-brand-action);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-label);
+  line-height: 1.5;
+}
+
+.header h1 {
+  margin-top: var(--spacing-2);
+  font-size: clamp(1.75rem, 3.1vw, 2.625rem);
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: var(--letter-spacing-heading);
+  line-height: var(--line-height-heading);
+}
+
+.lead {
+  margin-top: var(--spacing-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+.navigation {
+  border-block: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-raised);
+}
+
+.navigation ul {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0 var(--spacing-4);
+  padding-block: var(--spacing-2);
+  list-style: none;
+}
+
+.navigation a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: var(--spacing-2) var(--spacing-1);
+  color: var(--color-brand-action);
+  font-size: var(--font-size-action);
+  font-weight: var(--font-weight-semibold);
+  text-underline-offset: var(--spacing-1);
+}
+
+.collections {
+  padding-block: var(--spacing-6) var(--spacing-7);
+}
+
+.collection {
+  min-width: 0;
+  scroll-margin-top: calc(var(--header-height) + var(--spacing-4));
+}
+
+.collection + .collection {
+  margin-top: var(--spacing-6);
+  padding-top: var(--spacing-6);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.collectionHeading h2 {
+  font-size: clamp(1.375rem, 2.2vw, 1.875rem);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-heading);
+  line-height: var(--line-height-heading);
+}
+
+.collectionHeading p {
+  margin-top: var(--spacing-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-meta);
+  line-height: var(--line-height-body);
+}
+
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-4);
+  margin-top: var(--spacing-4);
+}
+
+.gallery figure {
+  min-width: 0;
+  margin: 0;
+}
+
+.originalLink {
+  display: block;
+  min-width: 0;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-subtle);
+  outline: 1px solid transparent;
+}
+
+.originalLink img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: contain;
+}
+
+.gallery figcaption {
+  margin-top: var(--spacing-2);
+  color: var(--color-text-body);
+  font-size: var(--font-size-meta);
+  line-height: var(--line-height-body);
+}
+
+.collectionLinks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--spacing-5);
+  margin-top: var(--spacing-3);
+}
+
+.collectionLinks a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: 44px;
+  max-width: 100%;
+  color: var(--color-brand-action);
+  font-size: var(--font-size-action);
+  text-decoration: underline;
+  text-underline-offset: var(--spacing-1);
+}
+
+.archiveLink { font-weight: var(--font-weight-semibold); }
+.reportLink { font-weight: var(--font-weight-regular); }
+
+.navigation a:visited, .collectionLinks a:visited { color: var(--color-brand-nuaa); }
+.navigation a:hover, .collectionLinks a:hover { color: var(--color-brand-action-hover); text-decoration: underline; }
+.originalLink:hover { outline-color: var(--color-border-strong); }
+.originalLink:visited { outline-color: var(--color-brand-nuaa); }
+.page :where(a, button):focus-visible { outline: 3px solid var(--color-brand-action); outline-offset: 3px; }
+.page :where(h1, h2, p, figcaption, a) { overflow-wrap: anywhere; }
+.collection:target .collectionHeading h2 { text-decoration: underline; text-decoration-color: var(--color-brand-action); text-underline-offset: var(--spacing-1); }
+
+@media (min-width: 1024px) {
+  .gallery { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (max-width: 767px) {
+  .collections { padding-top: var(--spacing-5); }
+}
