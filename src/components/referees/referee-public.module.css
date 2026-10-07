@@ -29,7 +29,7 @@
 .contactEmail:hover { color: var(--color-brand-action-hover); }
 .contactValue { display: inline-block; font-variant-numeric: tabular-nums; user-select: all; }
 .nav { border-block: 1px solid var(--color-border-subtle); background: var(--color-surface-raised); }
-.nav ul { display: flex; flex-wrap: wrap; gap: 0 var(--spacing-4); padding-block: var(--spacing-2); }
+.nav ul { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0 var(--spacing-4); padding-block: var(--spacing-2); }
 .nav a { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: var(--spacing-2) var(--spacing-1); border-bottom: 2px solid transparent; color: var(--color-text-muted); font-size: var(--font-size-meta); font-weight: var(--font-weight-semibold); }
 .nav a[aria-current="page"] { color: var(--color-brand-action-hover); border-color: var(--color-brand-action); }
 .nav a:hover { color: var(--color-brand-action-hover); background: var(--color-surface-subtle); }

@@ -32,9 +32,9 @@
 .actions :global(.share-actions button:hover) { border-color: var(--color-brand-action); background: var(--color-surface-subtle); color: var(--color-brand-action-hover); }
 
 .navigation { border-block: 1px solid var(--color-border-subtle); background: var(--color-surface-raised); }
-.navigation > div { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--spacing-5); padding-block: var(--spacing-2); }
+.navigation > div { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0 var(--spacing-4); padding-block: var(--spacing-2); }
 .navigationLabel { color: var(--color-text-muted); font-size: var(--font-size-meta); }
-.navigation ul { display: flex; flex-wrap: wrap; gap: 0 var(--spacing-4); list-style: none; }
+.navigation ul { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0 var(--spacing-4); list-style: none; }
 .navigation a { display: flex; align-items: center; min-height: 44px; padding: var(--spacing-2) var(--spacing-1); color: var(--color-brand-action); font-size: var(--font-size-action); font-weight: var(--font-weight-semibold); text-underline-offset: var(--spacing-1); }
 .navigation a:visited, .textLink:visited, .profile a:visited { color: var(--color-brand-nuaa); }
 .navigation a:hover, .textLink:hover, .profile a:hover { color: var(--color-brand-action-hover); text-decoration: underline; }
@@ -63,7 +63,8 @@
 @media (max-width: 767px) {
   .header { padding-block: var(--spacing-5); }
   .identityFacts { font-size: var(--font-size-caption); }
-  .navigationLabel { flex-basis: 100%; }
+  .navigationLabel { flex-basis: 100%; text-align: center; }
+  .navigation > div { gap: 0 var(--spacing-3); }
   .navigation ul { gap: 0 var(--spacing-3); }
   .overview { grid-template-columns: minmax(0, 1fr); gap: var(--spacing-6); }
   .body { padding-top: var(--spacing-5); }
