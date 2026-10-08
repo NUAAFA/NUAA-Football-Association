@@ -5,7 +5,6 @@ import { MediaCollection } from "@/components/media/media-collection";
 import styles from "@/components/media/media.module.css";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
-import { SectionContactCard } from "@/components/ui/section-contact-card";
 import { publicSectionContacts } from "@/data/contacts";
 import { mediaCollections } from "@/data/media-collections";
 import { bilibiliPlatform } from "@/data/platforms";
@@ -24,6 +23,7 @@ export const metadata: Metadata = {
 
 export default function MediaPage() {
   const showReports = !isDatabaseContentSource();
+  const contact = publicSectionContacts.media;
 
   return (
     <>
@@ -48,20 +48,32 @@ export default function MediaPage() {
             <MediaCollection key={collection.id} collection={collection} showReport={showReports} />
           ))}
         </div>
-        <section className="media-platform-section">
-          <div className="page-shell">
-            <DouyinQrCard />
-            <article className="media-shared-platform">
-              <span>BILIBILI / 共享视频平台</span>
-              <h2>{bilibiliPlatform.name}</h2>
-              <p>{bilibiliPlatform.description}</p>
-              <a href={bilibiliPlatform.href} rel="noopener noreferrer" target="_blank">
-                前往哔哩哔哩主页 ↗
-              </a>
-            </article>
-            <SectionContactCard contact={publicSectionContacts.media} note="影像投稿与内容纠错" />
-          </div>
-        </section>
+        <div className={`${styles.shell} ${styles.pageEnd}`}>
+          <section className={styles.platforms} aria-labelledby="media-platforms-title">
+            <h2 id="media-platforms-title">官方影像平台</h2>
+            <div className={styles.platformList}>
+              <DouyinQrCard />
+              <article className={styles.platform} aria-labelledby="bilibili-title">
+                <p className={styles.platformKind}>BILIBILI / 共享视频平台</p>
+                <h3 id="bilibili-title">{bilibiliPlatform.name}</h3>
+                <p className={styles.platformDescription}>{bilibiliPlatform.description}</p>
+                <a className={styles.platformLink} href={bilibiliPlatform.href} rel={bilibiliPlatform.rel} target={bilibiliPlatform.target}>
+                  {bilibiliPlatform.linkLabel} <span className={styles.externalNotice}>（新窗口）<span aria-hidden="true">↗</span></span>
+                </a>
+              </article>
+            </div>
+          </section>
+          <aside className={styles.contact} aria-labelledby="media-contact-title">
+            <div>
+              <h2 id="media-contact-title">影像投稿 / 内容纠错</h2>
+              <p>{contact.label}：<strong>{contact.name}</strong> · {contact.role}</p>
+            </div>
+            <dl>
+              <div><dt>咨询 QQ</dt><dd>{contact.qq}</dd></div>
+              <div><dt>联系邮箱</dt><dd><a href={`mailto:${contact.email}`}>{contact.email}</a></dd></div>
+            </dl>
+          </aside>
+        </div>
       </main>
       <SiteFooter />
     </>
