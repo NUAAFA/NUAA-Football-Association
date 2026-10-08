@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { associationIdentity } from "@/data/association";
 import { navigationItems, registrationCta } from "@/data/navigation";
 import { BrandMark } from "@/components/ui/brand-mark";
@@ -25,8 +26,25 @@ function Brand() {
 
 export function SiteHeader({ fixed = false, overlay = false }: SiteHeaderProps) {
   const pathname = usePathname();
+  const mobileMenuRef = useRef<HTMLDetailsElement>(null);
+  const mobileMenuSummaryRef = useRef<HTMLElement>(null);
   const isCurrent = (href: string) =>
     href === "/" ? pathname === href : pathname.startsWith(`${href}/`) || pathname === href;
+
+  useEffect(() => {
+    if (mobileMenuRef.current) mobileMenuRef.current.open = false;
+  }, [pathname]);
+
+  function handleMobileMenuKeyDown(event: ReactKeyboardEvent<HTMLDetailsElement>) {
+    if (event.key !== "Escape" || !mobileMenuRef.current?.open) return;
+    event.preventDefault();
+    mobileMenuRef.current.open = false;
+    mobileMenuSummaryRef.current?.focus();
+  }
+
+  function closeMobileMenu() {
+    if (mobileMenuRef.current) mobileMenuRef.current.open = false;
+  }
 
   return (
     <>
@@ -42,13 +60,14 @@ export function SiteHeader({ fixed = false, overlay = false }: SiteHeaderProps) 
           <Link aria-current={isCurrent(registrationCta.href) ? "page" : undefined} className="header-cta" href={registrationCta.href}>
             {registrationCta.label} <span aria-hidden="true">→</span>
           </Link>
-          <details className="mobile-menu">
-            <summary aria-label="切换主导航"><span /><span /></summary>
+          <details className="mobile-menu" onKeyDown={handleMobileMenuKeyDown} ref={mobileMenuRef}>
+            <summary aria-label="切换主导航" ref={mobileMenuSummaryRef}><span /><span /></summary>
             <nav aria-label="移动端主导航">
+              <span className="mobile-menu-label">网站导航</span>
               {navigationItems.map((item) => (
-                <Link aria-current={isCurrent(item.href) ? "page" : undefined} key={item.href} href={item.href}>{item.label}<span aria-hidden="true">›</span></Link>
+                <Link aria-current={isCurrent(item.href) ? "page" : undefined} key={item.href} href={item.href} onClick={closeMobileMenu}>{item.label}<span aria-hidden="true">›</span></Link>
               ))}
-              <Link aria-current={isCurrent(registrationCta.href) ? "page" : undefined} href={registrationCta.href}>{registrationCta.label} <span aria-hidden="true">→</span></Link>
+              <Link aria-current={isCurrent(registrationCta.href) ? "page" : undefined} href={registrationCta.href} onClick={closeMobileMenu}>{registrationCta.label} <span aria-hidden="true">→</span></Link>
             </nav>
           </details>
         </div>
