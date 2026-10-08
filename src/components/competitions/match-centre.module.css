@@ -180,6 +180,22 @@
   min-width: 0;
 }
 
+.publishedJump {
+  margin-bottom: var(--spacing-6);
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-raised);
+}
+
+.publishedJump:focus-visible {
+  outline: 3px solid var(--color-brand-action);
+  outline-offset: 4px;
+}
+
+.publishedSection {
+  /* The root scroll padding already reserves the site-header height. */
+  scroll-margin-top: var(--spacing-5);
+}
+
 .section + .section {
   margin-top: var(--spacing-9);
   padding-top: var(--spacing-8);

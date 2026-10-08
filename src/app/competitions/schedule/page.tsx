@@ -31,9 +31,10 @@ export default function CompetitionSchedulePage() {
       eyebrow="MATCH CENTRE · FIXTURES & RESULTS"
       title="赛程与赛果"
     >
+      <Link className={`${styles.siblingLink} ${styles.publishedJump}`} href="#published-matches">查看已发布比赛 ↓</Link>
       <section className={styles.section} aria-labelledby="publication-status-title">
         <MatchCentreSectionHeading
-          description="以下赛事尚无正式赛程，不显示占位对阵，也不推测开球时间或场地。"
+          description="以下赛事的赛程、开球时间与场地尚未正式公布，请关注后续公告。"
           eyebrow="CURRENT PUBLICATION STATUS"
           id="publication-status-title"
           title="当前赛事发布状态"
@@ -58,7 +59,7 @@ export default function CompetitionSchedulePage() {
         </div>
       </section>
 
-      <section className={styles.section} aria-labelledby="published-matches-title">
+      <section className={`${styles.section} ${styles.publishedSection}`} id="published-matches" aria-labelledby="published-matches-title">
         <MatchCentreSectionHeading
           description="按赛事、阶段或球队筛选；结果按时间由近至远排列，每次显示 12 场。"
           eyebrow="PUBLISHED MATCH RECORDS"

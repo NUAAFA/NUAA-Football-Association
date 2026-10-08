@@ -134,7 +134,7 @@ export function CompetitionRecordExplorer({
                 <header className={styles.scorerSectionHeader}>
                   <span>GOLDEN BOOT HONOURS</span>
                   <h4 id={`${selectedRecord.id}-scorer-awards`}>赛事金靴荣誉</h4>
-                  <p>公开资料仅确认获奖者，不按数组顺序生成名次，也不填补个人进球数。</p>
+                  <p>公开资料仅确认以下金靴得主，未公布个人进球数及完整排名。</p>
                 </header>
                 <div className={styles.awardGrid}>
                   {awardScorers.map((player) => (

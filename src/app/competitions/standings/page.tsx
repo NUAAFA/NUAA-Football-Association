@@ -24,7 +24,7 @@ export default function CompetitionStandingsPage() {
     >
       <section className={styles.section} aria-labelledby="standings-records-title">
         <MatchCentreSectionHeading
-          description="桌面端提供完整表格，移动端保留场次、胜平负、进失球、净胜球与积分。"
+          description="查看各队场次、胜平负、进失球、净胜球与积分。"
           eyebrow="PUBLISHED TABLES"
           id="standings-records-title"
           title="已公开积分记录"

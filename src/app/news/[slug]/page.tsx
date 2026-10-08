@@ -221,7 +221,7 @@ export default async function NewsDetailPage({ params, searchParams }: NewsDetai
       ) : isWomensCupStory ? (
         <>
           <h2>赛事影像</h2>
-          <ArchiveGallery images={womensCupGallery} ariaLabel="2026女子足球院际杯收官报道原始照片" className="detail-archive-gallery" showCaptions />
+          <ArchiveGallery images={womensCupGallery.filter((entry) => entry.src !== image)} ariaLabel="2026女子足球院际杯收官报道原始照片" className="detail-archive-gallery" showCaptions />
         </>
       ) : !isDisciplineDecision ? (
         <blockquote>本文数据来自赛事秩序册、足球中国赛事后台及湖区FA公众号归档资料。</blockquote>

@@ -10,6 +10,8 @@
 .body { padding-top: var(--spacing-5); color: var(--color-text-body); font-size: 1.0625rem; line-height: 1.95; overflow-wrap: anywhere; }
 .body > * + * { margin-top: var(--spacing-5); }
 .body p { white-space: pre-line; }
+/* Keep the legacy global paragraph/list rule from shrinking News body text. */
+.body p:not(.lead), .body li { font-size: inherit !important; }
 .body .lead { color: var(--color-text-strong); font-size: 1.125rem; line-height: 1.85; }
 .body h2 { margin-top: var(--spacing-7); font-size: 1.5rem; line-height: 1.5; }
 .body h3 { margin-top: var(--spacing-6); font-size: 1.25rem; line-height: 1.55; }

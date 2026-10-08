@@ -573,7 +573,12 @@ async function main() {
     await sourceContains("src/app/news/[slug]/page.tsx", [
       "alternates: { canonical: canonicalPath }",
       "newsArticleJsonLd",
-      "ShareActions",
+      "@/components/news/news-article-layout",
+      "<NewsArticleLayout",
+    ]);
+    await sourceContains("src/components/news/news-article-layout.tsx", [
+      "@/components/share/share-actions",
+      "<ShareActions title={title} text={summary} />",
     ]);
 
     const auditCount = await verifier.auditLog.count();
