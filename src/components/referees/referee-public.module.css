@@ -104,6 +104,14 @@
   .headerGrid { grid-template-columns: minmax(0, 1fr); gap: var(--spacing-5); }
 }
 
+@media (min-width: 768px) and (max-width: 1023px) {
+  .headerWithAside { padding-block: var(--spacing-5); }
+  .headerGrid { gap: var(--spacing-4); }
+  .headerContact { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 0.9fr); column-gap: var(--spacing-5); padding: var(--spacing-4); }
+  .headerContact > h2, .contactName, .contactScope { grid-column: 1; }
+  .contactChannels { grid-column: 2; grid-row: 1 / span 3; align-self: center; margin-top: 0; }
+}
+
 @media (max-width: 767px) {
   .header { padding-block: var(--spacing-6); }
   .headerWithAside { padding-block: var(--spacing-5); }

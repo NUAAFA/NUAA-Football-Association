@@ -23,7 +23,7 @@ export function RefereeRecruitment() {
     <RefereeSection id="recruitment-application" title="提交裁判准入申请" description="提交申请后由协会审核；审核通过后才会创建或关联裁判员账号。本表用于申请加入裁判队伍，具体招募与培训安排以正式通知为准。">
       <div className={styles.formPanel}><RefereeAdmissionForm /></div>
     </RefereeSection>
-    <RefereeSection id="application-notes" title="报名与后续安排" description="报名按照协会裁判招募通知指定方式提交。通过审核并完成登记的裁判员，可在裁判员工作区正式开放后使用个人账号查看相关任务与执裁安排。">
+    <RefereeSection id="application-notes" title="报名与后续安排" description="招新群尚未开放，招募报名与培训安排以协会正式通知为准。上方准入申请用于申请加入裁判队伍，提交后由协会审核；已有启用账号的裁判员可直接登录工作区，查看个人任务与执裁安排。">
       <Link className={styles.textLink} href="/referees/login">已有启用账号？前往裁判员登录 →</Link>
     </RefereeSection>
   </RefereePage>;
