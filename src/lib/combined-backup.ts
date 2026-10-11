@@ -6,6 +6,7 @@ import {
   mkdir,
   readFile,
   readdir,
+  realpath,
   rename,
   rm,
   stat,
@@ -201,7 +202,17 @@ async function migrationNames() {
 }
 
 async function applicationSha() {
-  return (await execFileAsync("git", ["rev-parse", "HEAD"], { cwd: process.cwd() })).stdout.trim();
+  const cwd = await realpath(process.cwd());
+  let trustedRootTree = true;
+  for (let parent = cwd; ; parent = path.dirname(parent)) {
+    const metadata = await lstat(parent);
+    if (metadata.uid !== 0 || (metadata.mode & 0o022) !== 0 || metadata.isSymbolicLink()) trustedRootTree = false;
+    if (parent === path.dirname(parent)) break;
+  }
+  const args = ["--no-replace-objects", "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false"];
+  if (trustedRootTree) args.push("-c", `safe.directory=${cwd}`);
+  args.push("rev-parse", "HEAD");
+  return (await execFileAsync("git", args, { cwd })).stdout.trim();
 }
 
 async function ensureEmptyDirectory(target: string) {

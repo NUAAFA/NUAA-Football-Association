@@ -49,12 +49,15 @@ run_main_failure() {
 
 repo_root="$(pwd -P)"
 source "$repo_root/ops/deploy/nuaafa-deploy"
+# Synthetic legacy authorization and migration model only.
+run_prebuilt_helper() { [ "$1" = legacy ] || [ "$1" = migration-ready ] || [ "$1" = check-state ] || [ "$1" = state ] || [ "$1" = shared-links ]; }
 student_id_preflight_command="$repo_root/scripts/student-id-release-preflight.mjs"
 student_id_preflight_node="$(command -v node)"
 
 require_root() { :; }
 prepare_process() { umask 077; }
 acquire_lock() { :; }
+verify_root_metadata() { :; }
 run_as_deploy_user() { "$@"; }
 set_link_owner() { :; }
 set_file_owner() { :; }
@@ -92,6 +95,7 @@ run_release_build() {
 }
 run_db_backup() { printf 'backup\n' >>"$events"; }
 run_migration() { printf 'migrate\n' >>"$events"; }
+stop_service() { printf 'stop\n' >>"$events"; }
 restart_service() { printf 'restart\n' >>"$events"; }
 wait_for_health() { printf 'health\n' >>"$events"; }
 
@@ -164,6 +168,10 @@ NODE
   local old_release="$release_root/$old_sha"
   git clone --no-checkout "$repository" "$old_release" >/dev/null
   git -C "$old_release" checkout --detach "$old_sha" >/dev/null
+  mkdir "$old_release/.next"
+  printf old > "$old_release/.next/BUILD_ID"
+  create_symlink "$shared/.env.production" "$old_release/.env.production"
+  create_symlink "$shared/prisma/dev.db" "$old_release/prisma/dev.db"
   create_symlink "$old_release" "$current_link"
 }
 
@@ -309,7 +317,7 @@ run_main_ok "full-deploy" --allowed-ref refs/heads/main "$reviewed_sha"
 assert_equal "$(read_symlink_target "$current_link")" "$release_root/$reviewed_sha" "full deploy current"
 assert_equal "$(sha256sum "$shared/.env.production" | awk '{print $1}')" "$full_env_before" "full deploy ENV fixture hash"
 assert_equal "$(sha256sum "$shared/prisma/dev.db" | awk '{print $1}')" "$full_db_before" "full deploy DB fixture hash"
-assert_event_sequence $'static\nbackup\nmigrate\nbuild\nrestart\nhealth'
+assert_event_sequence $'static\nbuild\nbackup\nstop\nmigrate\nrestart\nhealth'
 
 # Actual read-only guard must reject unsafe or unverifiable identities before
 # full deployment writes or activation; do not replace the guard with a mock.

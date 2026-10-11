@@ -147,3 +147,70 @@ The remaining direct production advisory roots are `@tiptap/core`, `deepmerge-ts
 This is a development/linting path absent from the production audit; repository application code does not import these glob-expansion packages. That reachability evidence does not constitute an approved exception. The earlier disposition does not explicitly cover this advisory. No unverified override, replacement, downgrade or policy relaxation was applied.
 
 **R2-2F correction gate remains BLOCKED pending a compatible upstream fix or a separate explicit, evidence-based security disposition for this High advisory.** The restored production inventory alone cannot justify a remediation PASS, a success checkpoint, release readiness, or production activation.
+
+
+## 2026-10-11 comprehensive remediation — no risk approval
+
+This assessment supersedes earlier exact-inventory allowances for the current
+uncommitted integration revision. It grants **no** security exception. The
+[complete report](V2_10_COMPREHENSIVE_REMEDIATION_FINAL_REPORT.txt) and external
+`nuaafa-comprehensive-9a6rg09u` evidence retain raw audits, failures and retests.
+
+| Audit scope | Before Critical / High / Moderate | After Critical / High / Moderate |
+| --- | --- | --- |
+| Production | 0 / 5 / 28 | 0 / 4 / 0 |
+| Full tree | 0 / 12 / 28 | 0 / 9 / 0 |
+
+These are npm vulnerability **package** counts, including propagated parent
+findings, not unique advisory counts. After remediation, three underlying package
+roots retain four advisory URLs. Both ordinary audits still exit `1`.
+
+The four direct Tiptap dependencies and all 29 locked Tiptap family packages move
+from `3.30.2` to stable patch `3.30.5`, fixing
+[core object pollution](https://github.com/advisories/GHSA-cp6q-959q-f8rh) and
+[Markdown attribute ReDoS](https://github.com/advisories/GHSA-j95f-988m-3j2f).
+Compatible transitive corrections are baseline-browser-mapping `2.10.43 -> 2.11.28`
+([advisory](https://github.com/advisories/GHSA-w5vr-8v7q-w6rv)), Browserslist
+`4.28.6 -> 4.29.3` ([cache](https://github.com/advisories/GHSA-c83g-rgw3-j3cx),
+[stats](https://github.com/advisories/GHSA-73wf-gq98-2v4g)), and js-yaml
+`4.3.1 -> 4.3.2` ([merge limit](https://github.com/advisories/GHSA-2883-xcg3-v3hh)).
+Four Browserslist database packages also advance to satisfy the actual new ranges;
+36 package versions change. No new package path, override, force fix or prerelease
+is introduced. Fresh Node `22.23.2` locked install, type/lint/build, security/auth,
+CMS HTTP, referee/competition and backup/restore regressions pass on macOS.
+This does not establish interactive editor Human Review or Linux compatibility.
+
+Remaining roots and proposed decisions (all **UNAPPROVED**):
+
+- `braces@3.0.3`, [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm):
+  checked upstream lists no patch and npm latest remains 3.0.3. The introducing
+  ESLint/Next glob path is tooling; the prebuilt candidate deliberately includes
+  the full installed tree, so tooling labels alone cannot waive it. Keep blocked;
+  await a compatible upstream fix or separately review measured reachability,
+  isolation and explicit bounded risk acceptance. No acceptance was generated.
+- `deepmerge-ts@7.1.5`, [GHSA-ggr8-5vv4-36mx](https://github.com/advisories/GHSA-ggr8-5vv4-36mx):
+  a patched stable major exists (`8.0.2`, patched minimum `8.0.0`), but current
+  Prisma config and inspected stable Prisma `7.10.0` still pin `7.1.5`. It processes
+  Prisma configuration in migration/build tools. Untrusted configuration/object
+  reachability and embedded copies require review; no production exploit is
+  claimed or ruled out. Keep blocked; prefer an upstream compatible Prisma fix.
+  A forced major override has not been demonstrated safe and was not adopted.
+- `mysql2@3.15.3`, [credential downgrade](https://github.com/advisories/GHSA-3f6p-5ww8-9rcr)
+  and [compressed-protocol inflation](https://github.com/advisories/GHSA-rgwj-5xj2-c3m3):
+  stable `3.24.5` patches both, but Prisma `7.9.1` and inspected `7.10.0` pin
+  `3.15.3` exactly. This application uses SQLite/libSQL, with no application MySQL
+  imports; Prisma CLI and its broader tooling remain packaged. That narrows the
+  observed app path, not the formal audit. Keep blocked; await the upstream pin
+  correction or separately validate an explicitly authorized alternative CLI/runtime
+  separation. No override, database migration architecture change or exception.
+
+The npm `prisma` latest tag currently points to an `8.0.0-rc` prerelease; it was
+not selected. Inspecting stable `7.10.0` showed no fix for these two pins, so a
+Prisma upgrade would add compatibility work without clearing those roots.
+The release-candidate checker now fails on unresolved advisories in both full
+and production raw audits; it does not reuse historical inventory as approval.
+`npm run rc:check` actually exits `1` / `NOT_READY` for this revision.
+
+**Production NO-GO**: residual High advisories, new Linux/root-user evidence
+NOT RUN, no independent Human Review/security approval and unverified production
+preconditions. No project commit, push, Actions dispatch or production access.

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-deployer_version="R1-3D-FIX-3B-1"
-repository="git@github-nuaafa:togatakeoff777-gif/NUAA-Football-Association.git"
+deployer_version="V2.10-PREBUILT-2"
+repository="git@github-nuaafa:NUAAFA/NUAA-Football-Association.git"
 release_root="/srv/nuaafa/releases"
 shared="/srv/nuaafa/shared"
 current_link="/srv/nuaafa/current"
@@ -11,9 +11,18 @@ service_name="nuaafa.service"
 db_backup_command="/usr/local/sbin/nuaafa-db-backup"
 student_id_preflight_command="/usr/local/lib/nuaafa/student-id-release-preflight.mjs"
 student_id_preflight_node="/usr/bin/node"
-lock_file="/run/lock/nuaafa-deploy.lock"
+lock_file="/run/nuaafa-deploy.lock"
 default_allowed_ref="refs/heads/main"
 provenance_name="nuaafa-staged-release.v1"
+prebuilt_helper="/usr/local/lib/nuaafa/prebuilt-artifact.py"
+prebuilt_python="/usr/bin/python3"
+# Outside candidate releases: root-owned receipts and independent approvals.
+prebuilt_state="/srv/nuaafa/prebuilt"
+prebuilt_approvals="/etc/nuaafa/prebuilt-approvals"
+activation_state="/srv/nuaafa/prebuilt-activation.json"
+prebuilt_start="/usr/local/lib/nuaafa/start-prebuilt"
+artifact_path=""
+artifact_sha256=""
 
 operation_mode="full"
 mode_selected=false
@@ -29,13 +38,15 @@ die() {
 }
 
 usage_error() {
-  echo "Usage: nuaafa-deploy [--dry-run] [--allowed-ref refs/heads/BRANCH] [--stage-only|--activate-staged] [40-character-commit]" >&2
+  echo "Usage: nuaafa-deploy [--dry-run] [--allowed-ref REF] [--stage-only|--activate-staged|--import-artifact ARCHIVE|--activate-prebuilt] [--artifact-sha256 SHA256] [40-character-commit]" >&2
   return 2
 }
 
 usage() {
   cat <<'EOF'
 Usage: nuaafa-deploy [--dry-run] [--allowed-ref refs/heads/BRANCH] [--stage-only|--activate-staged] [40-character-commit]
+       nuaafa-deploy --import-artifact ARCHIVE --artifact-sha256 SHA256 [--allowed-ref REF] COMMIT
+       nuaafa-deploy --activate-prebuilt --artifact-sha256 SHA256 [--allowed-ref REF] COMMIT
 
 Modes:
   default             Legacy full deploy: prepare, backup, migrate, build,
@@ -43,6 +54,14 @@ Modes:
   --stage-only        Prepare and build an exact release without DB, current,
                       service, content, upload, environment, or timer mutation.
   --activate-staged   Verify and atomically switch to a staged release only.
+  --import-artifact   Verify and import a prebuilt candidate; no shared data,
+                      build, candidate execution, current switch or restart.
+  --activate-prebuilt Require independent security/Linux/Human Review approval;
+                      preflight, backup, migrate, switch, restart and health.
+
+Prebuilt modes require an exact commit and an independently obtained SHA-256.
+Import success is not release approval. Never trust an archive's own checksum
+file as the sole authority. Legacy modes cannot activate imported candidates.
 
 Stage-only and activate-staged require an explicit 40-character commit.
 The allowed ref defaults to refs/heads/main; R1-3D feature staging must pass its
@@ -68,6 +87,8 @@ parse_args() {
   allowed_ref="$default_allowed_ref"
   show_help=false
   show_version=false
+  artifact_path=""
+  artifact_sha256=""
 
   while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -79,6 +100,21 @@ parse_args() {
         ;;
       --activate-staged)
         select_mode "activate" || return $?
+        ;;
+      --import-artifact)
+        select_mode "import" || return $?
+        shift
+        [ "$#" -gt 0 ] || { usage_error; return 2; }
+        artifact_path="$1"
+        ;;
+      --activate-prebuilt)
+        select_mode "prebuilt" || return $?
+        ;;
+      --artifact-sha256)
+        shift
+        [ "$#" -gt 0 ] || { usage_error; return 2; }
+        [ -z "$artifact_sha256" ] || { die "duplicate artifact checksum"; return 2; }
+        artifact_sha256="$1"
         ;;
       --allowed-ref)
         shift
@@ -111,10 +147,15 @@ parse_args() {
     shift
   done
 
-  if { [ "$operation_mode" = "stage" ] || [ "$operation_mode" = "activate" ]; } && [ -z "$requested_commit" ]; then
+  if [ "$operation_mode" != "full" ] && [ -z "$requested_commit" ]; then
     echo "An exact commit is required for $operation_mode mode." >&2
     usage_error
     return $?
+  fi
+  if [ "$operation_mode" = "import" ] || [ "$operation_mode" = "prebuilt" ]; then
+    [[ "$artifact_sha256" =~ ^[0-9a-f]{64}$ ]] || { die "prebuilt mode requires an independent exact SHA-256"; return 2; }
+  else
+    [ -z "$artifact_sha256" ] || { die "artifact checksum is only valid in prebuilt modes"; return 2; }
   fi
 }
 
@@ -130,8 +171,15 @@ prepare_process() {
 }
 
 acquire_lock() {
-  exec 9>"$lock_file"
-  flock -n 9 || die "another NUAAFA deployment is already running"
+  verify_root_metadata "$(dirname -- "$lock_file")" || return $?
+  if [ -e "$lock_file" ] || path_is_symlink "$lock_file"; then
+    verify_root_metadata "$lock_file" || return $?
+    [ -f "$lock_file" ] || return 1
+  else
+    (set -o noclobber; : > "$lock_file") || return $?
+  fi
+  exec 9<>"$lock_file" || return $?
+  flock -n 9 || { die "another NUAAFA deployment is already running"; return 1; }
 }
 
 run_as_deploy_user() {
@@ -139,20 +187,30 @@ run_as_deploy_user() {
 }
 
 set_link_owner() {
-  chown -h "$deploy_user:$deploy_user" "$@"
+  if [ "$operation_mode" = prebuilt ] || [ "$operation_mode" = import ]; then chown -h root:root "$@"; else chown -h "$deploy_user:$deploy_user" "$@"; fi
 }
 
 set_file_owner() {
   chown "$deploy_user:$deploy_user" "$@"
 }
 
+set_release_tree_owner() {
+  chown -R "$deploy_user:$deploy_user" "$1"
+}
+
 verify_release_owner() {
-  [ "$(stat -c '%U' "$1")" = "$deploy_user" ] || die "release path is not owned by $deploy_user: $1"
+  local owner
+  owner="$(stat -c '%U' "$1")" || return $?
+  if [ "$operation_mode" = prebuilt ] || [ "$operation_mode" = import ]; then
+    [ "$owner" = root ] || { [ "$1" = "${activation_previous:-}" ] && [ "$owner" = "$deploy_user" ]; } || { die "prebuilt release must be root-owned"; return 1; }
+  else
+    [ "$owner" = "$deploy_user" ] || { die "release path is not owned by $deploy_user: $1"; return 1; }
+  fi
 }
 
 run_release_static_checks() {
   local release="$1"
-  run_as_deploy_user bash -lc "set -e; cd '$release'; npm ci; npm run lint; npm run check:unicode; npm run test:referee-flow; npm audit --omit=dev --audit-level=critical; npx prisma generate; npx prisma validate"
+  run_as_deploy_user bash -lc "set -e; cd '$release'; npm ci; npm run lint; npm run check:unicode; npm run test:referee-flow; npm audit; npx prisma generate; npx prisma validate"
 }
 
 run_release_build() {
@@ -161,14 +219,17 @@ run_release_build() {
 }
 
 run_db_backup() {
+  verify_root_metadata "$db_backup_command" || return $?
+  [ -f "$db_backup_command" ] && [ -x "$db_backup_command" ] || { die "trusted backup command missing"; return 1; }
   "$db_backup_command"
 }
 
 run_student_id_preflight() {
   local report
-  validate_canonical_shared_file "$shared/prisma/dev.db" "production database"
-  [ -f "$student_id_preflight_command" ] && ! path_is_symlink "$student_id_preflight_command" || die "installed student ID preflight is missing or unsafe"
-  report="$(run_as_deploy_user env -i "$student_id_preflight_node" "$student_id_preflight_command" "--database=$shared/prisma/dev.db")" || die "student ID release preflight blocked release"
+  validate_canonical_shared_file "$shared/prisma/dev.db" "production database" || return $?
+  verify_root_metadata "$student_id_preflight_command" || return $?
+  [ -f "$student_id_preflight_command" ] && ! path_is_symlink "$student_id_preflight_command" || { die "installed student ID preflight is missing or unsafe"; return 1; }
+  report="$(run_as_deploy_user env -i "$student_id_preflight_node" "$student_id_preflight_command" "--database=$shared/prisma/dev.db")" || { die "student ID release preflight blocked release"; return 1; }
   if ! run_as_deploy_user env -i "$student_id_preflight_node" --input-type=module - "$report" <<'NODE'
 const keys = ['totalReferees', 'totalActiveAccounts', 'missingStudentId', 'activeMissingStudentId', 'activeNonNormalizedStudentId', 'duplicateStudentIdGroups', 'unsafeLoginMigrationBlockers', 'scanComplete', 'readOnlyVerified', 'releaseAllowed'];
 try {
@@ -183,30 +244,113 @@ try {
 NODE
   then
     die "student ID release preflight output is unverifiable"
+    return 1
   fi
   printf '%s\n' "$report"
 }
 
-run_migration() {
+run_migration() (
   local release="$1"
-  run_as_deploy_user bash -lc "set -e; cd '$release'; DOTENV_CONFIG_PATH=.env.production npx prisma migrate deploy"
-}
+  cd "$release" || return $?
+  run_as_deploy_user env -i PATH=/usr/bin:/bin NODE_ENV=production DOTENV_CONFIG_PATH="$release/.env.production" DATABASE_URL="file:$shared/prisma/dev.db" "$student_id_preflight_node" "$release/node_modules/prisma/build/index.js" migrate deploy --config "$release/prisma.config.ts"
+)
 
 restart_service() {
   systemctl restart "$service_name"
 }
 
 wait_for_health() {
-  local healthy=false
-  local attempt
+  local attempt pid
   for attempt in $(seq 1 20); do
-    if curl --fail --silent --show-error --max-time 5 http://127.0.0.1:3001/api/health >/dev/null; then
-      healthy=true
-      break
+    if systemctl is-active --quiet "$service_name" &&
+       curl --fail --silent --show-error --max-time 5 http://127.0.0.1:3001/api/health |
+         "$prebuilt_python" -I -c 'import json,sys;sys.exit(0 if json.load(sys.stdin)=={"status":"ok"} else 1)'; then
+      pid="$(systemctl show --value -p MainPID "$service_name")" || return $?
+      [[ "$pid" =~ ^[1-9][0-9]*$ ]] || return 1
+      [ "$(resolve_existing_path "/proc/$pid/cwd")" = "$(resolve_existing_path "$current_link")" ] || return 1
+      return 0
     fi
     sleep 1
   done
-  [ "$healthy" = true ]
+  return 1
+}
+
+stop_service() { systemctl stop "$service_name"; }
+
+verify_service_contract() {
+  verify_root_metadata "$prebuilt_start" || return $?
+  [ -x "$prebuilt_start" ] || { die "trusted prebuilt start command missing"; return 1; }
+  [ "$(systemctl show --value -p User "$service_name")" = "$deploy_user" ] || { die "service identity differs"; return 1; }
+  [ "$(systemctl show --value -p WorkingDirectory "$service_name")" = "$current_link" ] || { die "service working directory differs"; return 1; }
+  local property configuration
+  configuration="$(systemctl show --value -p FragmentPath "$service_name")" || return $?
+  verify_root_metadata "$configuration" || return $?
+  local dropins
+  dropins="$(systemctl show --value -p DropInPaths "$service_name")" || return $?
+  for configuration in $dropins; do verify_root_metadata "$configuration" || return $?; done
+  for property in Environment EnvironmentFiles PassEnvironment RootDirectory RootImage BindPaths BindReadOnlyPaths; do
+    [ -z "$(systemctl show --value -p "$property" "$service_name")" ] || { die "service has an additional environment or filesystem source"; return 1; }
+  done
+  for property in ExecStartPre ExecStartPost ExecCondition ExecStop ExecStopPost; do
+    [ -z "$(systemctl show --value -p "$property" "$service_name")" ] || { die "service has additional unreviewed commands"; return 1; }
+  done
+  local command
+  command="$(systemctl show --value -p ExecStart "$service_name")" || return $?
+  # systemd exposes path and argv; reject alternate startup flags/scripts.
+  [[ "$command" = "{ path=$prebuilt_start ; argv[]=$prebuilt_start ; "* ]] &&
+    [[ "$command" != *"} {"* ]] || { die "service must use the reviewed prebuilt start contract"; return 1; }
+}
+
+run_prebuilt_backup() (
+  local release="$1" output backup verified
+  cd "$release" || return $?
+  validate_exact_directory "$shared/uploads" "shared uploads" || return $?
+  validate_exact_directory "$shared/backups/unified" "unified backup root" || return $?
+  output="$(run_as_deploy_user env -i PATH=/usr/bin:/bin NODE_ENV=production DATABASE_URL="file:$shared/prisma/dev.db" NUAAFA_UPLOAD_DIR="$shared/uploads" "$student_id_preflight_node" "$release/node_modules/tsx/dist/cli.mjs" "$release/scripts/backup-unified-data.ts" "--root=$shared/backups/unified")" || { die "combined pre-migration backup failed"; return 1; }
+  backup="$(printf '%s' "$output" | "$prebuilt_python" -I -c 'import json,sys;print(json.load(sys.stdin)["outputDirectory"])')" || return $?
+  [[ "$backup" = "$shared/backups/unified/"* ]] && [ "$(dirname -- "$backup")" = "$shared/backups/unified" ] || { die "backup destination outside approved root"; return 1; }
+  validate_exact_directory "$backup" "created backup" || return $?
+  verified="$(run_as_deploy_user env -i PATH=/usr/bin:/bin NODE_ENV=production "$student_id_preflight_node" "$release/node_modules/tsx/dist/cli.mjs" "$release/scripts/verify-unified-backup.ts" "--backup=$backup")" || { die "fresh backup failed independent verification"; return 1; }
+  printf '%s' "$verified" | "$prebuilt_python" -I -c 'import json,sys;sys.exit(0 if json.load(sys.stdin).get("valid") is True else 1)' || return $?
+  echo "Fresh combined backup created and independently verified: $backup"
+)
+
+activation_phase=""
+activation_work=""
+activation_previous=""
+activation_release=""
+record_activation_phase() {
+  run_prebuilt_helper state --path "$activation_state" --commit "$target_commit" --previous "$(basename -- "$activation_previous")" --phase "$1" || return $?
+  activation_phase="$1"
+}
+
+recover_activation() {
+  # Any uncertain migration state must stay stopped for explicit operator recovery.
+  case "$activation_phase" in
+    PREPARED|SERVICE_STOPPING|SERVICE_STOPPED|MIGRATED|SWITCHING|SWITCHED)
+      if validate_recovery_release "$activation_previous" &&
+         run_student_id_preflight && atomic_switch_current "$activation_previous" && restart_service && wait_for_health; then
+        record_activation_phase ROLLED_BACK || return $?
+        echo "Previous release link AND service health verified; database migrations remain forward-only." >&2
+        return 0
+      fi
+      ;;
+    HEALTHY|ROLLED_BACK) return 0 ;;
+  esac
+  # Best-effort stop is never recorded as successful recovery.
+  if ! stop_service; then echo "STOP: service stop also failed; inspect service immediately" >&2; fi
+  record_activation_phase MANUAL_REQUIRED || echo "STOP: fault-state persistence failed" >&2
+  echo "STOP: manual recovery required. Keep service stopped; inspect $activation_state, current, migration history and verified backup. Do not reverse migrations or restore a database automatically." >&2
+  return 1
+}
+
+activation_exit() {
+  local status="$1"
+  trap - EXIT INT TERM
+  if [ "$status" -ne 0 ] && [ -n "$activation_phase" ]; then
+    if ! recover_activation; then status=1; fi
+  fi
+  exit "$status"
 }
 
 # Keep filesystem link operations behind small primitives. Production uses the
@@ -238,29 +382,30 @@ is_exact_commit() {
 
 validate_allowed_ref() {
   local ref="$1"
-  [[ "$ref" =~ ^refs/heads/[A-Za-z0-9][A-Za-z0-9._/-]*$ ]] || die "allowed ref must be an explicit refs/heads/... value"
-  [[ "$ref" != *".."* && "$ref" != *"//"* && "$ref" != */ && "$ref" != *"@{"* && "$ref" != *\\* ]] || die "allowed ref contains an unsafe sequence"
+  [[ "$ref" =~ ^refs/heads/[A-Za-z0-9][A-Za-z0-9._/-]*$ ]] || { die "allowed ref must be an explicit refs/heads/... value"; return 1; }
+  [[ "$ref" != *".."* && "$ref" != *"//"* && "$ref" != */ && "$ref" != *"@{"* && "$ref" != *\\* ]] || { die "allowed ref contains an unsafe sequence"; return 1; }
 }
 
 validate_fixed_configuration() {
   case "$repository" in
-    *$'\n'*|*$'\r'*) die "repository contains a newline" ;;
+    *$'\n'*|*$'\r'*) die "repository contains a newline"; return 1 ;;
   esac
-  [[ "$release_root" = /* && "$shared" = /* && "$current_link" = /* ]] || die "deployment paths must be absolute"
-  [ "$(dirname -- "$current_link")" = "$(dirname -- "$release_root")" ] || die "current and releases must share the approved parent"
+  [[ "$release_root" = /* && "$shared" = /* && "$current_link" = /* ]] || { die "deployment paths must be absolute"; return 1; }
+  [ "$(dirname -- "$current_link")" = "$(dirname -- "$release_root")" ] || { die "current and releases must share the approved parent"; return 1; }
 }
 
 validate_exact_directory() {
   local directory="$1"
   local label="$2"
-  [ -d "$directory" ] || die "$label is not a directory: $directory"
-  ! path_is_symlink "$directory" || die "$label must not be a symlink: $directory"
-  [ "$(resolve_existing_path "$directory")" = "$directory" ] || die "$label path is not canonical: $directory"
+  [ -d "$directory" ] || { die "$label is not a directory: $directory"; return 1; }
+  ! path_is_symlink "$directory" || { die "$label must not be a symlink: $directory"; return 1; }
+  [ "$(resolve_existing_path "$directory")" = "$directory" ] || { die "$label path is not canonical: $directory"; return 1; }
 }
 
 validate_layout_roots() {
-  validate_exact_directory "$release_root" "release root"
-  validate_exact_directory "$(dirname -- "$current_link")" "current parent"
+  validate_exact_directory "$release_root" "release root" || return $?
+  validate_exact_directory "$(dirname -- "$current_link")" "current parent" || return $?
+  verify_root_metadata "$release_root" || return $?
 }
 
 release_path_for() {
@@ -270,39 +415,39 @@ release_path_for() {
 validate_release_directory() {
   local release="$1"
   local commit="$2"
-  is_exact_commit "$commit" || die "release commit is not exact"
-  [ "$release" = "$(release_path_for "$commit")" ] || die "release path does not match the requested commit"
-  [ "$(dirname -- "$release")" = "$release_root" ] || die "release is not a direct child of the release root"
-  [ "$(basename -- "$release")" = "$commit" ] || die "release directory name does not match the commit"
-  [ -d "$release" ] || die "release directory is missing: $release"
-  ! path_is_symlink "$release" || die "release directory must not be a symlink: $release"
-  [ "$(resolve_existing_path "$release")" = "$release" ] || die "release directory escapes the release root"
-  verify_release_owner "$release"
-  [ -d "$release/.git" ] || die "release Git directory is missing"
-  ! path_is_symlink "$release/.git" || die "release Git directory must not be a symlink"
+  is_exact_commit "$commit" || { die "release commit is not exact"; return 1; }
+  [ "$release" = "$(release_path_for "$commit")" ] || { die "release path does not match the requested commit"; return 1; }
+  [ "$(dirname -- "$release")" = "$release_root" ] || { die "release is not a direct child of the release root"; return 1; }
+  [ "$(basename -- "$release")" = "$commit" ] || { die "release directory name does not match the commit"; return 1; }
+  [ -d "$release" ] || { die "release directory is missing: $release"; return 1; }
+  ! path_is_symlink "$release" || { die "release directory must not be a symlink: $release"; return 1; }
+  [ "$(resolve_existing_path "$release")" = "$release" ] || { die "release directory escapes the release root"; return 1; }
+  verify_release_owner "$release" || return $?
+  [ -d "$release/.git" ] || { die "release Git directory is missing"; return 1; }
+  ! path_is_symlink "$release/.git" || { die "release Git directory must not be a symlink"; return 1; }
 }
 
 validate_preparation_directory() {
   local directory="$1"
-  [ "$(dirname -- "$directory")" = "$release_root" ] || die "preparation directory is outside the release root"
-  [ -d "$directory" ] || die "preparation directory is missing"
-  ! path_is_symlink "$directory" || die "preparation directory must not be a symlink"
-  [ "$(resolve_existing_path "$directory")" = "$directory" ] || die "preparation directory escapes the release root"
-  verify_release_owner "$directory"
-  [ -d "$directory/.git" ] && ! path_is_symlink "$directory/.git" || die "preparation Git directory is unsafe"
+  [ "$(dirname -- "$directory")" = "$release_root" ] || { die "preparation directory is outside the release root"; return 1; }
+  [ -d "$directory" ] || { die "preparation directory is missing"; return 1; }
+  ! path_is_symlink "$directory" || { die "preparation directory must not be a symlink"; return 1; }
+  [ "$(resolve_existing_path "$directory")" = "$directory" ] || { die "preparation directory escapes the release root"; return 1; }
+  verify_release_owner "$directory" || return $?
+  [ -d "$directory/.git" ] && ! path_is_symlink "$directory/.git" || { die "preparation Git directory is unsafe"; return 1; }
 }
 
 git_in_release() {
   local release="$1"
   shift
-  run_as_deploy_user git -C "$release" "$@"
+  run_as_deploy_user env GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_OPTIONAL_LOCKS=0 GIT_NO_REPLACE_OBJECTS=1 git --no-replace-objects -c "safe.directory=$release" -c core.hooksPath=/dev/null -c core.fsmonitor=false -C "$release" "$@" || return $?
 }
 
 validate_origin() {
   local release="$1"
   local origin
-  origin="$(git_in_release "$release" remote get-url origin)"
-  [ "$origin" = "$repository" ] || die "release origin differs from the approved repository"
+  origin="$(git_in_release "$release" remote get-url origin)" || return $?
+  [ "$origin" = "$repository" ] || { die "release origin differs from the approved repository"; return 1; }
 }
 
 validate_git_state() {
@@ -310,10 +455,10 @@ validate_git_state() {
   local commit="$2"
   local head
   local status
-  head="$(git_in_release "$release" rev-parse HEAD)"
-  [ "$head" = "$commit" ] || die "release HEAD differs from the requested commit"
-  status="$(git_in_release "$release" status --porcelain)"
-  [ -z "$status" ] || die "release Git worktree is not clean"
+  head="$(git_in_release "$release" rev-parse HEAD)" || return $?
+  [ "$head" = "$commit" ] || { die "release HEAD differs from the requested commit"; return 1; }
+  status="$(git_in_release "$release" status --porcelain)" || return $?
+  [ -z "$status" ] || { die "release Git worktree is not clean"; return 1; }
 }
 
 remote_ref_head() {
@@ -321,11 +466,11 @@ remote_ref_head() {
   local output
   local line_count
   local head
-  output="$(run_as_deploy_user git ls-remote --heads "$repository" "$ref")"
+  output="$(run_as_deploy_user git ls-remote --heads "$repository" "$ref")" || return $?
   line_count="$(printf '%s\n' "$output" | sed '/^$/d' | wc -l | tr -d ' ')"
-  [ "$line_count" = "1" ] || die "allowed remote ref did not resolve exactly once: $ref"
+  [ "$line_count" = "1" ] || { die "allowed remote ref did not resolve exactly once: $ref"; return 1; }
   head="$(printf '%s\n' "$output" | awk 'NF >= 2 {print $1}')"
-  is_exact_commit "$head" || die "allowed remote ref did not resolve to an exact commit"
+  is_exact_commit "$head" || { die "allowed remote ref did not resolve to an exact commit"; return 1; }
   printf '%s\n' "$head"
 }
 
@@ -334,28 +479,28 @@ fetch_and_verify_reachability() {
   local release="$1"
   local commit="$2"
   local ref="$3"
-  git_in_release "$release" fetch --no-tags origin "$ref"
-  fetched_remote_head="$(git_in_release "$release" rev-parse FETCH_HEAD)"
-  is_exact_commit "$fetched_remote_head" || die "fetched allowed ref is not an exact commit"
-  git_in_release "$release" cat-file -e "${commit}^{commit}" || die "requested commit was not obtained from the approved repository"
-  git_in_release "$release" merge-base --is-ancestor "$commit" "$fetched_remote_head" || die "requested commit is not reachable from the allowed remote ref"
+  git_in_release "$release" fetch --no-tags origin "$ref" || return $?
+  fetched_remote_head="$(git_in_release "$release" rev-parse FETCH_HEAD)" || return $?
+  is_exact_commit "$fetched_remote_head" || { die "fetched allowed ref is not an exact commit"; return 1; }
+  git_in_release "$release" cat-file -e "${commit}^{commit}" || { die "requested commit was not obtained from the approved repository"; return 1; }
+  git_in_release "$release" merge-base --is-ancestor "$commit" "$fetched_remote_head" || { die "requested commit is not reachable from the allowed remote ref"; return 1; }
 }
 
 validate_canonical_shared_file() {
   local file="$1"
   local label="$2"
-  [ -f "$file" ] || die "$label is not a regular file: $file"
-  ! path_is_symlink "$file" || die "$label must not be a symlink: $file"
-  [ "$(resolve_existing_path "$file")" = "$file" ] || die "$label path is not canonical: $file"
+  [ -f "$file" ] || { die "$label is not a regular file: $file"; return 1; }
+  ! path_is_symlink "$file" || { die "$label must not be a symlink: $file"; return 1; }
+  [ "$(resolve_existing_path "$file")" = "$file" ] || { die "$label path is not canonical: $file"; return 1; }
 }
 
 verify_expected_link() {
   local entry="$1"
   local target="$2"
   local label="$3"
-  path_is_symlink "$entry" || die "$label entry is not a symlink"
-  [ "$(read_symlink_target "$entry")" = "$target" ] || die "$label link does not directly target the canonical path"
-  [ "$(resolve_existing_path "$entry")" = "$target" ] || die "$label link resolves outside the canonical target"
+  path_is_symlink "$entry" || { die "$label entry is not a symlink"; return 1; }
+  [ "$(read_symlink_target "$entry")" = "$target" ] || { die "$label link does not directly target the canonical path"; return 1; }
+  [ "$(resolve_existing_path "$entry")" = "$target" ] || { die "$label link resolves outside the canonical target"; return 1; }
 }
 
 ensure_expected_link() {
@@ -363,14 +508,14 @@ ensure_expected_link() {
   local target="$2"
   local label="$3"
   if path_is_symlink "$entry"; then
-    verify_expected_link "$entry" "$target" "$label"
+    verify_expected_link "$entry" "$target" "$label" || return $?
   elif [ -e "$entry" ]; then
-    die "$label entry has an unexpected file type"
+    die "$label entry has an unexpected file type"; return 1
   else
-    create_symlink "$target" "$entry"
-    verify_expected_link "$entry" "$target" "$label"
+    create_symlink "$target" "$entry" || return $?
+    verify_expected_link "$entry" "$target" "$label" || return $?
   fi
-  set_link_owner "$entry"
+  set_link_owner "$entry" || return $?
 }
 
 ensure_shared_links() {
@@ -378,15 +523,15 @@ ensure_shared_links() {
   local env_target="$shared/.env.production"
   local db_target="$shared/prisma/dev.db"
   local prisma_directory="$release/prisma"
-  validate_exact_directory "$shared" "shared root"
-  validate_exact_directory "$shared/prisma" "shared Prisma directory"
-  validate_canonical_shared_file "$env_target" "production environment file"
-  validate_canonical_shared_file "$db_target" "production database"
-  validate_exact_directory "$prisma_directory" "release Prisma directory"
-  [ "$(dirname -- "$release/.env.production")" = "$release" ] || die "release environment entry escaped the release"
-  [ "$(dirname -- "$release/prisma/dev.db")" = "$prisma_directory" ] || die "release database entry escaped the release"
-  ensure_expected_link "$release/.env.production" "$env_target" "release environment"
-  ensure_expected_link "$release/prisma/dev.db" "$db_target" "release database"
+  validate_exact_directory "$shared" "shared root" || return $?
+  validate_exact_directory "$shared/prisma" "shared Prisma directory" || return $?
+  validate_canonical_shared_file "$env_target" "production environment file" || return $?
+  validate_canonical_shared_file "$db_target" "production database" || return $?
+  validate_exact_directory "$prisma_directory" "release Prisma directory" || return $?
+  [ "$(dirname -- "$release/.env.production")" = "$release" ] || { die "release environment entry escaped the release"; return 1; }
+  [ "$(dirname -- "$release/prisma/dev.db")" = "$prisma_directory" ] || { die "release database entry escaped the release"; return 1; }
+  ensure_expected_link "$release/.env.production" "$env_target" "release environment" || return $?
+  ensure_expected_link "$release/prisma/dev.db" "$db_target" "release database" || return $?
 }
 
 verify_shared_links() {
@@ -394,25 +539,25 @@ verify_shared_links() {
   local env_target="$shared/.env.production"
   local db_target="$shared/prisma/dev.db"
   local prisma_directory="$release/prisma"
-  validate_exact_directory "$shared" "shared root"
-  validate_exact_directory "$shared/prisma" "shared Prisma directory"
-  validate_canonical_shared_file "$env_target" "production environment file"
-  validate_canonical_shared_file "$db_target" "production database"
-  validate_exact_directory "$prisma_directory" "release Prisma directory"
-  verify_expected_link "$release/.env.production" "$env_target" "release environment"
-  verify_expected_link "$release/prisma/dev.db" "$db_target" "release database"
+  validate_exact_directory "$shared" "shared root" || return $?
+  validate_exact_directory "$shared/prisma" "shared Prisma directory" || return $?
+  validate_canonical_shared_file "$env_target" "production environment file" || return $?
+  validate_canonical_shared_file "$db_target" "production database" || return $?
+  validate_exact_directory "$prisma_directory" "release Prisma directory" || return $?
+  verify_expected_link "$release/.env.production" "$env_target" "release environment" || return $?
+  verify_expected_link "$release/prisma/dev.db" "$db_target" "release database" || return $?
 }
 
 verify_build_artifact() {
   local release="$1"
   local next_directory="$release/.next"
   local build_id="$next_directory/BUILD_ID"
-  [ -d "$next_directory" ] || die "staged build directory is missing"
-  ! path_is_symlink "$next_directory" || die "staged build directory must not be a symlink"
-  [ "$(resolve_existing_path "$next_directory")" = "$next_directory" ] || die "staged build directory escapes the release"
-  [ -f "$build_id" ] || die "staged BUILD_ID is missing"
-  ! path_is_symlink "$build_id" || die "staged BUILD_ID must not be a symlink"
-  [ -s "$build_id" ] || die "staged BUILD_ID is empty"
+  [ -d "$next_directory" ] || { die "staged build directory is missing"; return 1; }
+  ! path_is_symlink "$next_directory" || { die "staged build directory must not be a symlink"; return 1; }
+  [ "$(resolve_existing_path "$next_directory")" = "$next_directory" ] || { die "staged build directory escapes the release"; return 1; }
+  [ -f "$build_id" ] || { die "staged BUILD_ID is missing"; return 1; }
+  ! path_is_symlink "$build_id" || { die "staged BUILD_ID must not be a symlink"; return 1; }
+  [ -s "$build_id" ] || { die "staged BUILD_ID is empty"; return 1; }
 }
 
 build_id_sha256() {
@@ -425,7 +570,7 @@ provenance_text() {
   local ref="$3"
   local remote_head="$4"
   local build_sha
-  build_sha="$(build_id_sha256 "$release")"
+  build_sha="$(build_id_sha256 "$release")" || return $?
   cat <<EOF
 format=1
 commit=$commit
@@ -445,13 +590,13 @@ write_provenance() {
   local provenance="$release/.git/$provenance_name"
   local temporary="$release/.git/.$provenance_name.$$.new"
   if [ -e "$provenance" ] || path_is_symlink "$provenance"; then
-    [ -f "$provenance" ] && ! path_is_symlink "$provenance" || die "existing staged provenance is unsafe"
+    [ -f "$provenance" ] && ! path_is_symlink "$provenance" || { die "existing staged provenance is unsafe"; return 1; }
   fi
-  [ ! -e "$temporary" ] && ! path_is_symlink "$temporary" || die "provenance temporary path collision"
-  provenance_text "$release" "$commit" "$ref" "$remote_head" > "$temporary"
+  [ ! -e "$temporary" ] && ! path_is_symlink "$temporary" || { die "provenance temporary path collision"; return 1; }
+  provenance_text "$release" "$commit" "$ref" "$remote_head" > "$temporary" || return $?
   chmod 0600 "$temporary"
-  set_file_owner "$temporary"
-  atomic_replace_path "$temporary" "$provenance"
+  set_file_owner "$temporary" || return $?
+  atomic_replace_path "$temporary" "$provenance" || return $?
 }
 
 verified_remote_head=""
@@ -463,20 +608,20 @@ verify_staged_release() {
   local recorded_remote_head
   local expected
   local actual
-  validate_release_directory "$release" "$commit"
-  validate_origin "$release"
-  validate_git_state "$release" "$commit"
-  verify_shared_links "$release"
-  verify_build_artifact "$release"
-  [ -f "$provenance" ] && ! path_is_symlink "$provenance" || die "staged provenance is missing or unsafe"
-  [ "$(wc -l < "$provenance" | tr -d ' ')" = "7" ] || die "staged provenance has an unexpected shape"
+  validate_release_directory "$release" "$commit" || return $?
+  validate_origin "$release" || return $?
+  validate_git_state "$release" "$commit" || return $?
+  verify_shared_links "$release" || return $?
+  verify_build_artifact "$release" || return $?
+  [ -f "$provenance" ] && ! path_is_symlink "$provenance" || { die "staged provenance is missing or unsafe"; return 1; }
+  [ "$(wc -l < "$provenance" | tr -d ' ')" = "7" ] || { die "staged provenance has an unexpected shape"; return 1; }
   recorded_remote_head="$(sed -n 's/^remote_head=//p' "$provenance")"
-  is_exact_commit "$recorded_remote_head" || die "staged provenance remote HEAD is invalid"
-  git_in_release "$release" cat-file -e "${recorded_remote_head}^{commit}" || die "recorded remote HEAD object is missing"
-  git_in_release "$release" merge-base --is-ancestor "$commit" "$recorded_remote_head" || die "staged commit is not reachable from its recorded remote HEAD"
-  expected="$(provenance_text "$release" "$commit" "$ref" "$recorded_remote_head")"
+  is_exact_commit "$recorded_remote_head" || { die "staged provenance remote HEAD is invalid"; return 1; }
+  git_in_release "$release" cat-file -e "${recorded_remote_head}^{commit}" || { die "recorded remote HEAD object is missing"; return 1; }
+  git_in_release "$release" merge-base --is-ancestor "$commit" "$recorded_remote_head" || { die "staged commit is not reachable from its recorded remote HEAD"; return 1; }
+  expected="$(provenance_text "$release" "$commit" "$ref" "$recorded_remote_head")" || return $?
   actual="$(cat "$provenance")"
-  [ "$actual" = "$expected" ] || die "staged provenance does not match the release"
+  [ "$actual" = "$expected" ] || { die "staged provenance does not match the release"; return 1; }
   verified_remote_head="$recorded_remote_head"
 }
 
@@ -487,18 +632,25 @@ validate_current_link() {
   current_release=""
   current_commit=""
   if path_is_symlink "$current_link"; then
-    direct_target="$(read_symlink_target "$current_link")"
+    direct_target="$(read_symlink_target "$current_link")" || return $?
     case "$direct_target" in
       "$release_root"/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
-      *) die "current link is not a direct approved release target" ;;
+      *) die "current link is not a direct approved release target"; return 1 ;;
     esac
-    [ "$(resolve_existing_path "$current_link")" = "$direct_target" ] || die "current link resolves through an unexpected chain"
+    [ "$(resolve_existing_path "$current_link")" = "$direct_target" ] || { die "current link resolves through an unexpected chain"; return 1; }
     current_release="$direct_target"
     current_commit="$(basename -- "$current_release")"
-    validate_release_directory "$current_release" "$current_commit"
-    [ "$(git_in_release "$current_release" rev-parse HEAD)" = "$current_commit" ] || die "current release HEAD differs from its path"
+    local current_mode="$operation_mode"
+    if [ "$(stat -c '%U' "$current_release")" = "$deploy_user" ]; then
+      operation_mode=full
+    elif [ -e "$(prebuilt_receipt "$current_commit")" ] || [ -e "$current_release/.git/nuaafa-prebuilt" ]; then
+      operation_mode=prebuilt
+    fi
+    validate_release_directory "$current_release" "$current_commit" || { operation_mode="$current_mode"; return 1; }
+    operation_mode="$current_mode"
+    [ "$(git_in_release "$current_release" rev-parse HEAD)" = "$current_commit" ] || { die "current release HEAD differs from its path"; return 1; }
   elif [ -e "$current_link" ]; then
-    die "current path exists but is not a symlink"
+    die "current path exists but is not a symlink"; return 1
   fi
 }
 
@@ -507,28 +659,34 @@ temporary_current_path() {
   printf '%s/.current.%s.%s.new\n' "$(dirname -- "$current_link")" "$$" "$commit"
 }
 
-atomic_switch_current() {
+atomic_switch_current() (
+  switch_temporary=""
+  switch_temporary_owned=false
+  trap 'status=$?; if [ "$switch_temporary_owned" = true ] && path_is_symlink "$switch_temporary" && [ "$(read_symlink_target "$switch_temporary")" = "$1" ]; then rm -- "$switch_temporary" || status=1; fi; exit "$status"' EXIT
   local release="$1"
   local commit
   local temporary
   commit="$(basename -- "$release")"
-  validate_release_directory "$release" "$commit"
-  validate_current_link
+  if [ -e "$(prebuilt_receipt "$commit")" ] || [ -e "$release/.git/nuaafa-prebuilt" ]; then operation_mode=prebuilt; fi
+  validate_release_directory "$release" "$commit" || return $?
+  validate_current_link || return $?
   temporary="$(temporary_current_path "$commit")"
-  [ "$(dirname -- "$temporary")" = "$(dirname -- "$current_link")" ] || die "temporary current path has an unexpected parent"
-  [ ! -e "$temporary" ] && ! path_is_symlink "$temporary" || die "temporary current path collision"
-  create_symlink "$release" "$temporary"
-  path_is_symlink "$temporary" || die "temporary current link was not created"
-  [ "$(read_symlink_target "$temporary")" = "$release" ] || die "temporary current link target differs"
-  [ "$(resolve_existing_path "$temporary")" = "$release" ] || die "temporary current link resolves unexpectedly"
-  set_link_owner "$temporary"
+  [ "$(dirname -- "$temporary")" = "$(dirname -- "$current_link")" ] || { die "temporary current path has an unexpected parent"; return 1; }
+  [ ! -e "$temporary" ] && ! path_is_symlink "$temporary" || { die "temporary current path collision"; return 1; }
+  create_symlink "$release" "$temporary" || return $?
+  switch_temporary="$temporary"
+  switch_temporary_owned=true
+  path_is_symlink "$temporary" || { die "temporary current link was not created"; return 1; }
+  [ "$(read_symlink_target "$temporary")" = "$release" ] || { die "temporary current link target differs"; return 1; }
+  [ "$(resolve_existing_path "$temporary")" = "$release" ] || { die "temporary current link resolves unexpectedly"; return 1; }
+  set_link_owner "$temporary" || return $?
   echo "Current link replacement prepared: previous=${current_release:-none} target=$release"
-  atomic_replace_path "$temporary" "$current_link"
+  atomic_replace_path "$temporary" "$current_link" || return $?
   echo "Current link replacement executed: previous=${current_release:-none} target=$release"
-  path_is_symlink "$current_link" || die "current link switch did not publish a symlink"
-  [ "$(read_symlink_target "$current_link")" = "$release" ] || die "current link target differs after switch"
-  [ "$(resolve_existing_path "$current_link")" = "$release" ] || die "current link resolution differs after switch"
-}
+  path_is_symlink "$current_link" || { die "current link switch did not publish a symlink"; return 1; }
+  [ "$(read_symlink_target "$current_link")" = "$release" ] || { die "current link target differs after switch"; return 1; }
+  [ "$(resolve_existing_path "$current_link")" = "$release" ] || { die "current link resolution differs after switch"; return 1; }
+)
 
 prepared_path=""
 prepared_release=""
@@ -543,9 +701,11 @@ prepare_release() {
   prepared_release="$release"
   prepared_reused=false
 
+  reject_prebuilt_legacy "$commit" || return $?
+
   if [ -e "$release" ] || path_is_symlink "$release"; then
-    validate_release_directory "$release" "$commit"
-    verify_staged_release "$release" "$commit" "$ref"
+    validate_release_directory "$release" "$commit" || return $?
+    verify_staged_release "$release" "$commit" "$ref" || return $?
     prepared_path="$release"
     prepared_remote_head="$verified_remote_head"
     prepared_reused=true
@@ -553,15 +713,19 @@ prepare_release() {
   fi
 
   staging="$release_root/.staging-$commit-$$"
-  [ ! -e "$staging" ] && ! path_is_symlink "$staging" || die "release preparation path collision"
-  run_as_deploy_user git clone --no-checkout "$repository" "$staging"
-  validate_preparation_directory "$staging"
-  validate_origin "$staging"
-  fetch_and_verify_reachability "$staging" "$commit" "$ref"
-  git_in_release "$staging" checkout --detach "$commit"
-  validate_git_state "$staging" "$commit"
-  ensure_shared_links "$staging"
-  validate_git_state "$staging" "$commit"
+  [ ! -e "$staging" ] && ! path_is_symlink "$staging" || { die "release preparation path collision"; return 1; }
+  mkdir -m 0755 "$staging" || return $?
+  prepared_path="$staging"
+  set_file_owner "$staging" || return $?
+  chmod 0755 "$staging" || return $?
+  run_as_deploy_user git clone --no-checkout "$repository" "$staging" || return $?
+  validate_preparation_directory "$staging" || return $?
+  validate_origin "$staging" || return $?
+  fetch_and_verify_reachability "$staging" "$commit" "$ref" || return $?
+  git_in_release "$staging" checkout --detach "$commit" || return $?
+  validate_git_state "$staging" "$commit" || return $?
+  ensure_shared_links "$staging" || return $?
+  validate_git_state "$staging" "$commit" || return $?
   prepared_path="$staging"
   prepared_remote_head="$fetched_remote_head"
 }
@@ -570,21 +734,21 @@ refresh_prepared_remote_provenance() {
   local release="$1"
   local commit="$2"
   local ref="$3"
-  fetch_and_verify_reachability "$release" "$commit" "$ref"
+  fetch_and_verify_reachability "$release" "$commit" "$ref" || return $?
   prepared_remote_head="$fetched_remote_head"
 }
 
 publish_prepared_release() {
   local commit="$1"
   write_provenance "$prepared_path" "$commit" "$allowed_ref" "$prepared_remote_head"
-  verify_build_artifact "$prepared_path"
-  validate_git_state "$prepared_path" "$commit"
+  verify_build_artifact "$prepared_path" || return $?
+  validate_git_state "$prepared_path" "$commit" || return $?
   if [ "$prepared_path" != "$prepared_release" ]; then
-    [ ! -e "$prepared_release" ] && ! path_is_symlink "$prepared_release" || die "release destination appeared during preparation"
-    atomic_replace_path "$prepared_path" "$prepared_release"
+    [ ! -e "$prepared_release" ] && ! path_is_symlink "$prepared_release" || { die "release destination appeared during preparation"; return 1; }
+    atomic_replace_path "$prepared_path" "$prepared_release" || return $?
     prepared_path="$prepared_release"
   fi
-  verify_staged_release "$prepared_release" "$commit" "$allowed_ref"
+  verify_staged_release "$prepared_release" "$commit" "$allowed_ref" || return $?
 }
 
 target_commit=""
@@ -592,14 +756,14 @@ resolve_target_commit() {
   if [ -n "$requested_commit" ]; then
     target_commit="$requested_commit"
   else
-    target_commit="$(remote_ref_head "$allowed_ref")"
+    target_commit="$(remote_ref_head "$allowed_ref")" || return $?
   fi
-  is_exact_commit "$target_commit" || die "unable to resolve a valid deployment commit"
+  is_exact_commit "$target_commit" || { die "unable to resolve a valid deployment commit"; return 1; }
 }
 
 print_stage_dry_run() {
   local remote_head
-  remote_head="$(remote_ref_head "$allowed_ref")"
+  remote_head="$(remote_ref_head "$allowed_ref")" || return $?
   echo "Mode: stage-only (dry-run)"
   echo "Requested: $target_commit"
   echo "Allowed ref: $allowed_ref"
@@ -624,53 +788,62 @@ print_activate_dry_run() {
   echo "WOULD NOT stop, start, restart, or reload the service."
 }
 
-stage_only() {
+stage_only() (
+  trap 'status=$?; if [ -n "$prepared_path" ] && [ "$prepared_path" != "$prepared_release" ]; then rm -rf -- "$prepared_path"; fi; exit "$status"' EXIT
   if [ "$dry_run" = true ]; then
-    print_stage_dry_run
+    print_stage_dry_run || return $?
     return 0
   fi
-  prepare_release "$target_commit" "$allowed_ref"
+  prepare_release "$target_commit" "$allowed_ref" || return $?
   if [ "$prepared_reused" = true ]; then
     echo "Already staged and verified: $target_commit"
     echo "Allowed ref: $allowed_ref"
     return 0
   fi
-  run_release_static_checks "$prepared_path"
-  run_release_build "$prepared_path"
-  verify_build_artifact "$prepared_path"
-  validate_git_state "$prepared_path" "$target_commit"
-  publish_prepared_release "$target_commit"
+  run_release_static_checks "$prepared_path" || return $?
+  run_release_build "$prepared_path" || return $?
+  verify_build_artifact "$prepared_path" || return $?
+  validate_git_state "$prepared_path" "$target_commit" || return $?
+  publish_prepared_release "$target_commit" || return $?
   echo "Staged and verified: $target_commit"
   echo "Release: $prepared_release"
   echo "Allowed ref: $allowed_ref"
   echo "Current and service were not changed."
-}
+)
 
 activate_staged() {
   local release
   local previous
+  # Never create health evidence for a link-only operation. A terminal journal
+  # permits only an idempotent operation on its already-confirmed current target.
+  run_prebuilt_helper check-state --path "$activation_state" --current "$current_link" --target "$target_commit" || return $?
+  reject_prebuilt_legacy "$target_commit" || return $?
   release="$(release_path_for "$target_commit")"
-  verify_staged_release "$release" "$target_commit" "$allowed_ref"
-  validate_current_link
+  verify_staged_release "$release" "$target_commit" "$allowed_ref" || return $?
+  validate_current_link || return $?
   previous="$current_release"
   if [ "$current_release" = "$release" ]; then
-    echo "Already activated: $target_commit"
+    echo "Already current: $target_commit; journal unchanged; service health was not revalidated."
     return 0
   fi
   if [ "$dry_run" = true ]; then
-    print_activate_dry_run "$release"
+    print_activate_dry_run "$release" || return $?
     return 0
   fi
-  run_student_id_preflight
-  atomic_switch_current "$release"
+  run_student_id_preflight || return $?
+  atomic_switch_current "$release" || return $?
   echo "Activated staged release: $target_commit"
   echo "Previous: ${previous:-none}"
   echo "Service was not started or restarted."
 }
 
-full_deploy() {
+full_deploy() (
+  trap 'status=$?; if [ -n "$prepared_path" ] && [ "$prepared_path" != "$prepared_release" ]; then rm -rf -- "$prepared_path"; fi; activation_exit "$status"' EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
   local previous
-  validate_current_link
+  reject_prebuilt_legacy "$target_commit" || return $?
+  validate_current_link || return $?
   previous="$current_release"
   if [ "$target_commit" = "$current_commit" ]; then
     echo "Already deployed: $target_commit"
@@ -685,42 +858,252 @@ full_deploy() {
     return 0
   fi
 
-  prepare_release "$target_commit" "$allowed_ref"
+  prepare_release "$target_commit" "$allowed_ref" || return $?
   if [ "$prepared_reused" = true ]; then
-    refresh_prepared_remote_provenance "$prepared_path" "$target_commit" "$allowed_ref"
+    refresh_prepared_remote_provenance "$prepared_path" "$target_commit" "$allowed_ref" || return $?
   fi
-  run_student_id_preflight
-  run_release_static_checks "$prepared_path"
-  run_db_backup
-  run_migration "$prepared_path"
-  run_release_build "$prepared_path"
-  verify_build_artifact "$prepared_path"
-  validate_git_state "$prepared_path" "$target_commit"
-  publish_prepared_release "$target_commit"
-  run_student_id_preflight
-  atomic_switch_current "$prepared_release"
-
-  if ! restart_service; then
-    if [ -n "$previous" ]; then
-      atomic_switch_current "$previous" || true
-      restart_service || true
-    fi
-    echo "Service restart failed; restored the previous release link." >&2
-    return 1
-  fi
-
-  if ! wait_for_health; then
-    if [ -n "$previous" ]; then
-      atomic_switch_current "$previous" || true
-      restart_service || true
-    fi
-    echo "Health check failed; restored the previous release link. Database migrations were not rolled back." >&2
-    return 1
-  fi
+  run_student_id_preflight || return $?
+  run_release_static_checks "$prepared_path" || return $?
+  run_release_build "$prepared_path" || return $?
+  verify_build_artifact "$prepared_path" || return $?
+  validate_git_state "$prepared_path" "$target_commit" || return $?
+  publish_prepared_release "$target_commit" || return $?
+  [ -n "$previous" ] || { die "legacy activation requires an existing recovery release"; return 1; }
+  validate_recovery_release "$previous" || return $?
+  run_prebuilt_helper migration-ready --release "$prepared_release" --previous "$previous" --database "$shared/prisma/dev.db" || return $?
+  run_db_backup || return $?
+  activation_previous="$previous"
+  activation_release="$prepared_release"
+  record_activation_phase PREPARED || return $?
+  record_activation_phase SERVICE_STOPPING || return $?
+  stop_service || return $?
+  record_activation_phase SERVICE_STOPPED || return $?
+  record_activation_phase MIGRATING || return $?
+  run_migration "$prepared_release" || return $?
+  run_prebuilt_helper migration-ready --release "$prepared_release" --previous "$previous" --database "$shared/prisma/dev.db" --complete || return $?
+  record_activation_phase MIGRATED || return $?
+  run_student_id_preflight || return $?
+  record_activation_phase SWITCHING || return $?
+  atomic_switch_current "$prepared_release" || return $?
+  record_activation_phase SWITCHED || return $?
+  restart_service || return $?
+  wait_for_health || return $?
+  record_activation_phase HEALTHY || return $?
 
   echo "Deployed: $target_commit"
   echo "Previous: ${current_commit:-none}"
+)
+
+prebuilt_receipt() {
+  printf '%s/%s.json\n' "$prebuilt_state" "$1"
 }
+
+reject_prebuilt_legacy() {
+  local receipt permit
+  permit="$prebuilt_approvals/legacy-$1.json"
+  verify_root_metadata "$permit" || return $?
+  run_prebuilt_helper legacy --approval "$permit" --commit "$1" --allowed-ref "$allowed_ref" || return $?
+  receipt="$(prebuilt_receipt "$1")"
+  [ ! -e "$receipt" ] && ! path_is_symlink "$receipt" || { die "imported candidates require --activate-prebuilt and independent approval"; return 1; }
+  [ ! -e "$(release_path_for "$1")/.git/nuaafa-prebuilt" ] || { die "prebuilt candidate cannot use legacy deployment modes"; return 1; }
+}
+
+verify_root_metadata() {
+  local path="$1"
+  [ "$(resolve_existing_path "$path")" = "$path" ] || { die "trusted metadata path must be canonical"; return 1; }
+  while :; do
+    ! path_is_symlink "$path" || { die "trusted metadata symlink"; return 1; }
+    [ "$(stat -c '%u' "$path")" = 0 ] || { die "trusted metadata must be owned by root"; return 1; }
+    local mode
+    mode="$(stat -c '%a' "$path")" || return $?
+    (( (8#$mode & 0022) == 0 )) || { die "trusted metadata is writable by non-root users"; return 1; }
+    [ "$path" != / ] || break
+    path="$(dirname -- "$path")" || return $?
+  done
+  return 0
+}
+
+run_prebuilt_helper() {
+  verify_root_metadata "$(resolve_existing_path "$prebuilt_python")" || return $?
+  verify_root_metadata "$prebuilt_helper" || return $?
+  [ -f "$prebuilt_helper" ] || { die "trusted helper must be a regular file"; return 1; }
+  env -i PATH=/usr/bin:/bin "$prebuilt_python" -I "$prebuilt_helper" "$@"
+}
+
+verify_prebuilt_platform() {
+  # Node is deliberately outside the archive. Never bundle/replace the host runtime.
+  verify_root_metadata "$(resolve_existing_path "$student_id_preflight_node")" || return $?
+  [ "$(env -i "$student_id_preflight_node" --version)" = "v22.23.2" ] || { die "prebuilt activation requires Node 22.23.2"; return 1; }
+  run_prebuilt_helper platform --receipt "$(prebuilt_receipt "$target_commit")"
+}
+
+verify_prebuilt_release() {
+  local release="$1" commit="$2" receipt checksum="${3:-$artifact_sha256}" ref="${4:-$allowed_ref}"
+  receipt="$(prebuilt_receipt "$commit")"
+  verify_root_metadata "$receipt" || return $?
+  validate_release_directory "$release" "$commit" || return $?
+  validate_origin "$release" || return $?
+  # A trimmed runtime intentionally omits tracked docs/ops/configuration. Its
+  # contract is the commit-derived source set and the complete receipt inventory;
+  # full-checkout cleanliness remains mandatory on every legacy path.
+  run_prebuilt_helper verify --release "$release" --receipt "$receipt" --sha256 "$checksum" --commit "$commit" --allowed-ref "$ref" --git-user "$deploy_user" --shared "$shared" || return $?
+  verify_build_artifact "$release" || return $?
+}
+
+validate_recovery_release() (
+  local release="$1" commit receipt identity checksum ref
+  commit="$(basename -- "$release")"
+  receipt="$(prebuilt_receipt "$commit")"
+  if [ -e "$receipt" ] || path_is_symlink "$receipt" || [ -e "$release/.git/nuaafa-prebuilt" ]; then
+    operation_mode=prebuilt
+    verify_root_metadata "$receipt" || return $?
+    identity="$(run_prebuilt_helper receipt-identity --receipt "$receipt")" || return $?
+    checksum="$(printf '%s\n' "$identity" | sed -n '1p')"
+    ref="$(printf '%s\n' "$identity" | sed -n '2p')"
+    verify_prebuilt_release "$release" "$commit" "$checksum" "$ref" || return $?
+  else
+    operation_mode=full
+    validate_release_directory "$release" "$commit" || return $?
+    validate_origin "$release" || return $?
+    validate_git_state "$release" "$commit" || return $?
+    verify_build_artifact "$release" || return $?
+  fi
+  verify_shared_links "$release" || return $?
+  run_prebuilt_helper shared-links --release "$release" --shared "$shared" --git-user "$deploy_user" || return $?
+)
+
+import_artifact() (
+  # A subshell gives failed imports an unconditional cleanup, even with errexit.
+  local release receipt remote_head checkout_candidate staging_candidate
+  work=""
+  staging=""
+  checkout=""
+  release="$(release_path_for "$target_commit")"
+  receipt="$(prebuilt_receipt "$target_commit")"
+  [[ "$artifact_path" = /* ]] || { die "archive path must be absolute"; return 1; }
+  validate_canonical_shared_file "$artifact_path" "input archive" || return $?
+  verify_root_metadata "$(dirname -- "$prebuilt_state")" || return $?
+  if [ -e "$prebuilt_state" ] || path_is_symlink "$prebuilt_state"; then
+    validate_exact_directory "$prebuilt_state" "prebuilt receipt directory" || return $?
+    verify_root_metadata "$prebuilt_state" || return $?
+  fi
+  work="$(mktemp -d "$(dirname -- "$prebuilt_state")/.prebuilt-import.XXXXXXXX")" || return $?
+  trap 'status=$?; [ -z "$work" ] || rm -rf -- "$work"; [ -z "$staging" ] || rm -rf -- "$staging"; [ -z "$checkout" ] || rm -rf -- "$checkout"; exit "$status"' EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  # Copy before inspecting; the copy is private to root and is the only input used.
+  run_prebuilt_helper snapshot --archive "$artifact_path" --sha256 "$artifact_sha256" --destination "$work/input.tar.gz" || return $?
+  mkdir -m 0700 "$work/payload" || return $?
+  run_prebuilt_helper extract --archive "$work/input.tar.gz" --sha256 "$artifact_sha256" --commit "$target_commit" --destination "$work/payload" || return $?
+  checkout_candidate="$release_root/.prebuilt-source-$target_commit-$$"
+  [ ! -e "$checkout_candidate" ] && ! path_is_symlink "$checkout_candidate" || { die "Git preparation collision"; return 1; }
+  mkdir -m 0755 "$checkout_candidate" || return $?
+  checkout="$checkout_candidate"
+  set_file_owner "$checkout" || return $?
+  chmod 0755 "$checkout" || return $?
+  run_as_deploy_user git clone --no-hardlinks --no-checkout "$repository" "$checkout" || return $?
+  validate_origin "$checkout" || return $?
+  fetch_and_verify_reachability "$checkout" "$target_commit" "$allowed_ref" || return $?
+  remote_head="$fetched_remote_head"
+  git_in_release "$checkout" checkout --detach "$target_commit" || return $?
+  validate_git_state "$checkout" "$target_commit" || return $?
+  if [ -e "$release" ] || path_is_symlink "$release"; then
+    verify_prebuilt_release "$release" "$target_commit" || return $?
+    echo "Already imported and verified; current unchanged: $target_commit"
+    return 0
+  fi
+  [ ! -e "$receipt" ] && ! path_is_symlink "$receipt" || { die "orphan receipt requires operator inspection"; return 1; }
+  staging_candidate="$release_root/.prebuilt-$target_commit-$$"
+  [ ! -e "$staging_candidate" ] && ! path_is_symlink "$staging_candidate" || { die "prebuilt staging collision"; return 1; }
+  run_prebuilt_helper capacity --directory "$release_root" --manifest "$work/payload/nuaafa-artifact.json" || return $?
+  run_prebuilt_helper materialize --payload "$work/payload" --checkout "$checkout" --destination "$staging_candidate" --repository "$repository" --runtime-user "$deploy_user" || return $?
+  staging="$staging_candidate"
+  "$prebuilt_python" -I - "$work/payload/nuaafa-artifact.json" "$work/receipt.json" "$target_commit" "$artifact_sha256" "$allowed_ref" "$remote_head" <<'PY' || return $?
+import json, sys
+with open(sys.argv[1]) as f: manifest = json.load(f)
+with open(sys.argv[2], 'x') as f:
+    json.dump(dict(format=1, commit=sys.argv[3], sha256=sys.argv[4], allowed_ref=sys.argv[5], remote_head=sys.argv[6], manifest=manifest), f, sort_keys=True)
+PY
+  # Root-private receipt is not taken from candidate code or a candidate checksum.
+  run_prebuilt_helper verify --release "$staging" --receipt "$work/receipt.json" --sha256 "$artifact_sha256" --commit "$target_commit" --allowed-ref "$allowed_ref" --git-user "$deploy_user" || return $?
+  validate_origin "$staging" || return $?
+  if [ "$dry_run" = true ]; then
+    echo "Archive, trusted Git sources and runtime verified; WOULD import $target_commit; no published deployment state changed."
+    return 0
+  fi
+  if [ ! -e "$prebuilt_state" ]; then mkdir -m 0700 "$prebuilt_state" || return $?; fi
+  printf '%s\n' "$artifact_sha256" > "$staging/.git/nuaafa-prebuilt" || return $?
+  chmod 0600 "$work/receipt.json" || return $?
+  [ ! -e "$release" ] && ! path_is_symlink "$release" || { die "release destination collision"; return 1; }
+  # Receipt first: a crash can only leave a blocked orphan, never an unmarked release.
+  atomic_replace_path "$work/receipt.json" "$receipt" || return $?
+  if ! atomic_replace_path "$staging" "$release"; then
+    if ! rm -- "$receipt"; then echo "STOP: orphan receipt requires inspection" >&2; fi
+    die "prebuilt publication failed"; return 1
+  fi
+  staging=""
+  echo "Imported candidate: $target_commit; allowed ref HEAD: $remote_head"
+  echo "Current, service, environment, uploads and database unchanged. Release approval still required."
+)
+
+activate_prebuilt() (
+  local release previous approval
+  release="$(release_path_for "$target_commit")"
+  approval="$prebuilt_approvals/$target_commit.json"
+  run_prebuilt_helper check-state --path "$activation_state" || return $?
+  verify_prebuilt_release "$release" "$target_commit" || return $?
+  run_prebuilt_helper approve --approval "$approval" --sha256 "$artifact_sha256" --commit "$target_commit" --allowed-ref "$allowed_ref" || return $?
+  verify_prebuilt_platform || return $?
+  validate_current_link || return $?
+  previous="$current_release"
+  [ -n "$previous" ] || { die "prebuilt activation requires an existing verified recovery release"; return 1; }
+  validate_recovery_release "$previous" || return $?
+  verify_service_contract || return $?
+  if [ "$previous" = "$release" ]; then
+    wait_for_health || { die "current candidate is unhealthy"; return 1; }
+    echo "Already activated and healthy: $target_commit"
+    return 0
+  fi
+  # Checks and migrations never fetch into the immutable runtime Git directory.
+  activation_work="$(mktemp -d "$release_root/.reachability.XXXXXXXX")" || return $?
+  trap 'status=$?; [ -z "$activation_work" ] || rm -rf -- "$activation_work"; activation_exit "$status"' EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  set_file_owner "$activation_work" || return $?
+  chmod 0755 "$activation_work" || return $?
+  run_as_deploy_user git clone --no-hardlinks --no-checkout "$repository" "$activation_work" || return $?
+  fetch_and_verify_reachability "$activation_work" "$target_commit" "$allowed_ref" || return $?
+  run_student_id_preflight || return $?
+  run_prebuilt_helper migration-ready --release "$release" --previous "$previous" --database "$shared/prisma/dev.db" || return $?
+  if [ "$dry_run" = true ]; then
+    echo "Verified approvals, service contract, reachability and migration compatibility; WOULD backup, stop, migrate, switch and verify health."
+    return 0
+  fi
+  ensure_shared_links "$release" || return $?
+  verify_prebuilt_release "$release" "$target_commit" || return $?
+  run_as_deploy_user test -r "$shared/.env.production" || { die "application cannot read approved configuration"; return 1; }
+  run_prebuilt_backup "$release" || return $?
+  activation_previous="$previous"
+  activation_release="$release"
+  record_activation_phase PREPARED || return $?
+  record_activation_phase SERVICE_STOPPING || return $?
+  stop_service || return $?
+  record_activation_phase SERVICE_STOPPED || return $?
+  record_activation_phase MIGRATING || return $?
+  run_migration "$release" || return $?
+  run_prebuilt_helper migration-ready --release "$release" --previous "$previous" --database "$shared/prisma/dev.db" --complete || return $?
+  record_activation_phase MIGRATED || return $?
+  run_student_id_preflight || return $?
+  verify_prebuilt_release "$release" "$target_commit" || return $?
+  run_prebuilt_helper approve --approval "$approval" --sha256 "$artifact_sha256" --commit "$target_commit" --allowed-ref "$allowed_ref" || return $?
+  record_activation_phase SWITCHING || return $?
+  atomic_switch_current "$release" || return $?
+  record_activation_phase SWITCHED || return $?
+  restart_service || return $?
+  wait_for_health || return $?
+  record_activation_phase HEALTHY || return $?
+  echo "Activated approved prebuilt release: $target_commit; previous: $previous"
+)
 
 main() {
   parse_args "$@" || return $?
@@ -733,13 +1116,16 @@ main() {
     return 0
   fi
 
-  require_root
-  prepare_process
-  validate_fixed_configuration
-  validate_allowed_ref "$allowed_ref"
-  validate_layout_roots
-  acquire_lock
-  resolve_target_commit
+  require_root || return $?
+  prepare_process || return $?
+  validate_fixed_configuration || return $?
+  validate_allowed_ref "$allowed_ref" || return $?
+  validate_layout_roots || return $?
+  acquire_lock || return $?
+  resolve_target_commit || return $?
+  if [ "$operation_mode" != import ]; then
+    run_prebuilt_helper check-state --path "$activation_state" --current "$current_link" || return $?
+  fi
 
   case "$operation_mode" in
     stage)
@@ -750,6 +1136,12 @@ main() {
       ;;
     full)
       full_deploy
+      ;;
+    import)
+      import_artifact
+      ;;
+    prebuilt)
+      activate_prebuilt
       ;;
     *)
       die "unknown deployment mode"

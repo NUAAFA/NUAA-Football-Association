@@ -5,9 +5,19 @@ on:
   push:
     branches: [integration/v2.10-ui-release]
   workflow_dispatch:
+    inputs:
+      prebuilt_artifact:
+        description: Save candidate digest summary and upload (never release approval)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
+
+# Explicit Bash enables pipefail: tee cannot hide a failed privileged/runtime test.
+defaults:
+  run:
+    shell: bash
 
 concurrency:
   group: v2-10-linux-validation-${{ github.ref }}
@@ -46,6 +56,9 @@ jobs:
           test "$(node --version)" = "v22.23.2"
           test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
           printf 'DATABASE_URL=file:%s/synthetic-build.db\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          # Set the runtime path after the runner starts; job env has no runner context.
+          # Unique case logs do not enable upload or condition core validation.
+          printf 'NUAAFA_TEST_EVIDENCE=%s/prebuilt-output/case-logs\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
           git rev-parse HEAD
           sha256sum package-lock.json prisma/migrations/*/migration.sql
           cat /etc/os-release
@@ -91,6 +104,40 @@ jobs:
           npm run restore:rehearsal
           npm run test:deployer
           sha256sum .next/BUILD_ID
+      - name: Prebuilt import and activation safety tests
+        run: python3 scripts/test-prebuilt-artifact.py
+      - name: Real root and nonprivileged Linux permission tests
+        run: sudo env "PATH=$PATH" "NUAAFA_TEST_EVIDENCE=$NUAAFA_TEST_EVIDENCE" python3 scripts/test-prebuilt-linux.py
+      - name: Package, actually import twice and start exact Linux runtime
+        # Import/journal/wrapper regressions run even when artifact upload is off.
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.sha }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/prebuilt-output"
+          python3 ops/deploy/prebuilt-artifact.py pack --source="$GITHUB_WORKSPACE" --commit="$EXPECTED_SOURCE_SHA" --output="$RUNNER_TEMP/prebuilt-output/nuaafa-$EXPECTED_SOURCE_SHA.tar.gz"
+          digest="$(sha256sum "$RUNNER_TEMP/prebuilt-output/nuaafa-$EXPECTED_SOURCE_SHA.tar.gz" | cut -d ' ' -f 1)"
+          sudo env "PATH=$PATH" "NUAAFA_TEST_EVIDENCE=$NUAAFA_TEST_EVIDENCE" python3 scripts/test-prebuilt-linux.py --archive="$RUNNER_TEMP/prebuilt-output/nuaafa-$EXPECTED_SOURCE_SHA.tar.gz" --commit="$EXPECTED_SOURCE_SHA" --sha256="$digest" | tee "$RUNNER_TEMP/prebuilt-output/runtime-validation.json"
+          # Recheck the same tested bytes; optional upload never controls validation.
+          (cd "$RUNNER_TEMP/prebuilt-output" && sha256sum -c ./*.sha256)
+      - name: Record independent candidate digest in authenticated run summary
+        if: github.event_name == 'workflow_dispatch' && inputs.prebuilt_artifact
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.sha }}
+        run: |
+          {
+            printf 'Prebuilt candidate commit: `%s`\n\n' "$EXPECTED_SOURCE_SHA"
+            printf 'Archive SHA-256 (copy from this authenticated run; do not trust an archive sidecar alone):\n\n'
+            sha256sum "$RUNNER_TEMP/prebuilt-output/"*.tar.gz
+            printf '\nCandidate only. Independent security advisory gate and Human Review still required. No approval generated.\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: github.event_name == 'workflow_dispatch' && inputs.prebuilt_artifact
+        with:
+          name: nuaafa-prebuilt-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/prebuilt-output/*
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
 
   security:
     name: Security advisory gate
