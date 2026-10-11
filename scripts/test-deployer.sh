@@ -49,6 +49,8 @@ run_main_failure() {
 
 repo_root="$(pwd -P)"
 source "$repo_root/ops/deploy/nuaafa-deploy"
+student_id_preflight_command="$repo_root/scripts/student-id-release-preflight.mjs"
+student_id_preflight_node="$(command -v node)"
 
 require_root() { :; }
 prepare_process() { umask 077; }
@@ -93,7 +95,15 @@ run_migration() { printf 'migrate\n' >>"$events"; }
 restart_service() { printf 'restart\n' >>"$events"; }
 wait_for_health() { printf 'health\n' >>"$events"; }
 
-test_root="$(mktemp -d)"
+# Canonicalize macOS's /var alias without weakening the deployer's path checks.
+test_root="$(readlink -f -- "$(mktemp -d)")"
+if [ "$(uname -s)" = Darwin ]; then
+  # The existing fixture already replaces link primitives. Exercise an atomic
+  # rename here; GNU mv -T itself still requires the separate Linux run.
+  atomic_replace_path() {
+    "$student_id_preflight_node" -e 'require("node:fs").renameSync(process.argv[1], process.argv[2])' "$1" "$2"
+  }
+fi
 remote="$test_root/remote.git"
 remote_url="$(cygpath -m "$remote" 2>/dev/null || printf '%s\n' "$remote")"
 seed="$test_root/seed"
@@ -143,7 +153,12 @@ setup_case() {
   events="$case_root/events"
   mkdir -p "$release_root" "$shared/prisma"
   printf 'ENV-BASELINE\n' >"$shared/.env.production"
-  printf 'DB-BASELINE\n' >"$shared/prisma/dev.db"
+  "$student_id_preflight_node" --input-type=module - "$shared/prisma/dev.db" <<'NODE'
+import { DatabaseSync } from 'node:sqlite';
+const db = new DatabaseSync(process.argv[2]);
+db.exec('CREATE TABLE "Referee" (status TEXT NOT NULL, studentId TEXT); INSERT INTO "Referee" VALUES (\'ACTIVE\', \'SYNTHETIC001\')');
+db.close();
+NODE
   : >"$events"
 
   local old_release="$release_root/$old_sha"
@@ -264,10 +279,10 @@ assert_event_sequence ""
 # U: dry-run leaves deployment state unchanged for both new modes.
 setup_case "stage-dry-run"
 dry_stage_current="$(read_symlink_target "$current_link")"
-dry_stage_entries_before="$(find "$release_root" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort)"
+dry_stage_entries_before="$(find "$release_root" -mindepth 1 -maxdepth 1 -exec basename {} \; | sort)"
 run_main_ok "stage-dry-run" --dry-run --stage-only --allowed-ref refs/heads/main "$reviewed_sha"
 assert_equal "$(read_symlink_target "$current_link")" "$dry_stage_current" "stage dry-run current"
-assert_equal "$(find "$release_root" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort)" "$dry_stage_entries_before" "stage dry-run release tree"
+assert_equal "$(find "$release_root" -mindepth 1 -maxdepth 1 -exec basename {} \; | sort)" "$dry_stage_entries_before" "stage dry-run release tree"
 assert_event_sequence ""
 
 setup_case "activate-dry-run"
@@ -280,10 +295,10 @@ assert_event_sequence ""
 
 setup_case "full-dry-run"
 dry_full_current="$(read_symlink_target "$current_link")"
-dry_full_entries_before="$(find "$release_root" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort)"
+dry_full_entries_before="$(find "$release_root" -mindepth 1 -maxdepth 1 -exec basename {} \; | sort)"
 run_main_ok "full-dry-run" --dry-run --allowed-ref refs/heads/main "$reviewed_sha"
 assert_equal "$(read_symlink_target "$current_link")" "$dry_full_current" "full dry-run current"
-assert_equal "$(find "$release_root" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort)" "$dry_full_entries_before" "full dry-run release tree"
+assert_equal "$(find "$release_root" -mindepth 1 -maxdepth 1 -exec basename {} \; | sort)" "$dry_full_entries_before" "full dry-run release tree"
 assert_event_sequence ""
 
 # V: legacy/default full deploy still performs its expected ordered operations.
@@ -295,6 +310,80 @@ assert_equal "$(read_symlink_target "$current_link")" "$release_root/$reviewed_s
 assert_equal "$(sha256sum "$shared/.env.production" | awk '{print $1}')" "$full_env_before" "full deploy ENV fixture hash"
 assert_equal "$(sha256sum "$shared/prisma/dev.db" | awk '{print $1}')" "$full_db_before" "full deploy DB fixture hash"
 assert_event_sequence $'static\nbackup\nmigrate\nbuild\nrestart\nhealth'
+
+# Actual read-only guard must reject unsafe or unverifiable identities before
+# full deployment writes or activation; do not replace the guard with a mock.
+setup_case "student-id-blocked-full"
+"$student_id_preflight_node" --input-type=module - "$shared/prisma/dev.db" <<'NODE'
+import { DatabaseSync } from 'node:sqlite';
+const db = new DatabaseSync(process.argv[2]);
+db.exec('INSERT INTO "Referee" VALUES (\'ACTIVE\', NULL)');
+db.close();
+NODE
+blocked_current="$(read_symlink_target "$current_link")"
+run_main_failure "student-id-blocked-full" --allowed-ref refs/heads/main "$reviewed_sha"
+assert_equal "$(read_symlink_target "$current_link")" "$blocked_current" "blocked full current"
+assert_event_sequence ""
+
+setup_case "student-id-blocked-activate"
+stage_reviewed_release
+: >"$events"
+"$student_id_preflight_node" --input-type=module - "$shared/prisma/dev.db" <<'NODE'
+import { DatabaseSync } from 'node:sqlite';
+const db = new DatabaseSync(process.argv[2]);
+db.exec('UPDATE "Referee" SET studentId = \' synthetic001 \'');
+db.close();
+NODE
+blocked_current="$(read_symlink_target "$current_link")"
+run_main_failure "student-id-blocked-activate" --activate-staged --allowed-ref refs/heads/main "$reviewed_sha"
+assert_equal "$(read_symlink_target "$current_link")" "$blocked_current" "blocked activation current"
+assert_event_sequence ""
+
+setup_case "student-id-unverifiable"
+printf 'INVALID-SYNTHETIC-DB\n' >"$shared/prisma/dev.db"
+run_main_failure "student-id-unverifiable" --allowed-ref refs/heads/main "$reviewed_sha"
+assert_event_sequence ""
+
+setup_case "student-id-guard-missing"
+installed_guard="$student_id_preflight_command"
+student_id_preflight_command="$case_root/missing-preflight.mjs"
+run_main_failure "student-id-guard-missing" --allowed-ref refs/heads/main "$reviewed_sha"
+assert_event_sequence ""
+student_id_preflight_command="$installed_guard"
+
+# A misinstalled program exiting zero cannot substitute for a verified scan.
+for invalid_report in empty incomplete inconsistent; do
+  setup_case "student-id-report-$invalid_report"
+  student_id_preflight_command="$case_root/invalid-preflight.mjs"
+  case "$invalid_report" in
+    empty) : >"$student_id_preflight_command" ;;
+    incomplete) printf '%s\n' 'console.log(JSON.stringify({scanComplete: 1, readOnlyVerified: 1, releaseAllowed: 1}))' >"$student_id_preflight_command" ;;
+    inconsistent) printf '%s\n' 'console.log(JSON.stringify({totalReferees:1,totalActiveAccounts:1,missingStudentId:1,activeMissingStudentId:1,activeNonNormalizedStudentId:0,duplicateStudentIdGroups:0,unsafeLoginMigrationBlockers:0,scanComplete:1,readOnlyVerified:1,releaseAllowed:1}))' >"$student_id_preflight_command" ;;
+  esac
+  previous_current="$(read_symlink_target "$current_link")"
+  run_main_failure "student-id-report-$invalid_report" --allowed-ref refs/heads/main "$reviewed_sha"
+  assert_equal "$(read_symlink_target "$current_link")" "$previous_current" "unverifiable scan preserves current"
+  assert_event_sequence ""
+done
+student_id_preflight_command="$installed_guard"
+
+# Rollback retains the old release and never reverses database migrations.
+for rollback_case in restart-failure health-failure; do
+  setup_case "$rollback_case"
+  previous_current="$(read_symlink_target "$current_link")"
+  if [ "$rollback_case" = restart-failure ]; then
+    restart_service() { printf 'restart\n' >>"$events"; return 1; }
+    wait_for_health() { printf 'health\n' >>"$events"; }
+  else
+    restart_service() { printf 'restart\n' >>"$events"; }
+    wait_for_health() { printf 'health\n' >>"$events"; return 1; }
+  fi
+  run_main_failure "$rollback_case" --allowed-ref refs/heads/main "$reviewed_sha"
+  assert_equal "$(read_symlink_target "$current_link")" "$previous_current" "$rollback_case restored previous release"
+  assert_equal "$(sed -n '/^migrate$/p' "$events" | wc -l | tr -d ' ')" "1" "$rollback_case no reverse migration"
+done
+restart_service() { printf 'restart\n' >>"$events"; }
+wait_for_health() { printf 'health\n' >>"$events"; }
 
 # CLI conflict/missing-SHA fail-closed coverage.
 setup_case "cli-rejection"

@@ -9,6 +9,8 @@ current_link="/srv/nuaafa/current"
 deploy_user="nuaafa"
 service_name="nuaafa.service"
 db_backup_command="/usr/local/sbin/nuaafa-db-backup"
+student_id_preflight_command="/usr/local/lib/nuaafa/student-id-release-preflight.mjs"
+student_id_preflight_node="/usr/bin/node"
 lock_file="/run/lock/nuaafa-deploy.lock"
 default_allowed_ref="refs/heads/main"
 provenance_name="nuaafa-staged-release.v1"
@@ -160,6 +162,29 @@ run_release_build() {
 
 run_db_backup() {
   "$db_backup_command"
+}
+
+run_student_id_preflight() {
+  local report
+  validate_canonical_shared_file "$shared/prisma/dev.db" "production database"
+  [ -f "$student_id_preflight_command" ] && ! path_is_symlink "$student_id_preflight_command" || die "installed student ID preflight is missing or unsafe"
+  report="$(run_as_deploy_user env -i "$student_id_preflight_node" "$student_id_preflight_command" "--database=$shared/prisma/dev.db")" || die "student ID release preflight blocked release"
+  if ! run_as_deploy_user env -i "$student_id_preflight_node" --input-type=module - "$report" <<'NODE'
+const keys = ['totalReferees', 'totalActiveAccounts', 'missingStudentId', 'activeMissingStudentId', 'activeNonNormalizedStudentId', 'duplicateStudentIdGroups', 'unsafeLoginMigrationBlockers', 'scanComplete', 'readOnlyVerified', 'releaseAllowed'];
+try {
+  const r = JSON.parse(process.argv[2]);
+  if (!r || Object.keys(r).length !== keys.length || !keys.every(k => Number.isSafeInteger(r[k]) && r[k] >= 0) ||
+      r.scanComplete !== 1 || r.readOnlyVerified !== 1 || r.releaseAllowed !== 1 || r.unsafeLoginMigrationBlockers !== 0 ||
+      r.unsafeLoginMigrationBlockers !== r.activeMissingStudentId + r.activeNonNormalizedStudentId + r.duplicateStudentIdGroups ||
+      r.totalActiveAccounts > r.totalReferees || r.missingStudentId > r.totalReferees ||
+      r.activeMissingStudentId > r.missingStudentId || r.activeMissingStudentId > r.totalActiveAccounts ||
+      r.activeNonNormalizedStudentId > r.totalActiveAccounts) process.exit(1);
+} catch { process.exit(1); }
+NODE
+  then
+    die "student ID release preflight output is unverifiable"
+  fi
+  printf '%s\n' "$report"
 }
 
 run_migration() {
@@ -636,6 +661,7 @@ activate_staged() {
     print_activate_dry_run "$release"
     return 0
   fi
+  run_student_id_preflight
   atomic_switch_current "$release"
   echo "Activated staged release: $target_commit"
   echo "Previous: ${previous:-none}"
@@ -663,6 +689,7 @@ full_deploy() {
   if [ "$prepared_reused" = true ]; then
     refresh_prepared_remote_provenance "$prepared_path" "$target_commit" "$allowed_ref"
   fi
+  run_student_id_preflight
   run_release_static_checks "$prepared_path"
   run_db_backup
   run_migration "$prepared_path"
@@ -670,6 +697,7 @@ full_deploy() {
   verify_build_artifact "$prepared_path"
   validate_git_state "$prepared_path" "$target_commit"
   publish_prepared_release "$target_commit"
+  run_student_id_preflight
   atomic_switch_current "$prepared_release"
 
   if ! restart_service; then
