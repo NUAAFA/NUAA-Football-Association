@@ -120,7 +120,7 @@ async function main() {
       NUAAFA_UPLOAD_DIR: uploadRoot,
       NUAAFA_CONTENT_SOURCE: "database",
       REFEREE_ADMIN_SESSION_SECRET: "unified-admin-blocker-session-secret-2026",
-      REFEREE_ADMIN_PASSWORD_HASH: cmsRegression ? (await hashPassword(fixture.password)).replaceAll("$", "\\$") : "ops-isolated-legacy-login-disabled",
+      REFEREE_ADMIN_PASSWORD_HASH: cmsRegression ? await hashPassword(fixture.password) : "ops-isolated-legacy-login-disabled",
     };
     const runningServer = spawn(
       process.execPath,

@@ -115,3 +115,35 @@ Renewed dependency inspection identifies `prisma 7.9.1 -> @prisma/dev 0.24.17 ->
 An isolated Node 22.23.2/npm 10.9.8 lockfile trial resolved `fast-uri` to 3.1.8 and left `package.json` byte-for-byte unchanged. Its fresh production audit reported 0 Critical / 5 High / 28 Moderate, with `fast-uri` absent from the vulnerability inventory and every remaining advisory root/URL unchanged. Only the three `fast-uri` lockfile fields (version, registry URL, integrity) are carried into the candidate; unrelated npm normalization of Linux `libc` metadata is excluded. Direct dependencies, all Prisma versions, schema, migrations and application behavior are unchanged by this security patch.
 
 The RC gate now requires the smaller reviewed inventory exactly: 0 Critical / 5 High / 28 Moderate, the same remaining names and advisory URLs, and no `fast-uri` vulnerability entry. It continues to reject any new root, URL, severity-count drift or Critical finding; there is no audit-output suppression or generalized exception. The historical dispositions for the remaining Tiptap, deepmerge-ts, MySQL/tooling and browser-target findings remain recorded above. A clean install, Prisma format/validate/generate, the RC regression/build/reproducibility checks, and calendar validation must pass before this patched candidate is release-ready. Production access, backup, rehearsal and activation gates remain separate.
+
+## 2026-10-09 R2-2F targeted dependency correction
+
+This assessment records corrective work on `integration/v2.10-ui-release`, starting from `6559fc92380d088e29857178f460942c82ca729a`. It grants no new security exception or release approval.
+
+The verified compatible changes are confined to the lockfile. Direct dependencies, Next.js `16.3.8`, Tiptap `3.30.2`, Prisma, application sanitizer, allowed media formats, schema and all 17 migrations remain unchanged. No overrides or `npm audit fix` were used.
+
+| Transitive dependency | Correction | Existing introducing range | Verified advisories |
+| --- | --- | --- | --- |
+| `prosemirror-view` | `1.42.2` to `1.42.3` | `@tiptap/pm 3.30.2`: `^1.41.9` | [GHSA-c8x8-7fp4-3x9w](https://github.com/ProseMirror/prosemirror-view/security/advisories/GHSA-c8x8-7fp4-3x9w) |
+| `sharp` | `0.35.4` to `0.35.5` | `next 16.3.8`: `^0.35.4` | [GHSA-wq5f-xc86-pv6w](https://github.com/advisories/GHSA-wq5f-xc86-pv6w) |
+| `source-map-js` | `1.2.1` to `1.2.2` | PostCSS and Tailwind: `^1.2.1` | [GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q) |
+| `brace-expansion` | `1.1.18` to `1.1.21`; `5.0.9` to `5.0.12` | ESLint minimatch: `^1.1.7`; TypeScript ESLint minimatch: `^5.0.5` | [GHSA-6j4f-fj2g-mc7p](https://github.com/advisories/GHSA-6j4f-fj2g-mc7p), [GHSA-qhr7-859c-m2p7](https://github.com/advisories/GHSA-qhr7-859c-m2p7), [GHSA-q2hr-2g5m-vwhr](https://github.com/advisories/GHSA-q2hr-2g5m-vwhr) |
+
+Sharp's matched optional binaries move to `0.35.5`, with libvips packages at `1.3.4`. Node requirements remain compatible with the tested `22.23.2`. Unrelated resolver/Linux metadata normalization and the trial's unrelated ProseMirror model/version updates were excluded; fresh `npm ci` accepted the resulting lockfile.
+
+| Current audit | Before Critical / High / Moderate | After Critical / High / Moderate |
+| --- | --- | --- |
+| Production (`--omit=dev`) | 0 / 8 / 28 | 0 / 5 / 28 |
+| Full tree | 0 / 16 / 28 | 0 / 12 / 28 |
+
+The production vulnerability names, direct advisory URLs and severity counts now match the existing exact RC gate. The gate implementation and its expected inventory were not changed. Ordinary audits still exit 1 because retained advisories exist; the critical-only exit status is not security approval.
+
+The remaining direct production advisory roots are `@tiptap/core`, `deepmerge-ts`, `mysql2` and `baseline-browser-mapping`, with the same six URLs documented by the existing exact gate. The full tree additionally retains the previously documented `browserslist` and `js-yaml` roots, and the unresolved `braces` finding below. Current logs and exact node/path/URL comparison are retained in the external R2-2F evidence directory; these counts do not replace historical assessments.
+
+### Unresolved High: braces
+
+[GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) affects `braces <=3.0.3`; upstream lists no patched version, and the checked npm latest release is `3.0.3`. The installed path is `eslint-config-next 16.3.8 -> @next/eslint-plugin-next 16.3.8 -> fast-glob 3.3.1 -> micromatch 4.0.8 -> braces 3.0.3`.
+
+This is a development/linting path absent from the production audit; repository application code does not import these glob-expansion packages. That reachability evidence does not constitute an approved exception. The earlier disposition does not explicitly cover this advisory. No unverified override, replacement, downgrade or policy relaxation was applied.
+
+**R2-2F correction gate remains BLOCKED pending a compatible upstream fix or a separate explicit, evidence-based security disposition for this High advisory.** The restored production inventory alone cannot justify a remediation PASS, a success checkpoint, release readiness, or production activation.
