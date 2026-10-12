@@ -6,7 +6,9 @@ Synthetic archive binaries are fixtures, not native-runtime evidence. Optional
 No production paths, service installation, credentials or network deployment.
 """
 import argparse
+import contextlib
 import grp
+import hashlib
 import importlib.util
 import json
 import os
@@ -32,6 +34,7 @@ F = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(F)
 A = F.A
 RUNUSER = None
+RUNTIME_FIXTURE_FILES = ("scripts/test-prebuilt-runtime.mjs", "ops/deploy/nuaafa-deploy")
 
 
 class FixtureResources:
@@ -154,6 +157,134 @@ def user_git(user, *args):
     return run([RUNUSER or resolve_runuser(), "-u", user, "--", "env", "-i", "PATH=/usr/bin:/bin",
                 "HOME=" + account.pw_dir, "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null",
                 "GIT_OPTIONAL_LOCKS=0", *command])
+
+
+def path_metadata(path):
+    """Metadata only; never disclose source, configuration or account contents."""
+    records = []
+    for item in (path, *path.parents):
+        record = dict(path=str(item))
+        try:
+            info = item.lstat()
+            record.update(uid=info.st_uid, gid=info.st_gid, mode=oct(stat.S_IMODE(info.st_mode)),
+                          file_type=stat.S_IFMT(info.st_mode), symlink=stat.S_ISLNK(info.st_mode))
+        except OSError as error:
+            record["error"] = str(error)
+        records.append(record)
+    return records
+
+
+def stage_runtime_fixture(source, destination, commit):
+    """Seal exact Git-blob bytes outside a checkout the app may not traverse."""
+    A.exact_sha(commit)
+    source = source.resolve(strict=True)
+    owner = pwd.getpwuid(source.stat().st_uid).pw_name
+    def checked(*args):
+        result = user_git(owner, "-C", source, *args)
+        if result.returncode:
+            raise RuntimeError(result.stdout + result.stderr)
+        return result.stdout.strip()
+    if checked("rev-parse", "HEAD^{commit}") != commit:
+        raise ValueError("runtime fixture source HEAD differs from exact commit")
+    payloads, records = {}, {}
+    for name in RUNTIME_FIXTURE_FILES:
+        original = source / name
+        tree_entry = checked("ls-tree", commit, "--", name)
+        match = re.fullmatch(r"100(?:644|755) blob ([0-9a-f]{40})\t" + re.escape(name), tree_entry)
+        if not match:
+            raise ValueError("runtime fixture is not an exact regular Git blob: " + name)
+        with A.open_regular(original) as stream:
+            data = stream.read(1024 * 1024 + 1)
+        if len(data) > 1024 * 1024:
+            raise ValueError("oversized runtime fixture source: " + name)
+        blob = hashlib.sha1(b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest()
+        if blob != match[1]:
+            raise ValueError("runtime fixture source differs from exact commit: " + name)
+        payloads[name] = data
+        records[name] = dict(source=str(original), git_blob=blob, sha256=A.digest(data),
+                             source_metadata=path_metadata(original), staged=str(destination / name))
+    trusted_path(destination.parent)
+    destination.mkdir(mode=0o755)  # Exclusive: never reuse or overwrite a fixture.
+    destination.chmod(0o755)
+    for relative in ("scripts", "ops", "ops/deploy"):
+        directory = destination / relative
+        directory.mkdir(mode=0o755)
+        directory.chmod(0o755)
+    for name, data in payloads.items():
+        staged = destination / name
+        with staged.open("xb") as output:
+            output.write(data)
+        staged.chmod(0o644)
+        records[name]["staged_sha256"] = A.file_digest(staged)
+        records[name]["staged_metadata"] = path_metadata(staged)
+    identity = dict(commit=commit, source_owner=owner, root=str(destination), files=records)
+    verify_runtime_fixture(identity)
+    return identity
+
+
+def verify_runtime_fixture(identity):
+    for name in RUNTIME_FIXTURE_FILES:
+        record = identity["files"][name]
+        staged = trusted_path(Path(record["staged"]), kind="file")
+        with A.open_regular(staged) as stream:
+            if A.digest(stream.read()) != record["sha256"] or record["staged_sha256"] != record["sha256"]:
+                raise ValueError("staged runtime fixture hash changed: " + name)
+        if stat.S_IMODE(staged.stat().st_mode) != 0o644:
+            raise ValueError("staged runtime fixture mode changed: " + name)
+
+
+def runtime_access_evidence(identity, node, app_user):
+    """Record actual Linux resolution under both UIDs, without changing modes."""
+    account = pwd.getpwnam(app_user)
+    environment = {"PATH": "/usr/bin:/bin", "HOME": account.pw_dir}
+    result = dict(root_uid=os.geteuid(), app_uid=account.pw_uid, files={})
+    for name, record in identity["files"].items():
+        probes = result["files"][name] = {}
+        for location in ("source", "staged"):
+            target = record[location]
+            commands = {
+                "namei": ["/usr/bin/namei", "-l", target],
+                "stat": ["/usr/bin/stat", "-c", "%u %g %a %F %n", target],
+                "realpath": ["/usr/bin/realpath", "-e", target],
+                "read": ["/usr/bin/test", "-r", target],
+            }
+            if name.endswith(".mjs"):
+                commands["node_resolution"] = [str(node), "--check", target]
+            for role in ("root", "app"):
+                for label, command in commands.items():
+                    if role == "app": command = [RUNUSER or resolve_runuser(), "-u", app_user, "--", *command]
+                    probe = run(command, cwd="/", env=environment)
+                    probes[location + ":" + role + ":" + label] = dict(exit_code=probe.returncode,
+                        stdout=F.bounded_diagnostic(probe.stdout), stderr=F.bounded_diagnostic(probe.stderr),
+                        evidence_path=str(probe.evidence_path))
+                    if (role == "root" or location == "staged") and probe.returncode:
+                        F.emit_failure_diagnostic("runtime-access", probe)
+                        raise ValueError("runtime fixture access failed: " + location + ":" + role + ":" + label)
+            writable = run([RUNUSER or resolve_runuser(), "-u", app_user, "--", "/usr/bin/test", "-w", record["staged"]],
+                           cwd="/", env=environment)
+            if writable.returncode != 1:
+                raise ValueError("runtime fixture must not be writable by application UID")
+    print("Runtime fixture provenance: " + json.dumps(identity), file=sys.stderr)
+    print("Runtime fixture access: " + json.dumps(result), file=sys.stderr)
+    return result
+
+
+@contextlib.contextmanager
+def runtime_fixture_lifecycle():
+    LinuxPermissions.setUpClass()
+    try:
+        yield
+    except BaseException as original:
+        A.GIT_USER = None
+        try:
+            LinuxPermissions.tearDownClass()
+        except BaseException as cleanup:
+            original.cleanup_error = cleanup
+            raise original from cleanup
+        raise
+    else:
+        A.GIT_USER = None
+        LinuxPermissions.tearDownClass()
 
 
 def bundle_remote(source, destination, commit, app_user):
@@ -453,6 +584,44 @@ test ! -e "$release_root/$COMMIT/prisma/dev.db"
               negative_stderr=F.bounded_diagnostic(rejected.stderr), lifecycle=rejected.lifecycle,
               evidence_path=str(rejected.evidence_path), bundle=identity)), file=sys.stderr)
 
+    def test_runtime_driver_private_checkout_and_sealed_fixture(self):
+        # Reproduce the failed boundary with real root/app UIDs, without changing
+        # any runner directory. Both entry and its relative deployer are needed.
+        source = self.root / "private-runtime-source"
+        shutil.copytree(F.ArtifactTests.source, source, symlinks=True)
+        source.chmod(0o700)
+        driver = source / RUNTIME_FIXTURE_FILES[0]
+        driver.write_text('import {readFileSync} from "node:fs";\n'
+                          'console.log(JSON.stringify({uid:process.getuid(),deployer:readFileSync('
+                          'new URL("../ops/deploy/nuaafa-deploy",import.meta.url),"utf8")}));\n')
+        deployer = source / RUNTIME_FIXTURE_FILES[1]
+        deployer.write_text("synthetic deployer fixture only\n")
+        owner = pwd.getpwuid(os.getuid()).pw_name
+        for args in (("add", "."), ("commit", "-m", "synthetic isolated runtime driver")):
+            result = user_git(owner, "-C", source, *args)
+            self.assertEqual(result.returncode, 0, result.stderr)
+        head = user_git(owner, "-C", source, "rev-parse", "HEAD").stdout.strip()
+        before = source.lstat()
+        identity = stage_runtime_fixture(source, self.root / "sealed-runtime-fixture", head)
+        evidence = runtime_access_evidence(identity, self.node, self.user)
+        negative = evidence["files"][RUNTIME_FIXTURE_FILES[0]]["source:app:node_resolution"]
+        self.assertNotEqual(negative["exit_code"], 0)
+        self.assertIn("MODULE_NOT_FOUND", negative["stderr"])
+        self.assertNotEqual(evidence["files"][RUNTIME_FIXTURE_FILES[0]]["source:app:stat"]["exit_code"], 0)
+        original = run([RUNUSER, "-u", self.user, "--", str(self.node), str(driver)], cwd="/")
+        self.assertNotEqual(original.returncode, 0)
+        self.assertIn("MODULE_NOT_FOUND", original.stderr)
+        staged = Path(identity["files"][RUNTIME_FIXTURE_FILES[0]]["staged"])
+        actual = run([RUNUSER, "-u", self.user, "--", str(self.node), str(staged)], cwd="/")
+        self.assertEqual(actual.returncode, 0, actual.stderr)
+        self.assertEqual(json.loads(actual.stdout), dict(uid=self.account.pw_uid, deployer=deployer.read_text()))
+        mutation = run([RUNUSER, "-u", self.user, "--", str(self.node), "-e",
+                        'require("node:fs").writeFileSync(process.argv[1],"untrusted")', str(staged)], cwd="/")
+        self.assertNotEqual(mutation.returncode, 0)
+        self.assertIn("EACCES", mutation.stderr)
+        verify_runtime_fixture(identity)
+        self.assertEqual((source.lstat().st_uid, source.lstat().st_mode), (before.st_uid, before.st_mode))
+
     def test_wrong_receipt_owner_mode_and_parent(self):
         for kind in ("owner", "mode", "parent", "link"):
             with self.subTest(kind=kind):
@@ -526,6 +695,91 @@ if verify_service_contract; then exit 92; fi
 
 class HarnessTests(unittest.TestCase):
     """Portable fault injection only; never evidence of real Linux root/app PASS."""
+    @contextlib.contextmanager
+    def runtime_source(self):
+        with tempfile.TemporaryDirectory(prefix="runtime-source-test-") as name:
+            parent = Path(name).resolve()
+            source = parent / "checkout"
+            source.mkdir()
+            for relative in RUNTIME_FIXTURE_FILES:
+                target = source / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text("synthetic fixture bytes\n")
+            F.run("git", "init", "--initial-branch=main", str(source))
+            F.run("git", "-C", str(source), "config", "user.name", "Fixture Test")
+            F.run("git", "-C", str(source), "config", "user.email", "fixture@example.invalid")
+            F.run("git", "-C", str(source), "add", ".")
+            F.run("git", "-C", str(source), "commit", "-m", "exact fixture")
+            commit = F.run("git", "-C", str(source), "rev-parse", "HEAD")
+            # Portable scope only. LinuxPermissions tests actual metadata/UIds.
+            def local_git(user, *args):
+                self.assertEqual(user, pwd.getpwuid(source.stat().st_uid).pw_name)
+                return subprocess.run(["git", *map(str, args)], capture_output=True, text=True)
+            with patch(__name__ + ".user_git", side_effect=local_git), \
+                 patch(__name__ + ".trusted_path", side_effect=lambda path, **kwargs: Path(path)):
+                yield source, parent / "fixture", commit
+
+    def test_runtime_fixture_exact_blob_hashes_and_relative_dependencies(self):
+        with self.runtime_source() as (source, destination, commit):
+            identity = stage_runtime_fixture(source, destination, commit)
+            self.assertEqual(identity["commit"], commit)
+            self.assertEqual(set(identity["files"]), set(RUNTIME_FIXTURE_FILES))
+            for name, record in identity["files"].items():
+                self.assertEqual(Path(record["staged"]).read_bytes(), (source / name).read_bytes())
+                self.assertEqual(record["sha256"], A.file_digest(source / name))
+                self.assertEqual(stat.S_IMODE(Path(record["staged"]).stat().st_mode), 0o644)
+            verify_runtime_fixture(identity)
+            (destination / RUNTIME_FIXTURE_FILES[0]).write_text("changed staged bytes")
+            with self.assertRaisesRegex(ValueError, "staged runtime fixture hash changed"):
+                verify_runtime_fixture(identity)
+
+    def test_runtime_fixture_rejects_changed_missing_linked_and_wrong_commit_sources(self):
+        for fault in ("changed", "missing", "symlink", "hardlink", "wrong-commit"):
+            with self.subTest(fault=fault), self.runtime_source() as (source, destination, commit):
+                target = source / RUNTIME_FIXTURE_FILES[1]
+                if fault == "changed": target.write_text("not committed")
+                elif fault == "missing": target.unlink()
+                elif fault == "symlink":
+                    target.unlink(); target.symlink_to(source / RUNTIME_FIXTURE_FILES[0])
+                elif fault == "hardlink": os.link(target, source / "extra-link")
+                else: commit = "0" * 40
+                with self.assertRaises((ValueError, OSError)):
+                    stage_runtime_fixture(source, destination, commit)
+                self.assertFalse(destination.exists())
+
+    def test_runtime_fixture_refuses_existing_destination_and_staged_link(self):
+        with self.runtime_source() as (source, destination, commit):
+            destination.mkdir()
+            sentinel = destination / "sentinel"
+            sentinel.write_text("preserve")
+            with self.assertRaises(FileExistsError):
+                stage_runtime_fixture(source, destination, commit)
+            self.assertEqual(sentinel.read_text(), "preserve")
+        with self.runtime_source() as (source, destination, commit):
+            identity = stage_runtime_fixture(source, destination, commit)
+            staged = destination / RUNTIME_FIXTURE_FILES[0]
+            staged.unlink(); staged.symlink_to(source / RUNTIME_FIXTURE_FILES[0])
+            with self.assertRaises((ValueError, OSError)):
+                verify_runtime_fixture(identity)
+
+    def test_runtime_cleanup_retains_original_failure_and_always_resets_git_user(self):
+        for cleanup_fails in (False, True):
+            original = RuntimeError("original runtime failure")
+            cleanup = RuntimeError("owned fixture cleanup failure")
+            with self.subTest(cleanup_fails=cleanup_fails), \
+                 patch.object(LinuxPermissions, "setUpClass"), \
+                 patch.object(LinuxPermissions, "tearDownClass", side_effect=cleanup if cleanup_fails else None) as teardown:
+                with self.assertRaises(RuntimeError) as raised:
+                    with runtime_fixture_lifecycle():
+                        A.GIT_USER = "synthetic-app"
+                        raise original
+                self.assertIs(raised.exception, original)
+                if cleanup_fails:
+                    self.assertIs(original.__cause__, cleanup)
+                    self.assertIs(original.cleanup_error, cleanup)
+                self.assertIsNone(A.GIT_USER)
+                teardown.assert_called_once()
+
     def test_user_git_preserves_identity_environment_and_original_result(self):
         account = pwd.struct_passwd(("synthetic-app", "x", 19991, 19991, "fixture", "/synthetic/home", "/bin/false"))
         rejected = subprocess.CompletedProcess([], 128, "original stdout", "fatal: repository owned by different users")
@@ -756,8 +1010,12 @@ class HarnessTests(unittest.TestCase):
 
     def test_auxiliary_timeout_uses_isolated_group_cleanup(self):
         with tempfile.TemporaryDirectory() as name:
-            with patch.dict(os.environ, NUAAFA_TEST_EVIDENCE=name), self.assertRaises(subprocess.TimeoutExpired):
-                run([sys.executable, "-u", "-c", "import time; print('partial probe'); time.sleep(10)"], timeout=0.1)
+            ready = Path(name) / "probe.ready"
+            source = "import time; from pathlib import Path; print('partial probe',flush=True); Path(" + repr(str(ready)) + ").write_text('ready'); time.sleep(10)"
+            with patch.dict(os.environ, NUAAFA_TEST_EVIDENCE=name), \
+                 patch.object(F, "wait_child_exit", side_effect=F.wait_after_fixture_ready([ready])), \
+                 self.assertRaises(subprocess.TimeoutExpired):
+                run([sys.executable, "-u", "-c", source], timeout=0.1)
             record = next(Path(name).glob("linux-command-*/result.json"))
             metadata = json.loads(record.read_text())
             self.assertTrue(metadata["timed_out"])
@@ -788,9 +1046,10 @@ class HarnessTests(unittest.TestCase):
 
 def relocated_runtime(archive, commit, sha256):
     # Real CI ELF files are tested here; no platform/native mocks.
-    LinuxPermissions.setUpClass()
-    try:
+    with runtime_fixture_lifecycle():
         root = LinuxPermissions.root
+        driver_identity = stage_runtime_fixture(REPO, root / "runtime-fixture", commit)
+        access = runtime_access_evidence(driver_identity, LinuxPermissions.node, LinuxPermissions.user)
         # The SAME real archive/digest goes through main --import-artifact twice.
         # A disposable bare remote maps the exact CI commit to the test main ref;
         # project refs and files are never modified.
@@ -831,13 +1090,15 @@ test ! -e "$prebuilt_approvals"
                                             LinuxPermissions.node, LinuxPermissions.user)
         home = root / "home"
         command = [RUNUSER, "-u", LinuxPermissions.user, "--", "env", "-i",
-                   "PATH=" + os.environ["PATH"], "HOME=" + str(home), "TMPDIR=" + str(home),
-                   "node", str(REPO / "scripts/test-prebuilt-runtime.mjs"), "--runtime=" + str(runtime),
+                   "PATH=/usr/bin:/bin", "HOME=" + str(home), "TMPDIR=" + str(home),
+                   str(LinuxPermissions.node), driver_identity["files"][RUNTIME_FIXTURE_FILES[0]]["staged"], "--runtime=" + str(runtime),
                    "--startup-fixture=" + str(shared), "--wrapper=" + str(wrapper)]
         result = F.recorded_run(command, "real-archive-runtime", dict(commit=commit, archive_sha256=sha256, git_transfer=identity,
-                               wrapper_adaptation=adaptation), timeout=180)
+                               wrapper_adaptation=adaptation, runtime_fixture=driver_identity, runtime_access=access), timeout=180, cwd="/")
         if result.returncode:
+            F.emit_failure_diagnostic("real-archive-runtime", result)
             raise RuntimeError(result.stdout + result.stderr)
+        verify_runtime_fixture(driver_identity)
         # The app must leave caller-owned work for root cleanup, preserving the
         # non-writable shared parent; never grant it permission to remove work.
         if shared.stat().st_uid != 0 or shared.stat().st_mode & 0o022:
@@ -855,11 +1116,8 @@ test ! -e "$prebuilt_approvals"
         if work.exists() or shared.stat().st_uid != 0:
             raise ValueError("root fixture cleanup failed")
         final_result = dict(result="PASS", runtime=json.loads(result.stdout), git_transfer=identity,
-                            wrapper_adaptation=adaptation, first_and_repeat_import=True,
+                            wrapper_adaptation=adaptation, runtime_fixture=driver_identity, runtime_access=access, first_and_repeat_import=True,
                             final_seal_shared_tree_archive_verification="PASS", root_work_cleanup="PASS")
-    finally:
-        A.GIT_USER = None
-        LinuxPermissions.tearDownClass()
     if root.exists(): raise ValueError("Linux fixture root was not removed")
     try:
         pwd.getpwnam(LinuxPermissions.user)

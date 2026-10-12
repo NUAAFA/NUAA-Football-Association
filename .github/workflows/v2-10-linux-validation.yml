@@ -87,6 +87,7 @@ jobs:
         run: npm run build
       - name: Security, operations and compatibility regressions
         run: |
+          npm run test:security-dependencies
           npm run test:security-runtime-r2
           npm run test:security-http
           npm run test:unified-admin-rbac

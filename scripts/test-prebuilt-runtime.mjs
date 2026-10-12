@@ -47,6 +47,10 @@ const env = {
   REFEREE_MEMBER_SESSION_SECRET: `Synthetic-Prebuilt-Member-${randomUUID()}`,
 };
 const events = [];
+function recordEvent(event) {
+  events.push(event);
+  console.error(`Runtime stage: ${event}`);
+}
 let server;
 let result;
 async function run(args) {
@@ -80,16 +84,16 @@ try {
   // Native image and SQLite drivers must load from the relocated runtime.
   const sharp = requireRuntime("sharp");
   assert((await sharp({ create: { width: 2, height: 2, channels: 3, background: "white" } }).png().toBuffer()).length > 0);
-  events.push("sharp native image operation PASS");
+  recordEvent("sharp native image operation PASS");
   await run([path.join(runtime, "node_modules/prisma/build/index.js"), "migrate", "deploy"]);
-  events.push("all 17 synthetic migrations via packaged Prisma CLI PASS");
+  recordEvent("all 17 synthetic migrations via packaged Prisma CLI PASS");
   const probe = path.join(root, "probe.cjs");
   await writeFile(probe, `const { PrismaClient } = require(${JSON.stringify(path.join(runtime, "src/generated/prisma-v29"))});
 const { PrismaLibSql } = require(${JSON.stringify(path.join(runtime, "node_modules/@prisma/adapter-libsql"))});
 const p = new PrismaClient({adapter: new PrismaLibSql({url: process.env.DATABASE_URL})});
 (async () => { if (await p.referee.count() !== 0) throw Error('synthetic database not empty'); await p.$disconnect(); })().catch(e=>{console.error(e);process.exitCode=1});`);
   await run([probe]);
-  events.push("relocated generated Prisma client and native libSQL query PASS");
+  recordEvent("relocated generated Prisma client and native libSQL query PASS");
   const aliasRoot = path.join(runtime, ".next/node_modules/@libsql");
   const aliases = await readdir(aliasRoot);
   assert(aliases.length > 0 && aliases.every((name) => /^client-[0-9a-f]{16}$/.test(name)), "Unexpected Next libSQL alias inventory");
@@ -104,7 +108,7 @@ const p = new PrismaClient({adapter: new PrismaLibSql({url: process.env.DATABASE
     try { assert.equal((await client.execute("SELECT 1 AS value")).rows[0].value, 1); }
     finally { client.close(); }
   }
-  events.push("materialized Next libSQL aliases, actual Node resolution and SQLite query PASS");
+  recordEvent("materialized Next libSQL aliases, actual Node resolution and SQLite query PASS");
   const port = startup ? 3001 : await freePort();
   let log = "";
   server = startup
@@ -130,7 +134,7 @@ const p = new PrismaClient({adapter: new PrismaLibSql({url: process.env.DATABASE
       const status = await readFile(`/proc/${server.pid}/status`, "utf8");
       assert.equal(Number(status.match(/^Uid:\s+(\d+)/m)?.[1]), process.getuid());
     }
-    events.push("actual start-prebuilt entry, clean inherited environment, shared configuration and application identity PASS (fixed paths adapted; systemd NOT RUN)");
+    recordEvent("actual start-prebuilt entry, clean inherited environment, shared configuration and application identity PASS (fixed paths adapted; systemd NOT RUN)");
   }
   for (const route of ["/", "/referees"]) {
     const r = await fetch(origin + route, { signal: AbortSignal.timeout(10000) });
@@ -143,7 +147,7 @@ const p = new PrismaClient({adapter: new PrismaLibSql({url: process.env.DATABASE
   const publicPath = "/documents/templates/eleven-a-side-match-report.pdf";
   const served = Buffer.from(await (await fetch(origin + publicPath, { signal: AbortSignal.timeout(10000) })).arrayBuffer());
   assert.equal(createHash("sha256").update(served).digest("hex"), createHash("sha256").update(await readFile(path.join(runtime, "public", publicPath))).digest("hex"));
-  events.push("cold start, Prisma-backed health, two HTTP pages, static and public assets PASS");
+  recordEvent("cold start, Prisma-backed health, two HTTP pages, static and public assets PASS");
   await stopServer();
   // Existing backup/verify/restore scripts use packaged tsx and Git metadata.
   const backup = path.join(root, "backup");
@@ -155,7 +159,7 @@ const p = new PrismaClient({adapter: new PrismaLibSql({url: process.env.DATABASE
   env.NUAAFA_RESTORE_TARGET_ROOT = restored;
   await run([path.join(runtime, "node_modules/tsx/dist/cli.mjs"), "scripts/restore-unified-data.ts", `--backup=${backup}`, `--database=${path.join(restored, "restored.db")}`, `--uploads=${path.join(restored, "uploads")}`]);
   assert.equal(createHash("sha256").update(await readFile(path.join(restored, "restored.db"))).digest("hex"), createHash("sha256").update(await readFile(path.join(backup, "database.sqlite"))).digest("hex"));
-  events.push("packaged backup, verification and isolated restore tools PASS");
+  recordEvent("packaged backup, verification and isolated restore tools PASS");
   // Exercise the actual deployer backup function from an unrelated cwd. The
   // identity adapter simply retains this already nonprivileged test identity;
   // neither the backup function nor backup/verification tools are mocked.
@@ -172,8 +176,12 @@ const p = new PrismaClient({adapter: new PrismaLibSql({url: process.env.DATABASE
     child.on("error", (error) => { clearTimeout(timer); reject(error); });
     child.on("exit", (code) => { clearTimeout(timer); if (code === 0 && output.includes("independently verified")) resolve(); else reject(new Error(`Deployer backup failed (${code}): ${output}`)); });
   });
-  events.push("actual deployer backup function from unrelated cwd PASS");
+  recordEvent("actual deployer backup function from unrelated cwd PASS");
   result = { platform: `${process.platform}/${process.arch}`, uid: process.getuid(), node: process.versions.node, events, productionAccess: false, releaseAllowed: false };
+} catch (error) {
+  // Preserve the original failure even if a later cleanup operation also fails.
+  console.error(`Runtime failure before cleanup: ${String(error?.stack ?? error).slice(-8000)}`);
+  throw error;
 } finally {
   await stopServer();
   await rm(scratch, { recursive: true, force: true });

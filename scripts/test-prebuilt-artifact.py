@@ -178,6 +178,35 @@ def wait_child_exit(process, timeout):
         time.sleep(min(0.02, remaining))
 
 
+def wait_after_fixture_ready(paths, readiness_timeout=10):
+    """TEST ONLY: start an injected timeout after fixture initialization.
+
+    Used only by the fault-injection tests below and the Linux harness test.
+    recorded_run already owns the Popen/session before this callback runs.
+    Keep the leader unreaped and leave all operational/cleanup budgets intact.
+    """
+    ready = tuple(map(Path, paths))
+    if not ready or readiness_timeout <= 0:
+        raise ValueError("bounded fixture readiness paths and timeout required")
+    original_wait = wait_child_exit
+    first = True
+    def wait(process, timeout):
+        nonlocal first
+        if first:
+            # Consume before waiting: setup errors must immediately enter the
+            # real cleanup waits, never start another readiness wait there.
+            first = False
+            deadline = time.monotonic() + readiness_timeout
+            while not all(path.is_file() for path in ready):
+                if child_exited(process.pid):  # WNOWAIT; no poll/wait/reap.
+                    raise RuntimeError("fixture exited before readiness")
+                if time.monotonic() >= deadline:
+                    raise RuntimeError("fixture readiness timeout")
+                time.sleep(0.01)
+        return original_wait(process, timeout)
+    return wait
+
+
 def owned_group_children(pgid):
     # Linux subreaper adoption is inspected only among OUR direct children.
     # Never enumerate global processes or reap by a possibly reused PGID.
@@ -880,10 +909,14 @@ signal.signal(signal.SIGTERM, signal.SIG_IGN)
 if level < 2: subprocess.Popen([sys.executable,'-u',__file__,str(root),str(level+1)])
 print('partial stdout '+str(level),flush=True)
 print('partial stderr '+str(level),file=sys.stderr,flush=True)
+(root/('ready-'+str(level))).write_text('ready')
 while True: time.sleep(0.05)
 ''')
         runner_group = os.getpgrp()
-        with patch.dict(os.environ, NUAAFA_TEST_EVIDENCE=str(destination)), self.assertRaises(subprocess.TimeoutExpired):
+        ready = [destination / ("ready-" + str(i)) for i in range(3)]
+        with patch.dict(os.environ, NUAAFA_TEST_EVIDENCE=str(destination)), \
+             patch(__name__ + ".wait_child_exit", side_effect=wait_after_fixture_ready(ready)), \
+             self.assertRaises(subprocess.TimeoutExpired):
             recorded_run([sys.executable, "-u", str(script), str(destination), "0"],
                          "descendant-timeout", dict(synthetic=True), timeout=1)
         pids = [int((destination / ("pid-" + str(i))).read_text()) for i in range(3)]
@@ -1482,7 +1515,8 @@ class ProcessLifecycleTests(unittest.TestCase):
 
     def test_timeout_kills_descendant_after_leader_exits_on_term(self):
         parent_pid, child_pid = self.root / "parent.pid", self.root / "child.pid"
-        child = "import os,signal,time; from pathlib import Path; signal.signal(signal.SIGTERM,signal.SIG_IGN); Path(" + repr(str(child_pid)) + ").write_text(str(os.getpid())); print('descendant stdout',flush=True); time.sleep(30)"
+        ready = self.root / "child.ready"
+        child = "import os,signal,time; from pathlib import Path; signal.signal(signal.SIGTERM,signal.SIG_IGN); Path(" + repr(str(child_pid)) + ").write_text(str(os.getpid())); print('descendant stdout',flush=True); Path(" + repr(str(ready)) + ").write_text('ready'); time.sleep(30)"
         parent = "import os,subprocess,sys,time; from pathlib import Path; Path(" + repr(str(parent_pid)) + ").write_text(str(os.getpid())); subprocess.Popen([sys.executable,'-u','-c'," + repr(child) + "]); time.sleep(30)"
         killpg = os.killpg
         pinned_at_kill = []
@@ -1490,7 +1524,9 @@ class ProcessLifecycleTests(unittest.TestCase):
             if sig == signal.SIGKILL:
                 pinned_at_kill.append(child_exited(pgid))
             return killpg(pgid, sig)
-        with patch.object(os, "killpg", side_effect=signal_group), self.assertRaises(subprocess.TimeoutExpired):
+        with patch.object(os, "killpg", side_effect=signal_group), \
+             patch(__name__ + ".wait_child_exit", side_effect=wait_after_fixture_ready([ready])), \
+             self.assertRaises(subprocess.TimeoutExpired):
             recorded_run([sys.executable, "-u", "-c", parent], "leader-term-exit", dict(synthetic=True), timeout=0.5)
         self.assertEqual(pinned_at_kill, [True])
         for path in (parent_pid, child_pid):
@@ -1500,6 +1536,39 @@ class ProcessLifecycleTests(unittest.TestCase):
         self.assertTrue(metadata["timed_out"])
         self.assertIsNone(metadata["cleanup_exception"])
         self.assertIn("descendant stdout", (path / "stdout.log").read_text())
+        self.assert_isolated(metadata)
+
+    def test_fixture_readiness_failures_are_not_timeouts_and_still_clean_up(self):
+        for early_exit in (False, True):
+            name = "readiness-early-exit" if early_exit else "readiness-missing"
+            command = [sys.executable, "-c", "pass" if early_exit else "import time; time.sleep(30)"]
+            ready = self.root / name
+            wait = wait_after_fixture_ready([ready], readiness_timeout=10 if early_exit else 0.1)
+            reason = "fixture exited before readiness" if early_exit else "fixture readiness timeout"
+            with self.subTest(early_exit=early_exit), \
+                 patch(__name__ + ".wait_child_exit", side_effect=wait), \
+                 self.assertRaisesRegex(RuntimeError, reason):
+                recorded_run(command, name, dict(synthetic=True), timeout=0.5)
+            metadata, _ = self.record(name)
+            self.assertFalse(metadata["timed_out"])
+            self.assertIsNone(metadata["cleanup_exception"])
+            self.assertTrue(metadata["lifecycle"]["cleanup_complete"])
+            self.assertIn("RuntimeError: " + reason, metadata["exception"])
+            self.assert_isolated(metadata)
+
+    def test_fixture_readiness_preserves_the_requested_timeout(self):
+        ready = self.root / "delayed.ready"
+        command = [sys.executable, "-u", "-c", "import time; from pathlib import Path; time.sleep(0.2); "
+                   "print('initialized',flush=True); Path(" + repr(str(ready)) + ").write_text('ready'); time.sleep(30)"]
+        with patch(__name__ + ".wait_child_exit", side_effect=wait_after_fixture_ready([ready])), \
+             self.assertRaises(subprocess.TimeoutExpired) as caught:
+            recorded_run(command, "readiness-then-timeout", dict(synthetic=True), timeout=0.1)
+        self.assertEqual(caught.exception.timeout, 0.1)
+        self.assertTrue(ready.is_file())
+        metadata, path = self.record("readiness-then-timeout")
+        self.assertTrue(metadata["timed_out"])
+        self.assertIn("initialized", (path / "stdout.log").read_text())
+        self.assertTrue(metadata["lifecycle"]["cleanup_complete"])
         self.assert_isolated(metadata)
 
     def test_normal_exit_with_descendants_fails_after_cleanup(self):

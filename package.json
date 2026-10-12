@@ -74,7 +74,8 @@
     "typecheck": "tsc --noEmit",
     "release:student-id-preflight": "node scripts/student-id-release-preflight.mjs",
     "test:student-id-release-preflight": "node --import tsx scripts/test-student-id-release-preflight.mjs",
-    "test:admin-dialog:browser": "node scripts/test-admin-dialog-browser.mjs"
+    "test:admin-dialog:browser": "node scripts/test-admin-dialog-browser.mjs",
+    "test:security-dependencies": "node tests/security-dependencies.mjs"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",
@@ -102,5 +103,13 @@
     "tailwindcss": "^4",
     "tsx": "^4.23.1",
     "typescript": "^5"
+  },
+  "overrides": {
+    "@prisma/config@7.9.1": {
+      "deepmerge-ts": "8.0.2"
+    },
+    "prisma@7.9.1": {
+      "mysql2": "3.23.1"
+    }
   }
 }
