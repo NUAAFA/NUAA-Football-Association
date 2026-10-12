@@ -178,14 +178,23 @@ def validate_platform(p):
 
 
 
+def build_json(path):
+    with open_regular(path) as source:
+        before = build_identity(os.fstat(source.fileno()))
+        require(before[4] <= 32 * 1024 ** 2, "oversized build metadata")
+        data = source.read(32 * 1024 ** 2 + 1)
+        require(len(data) == before[4] and build_identity(os.fstat(source.fileno())) == before, "build metadata changed")
+    return load_json(data)
+
+
 def validate_installed(root, lock):
-    installed = load_json((root / "node_modules/.package-lock.json").read_bytes())
+    installed = build_json(root / "node_modules/.package-lock.json")
     for name, value in installed["packages"].items():
         expected = lock["packages"].get(name)
         require(expected is not None and all(value.get(k) == expected.get(k) for k in ("version", "integrity", "resolved")), "installed dependency metadata differs: " + name)
         safe_path(name + "/package.json")
         package = root / name / "package.json"
-        require(package.is_file() and not package.is_symlink() and load_json(package.read_bytes())["version"] == expected["version"], "actual installed package version differs: " + name)
+        require(build_json(package)["version"] == expected["version"], "actual installed package version differs: " + name)
     for name, expected in lock["packages"].items():
         if not name or expected.get("optional") or expected.get("devOptional"): continue
         require(name in installed["packages"], "required locked dependency missing: " + name)
@@ -198,67 +207,280 @@ def exclusive_output(path, owned):
     return output
 
 
+def build_identity(info):
+    return (info.st_dev, info.st_ino, info.st_mode, info.st_nlink,
+            info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+
+
+def open_build_directory(path):
+    """Open every component without following links, including the checkout root."""
+    path = Path(path)
+    require(path.is_absolute() and ".." not in path.parts, "unsafe build directory path")
+    fd = os.open("/", os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        for name in path.parts[1:]:
+            child = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
+            os.close(fd)
+            fd = child
+        return fd
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+class BuildInventory:
+    """Virtual materialization: archive regular files at a verified Next alias.
+
+    Never traverse a symlink. The sole accepted directory alias has an exact
+    lexical target inside this checkout's locked node_modules package. Its
+    target is opened component-by-component with O_NOFOLLOW; every descendant
+    must be an ordinary directory or single-link regular file. No staging tree
+    or modification of the source checkout is needed.
+    """
+    EXCLUDED = {".next/cache", ".next/dev", ".next/diagnostics", ".next/standalone", "node_modules/.cache"}
+    ALIAS = re.compile(r"\.next/node_modules/@libsql/client-[0-9a-f]{16}")
+    TARGET = "node_modules/@libsql/client"
+    RAW_TARGET = "../../../node_modules/@libsql/client"
+    ESBUILD_PLATFORMS = {("linux", "x86_64"): "linux-x64", ("darwin", "arm64"): "darwin-arm64"}
+
+    def __init__(self, root, lock):
+        self.root, self.lock = root, lock
+        self.entries, self.origins, self.identities = {}, {}, {}
+        self.directories, self.links, self.aliases = {}, {}, []
+        self.hardlinks = {}
+        self.total = 0
+
+    def prepare_hardlinks(self):
+        # esbuild's locked postinstall uses linkSync for this exact binary pair.
+        # Pin BOTH internal names and require nlink == 2 BEFORE reading either.
+        # A link to any outside/sensitive file necessarily adds a third name or
+        # fails the inode-pair check. Tar always emits two independent files.
+        platform = self.ESBUILD_PLATFORMS.get((sys.platform, os.uname().machine))
+        if not platform or "node_modules/esbuild" not in self.lock["packages"]: return
+        pair = ("node_modules/esbuild/bin/esbuild", "node_modules/@esbuild/" + platform + "/bin/esbuild")
+        metadata = []
+        for origin in pair:
+            fd = open_build_directory((self.root / origin).parent)
+            try: metadata.append(os.stat(Path(origin).name, dir_fd=fd, follow_symlinks=False))
+            finally: os.close(fd)
+        if all(info.st_nlink == 1 for info in metadata): return
+        package = "node_modules/@esbuild/" + platform
+        expected = self.lock["packages"].get(package)
+        require(expected and expected["version"] == self.lock["packages"]["node_modules/esbuild"]["version"],
+                "unlocked esbuild hardlink pair")
+        require(all(stat.S_ISREG(info.st_mode) and info.st_nlink == 2 for info in metadata) and
+                build_identity(metadata[0]) == build_identity(metadata[1]), "unsafe esbuild hardlink pair")
+        self.hardlinks = {origin: build_identity(info) for origin, info in zip(pair, metadata)}
+
+    def open_file(self, origin):
+        if origin not in self.hardlinks: return open_regular(self.root / origin)
+        # Validate both pinned names through no-follow parents on every open.
+        selected = None
+        try:
+            for name, identity in self.hardlinks.items():
+                parent = open_build_directory((self.root / name).parent)
+                try: fd = os.open(Path(name).name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=parent)
+                finally: os.close(parent)
+                try:
+                    require(build_identity(os.fstat(fd)) == identity, "esbuild hardlink pair changed: " + name)
+                    if name == origin: selected, fd = fd, None
+                finally:
+                    if fd is not None: os.close(fd)
+            return os.fdopen(selected, "rb")
+        except BaseException:
+            if selected is not None: os.close(selected)
+            raise
+
+    def add(self, name, origin, info, target=None):
+        safe_path(name)
+        safe_path(origin)
+        require(name != MANIFEST, "reserved manifest path")
+        if name in self.entries:
+            require(self.origins[name] == origin and self.identities[name] == build_identity(info), "conflicting build entry")
+            return
+        require(len(self.entries) < MAX_FILES, "too many build entries")
+        if stat.S_ISLNK(info.st_mode):
+            require(name == origin and name.startswith("node_modules/") and "/.bin/" in name,
+                    "unapproved build symlink: " + name)
+            entry = {"type": "link", "target": target}
+            self.links[origin] = (build_identity(info), target)
+        else:
+            require(stat.S_ISREG(info.st_mode) and (info.st_nlink == 1 or
+                    self.hardlinks.get(origin) == build_identity(info)) and info.st_size <= MAX_FILE,
+                    "unsafe build file or hardlink: " + name)
+            require(self.total + info.st_size <= MAX_BYTES, "artifact exceeds unpacked size limit")
+            h, size = hashlib.sha256(), 0
+            with self.open_file(origin) as src:
+                require(build_identity(os.fstat(src.fileno())) == build_identity(info), "build file replaced: " + name)
+                while True:
+                    chunk = src.read(min(1024 * 1024, info.st_size - size + 1))
+                    if not chunk: break
+                    size += len(chunk)
+                    require(size <= info.st_size, "build file grew: " + name)
+                    h.update(chunk)
+                require(size == info.st_size and build_identity(os.fstat(src.fileno())) == build_identity(info),
+                        "build file changed: " + name)
+            entry = {"type": "file", "size": size, "mode": 0o755 if info.st_mode & 0o111 else 0o644, "sha256": h.hexdigest()}
+            self.total += size
+        self.entries[name], self.origins[name], self.identities[name] = entry, origin, build_identity(info)
+
+    def directory(self, name, origin, fd, nested=False):
+        info = os.fstat(fd)
+        identity = build_identity(info)
+        require(len(self.directories) < MAX_FILES or origin in self.directories, "too many build directories")
+        require(origin not in self.directories or self.directories[origin] == identity, "build directory replaced: " + origin)
+        self.directories[origin] = identity
+        children = []
+        with os.scandir(fd) as scan:
+            for child in scan:
+                require(len(children) < 2 * MAX_FILES + len(self.EXCLUDED), "too many build directory children")
+                children.append(child.name)
+        for child in sorted(children):
+            alias_name, physical = name + "/" + child, origin + "/" + child
+            metadata = os.stat(child, dir_fd=fd, follow_symlinks=False)
+            if alias_name in self.EXCLUDED:
+                require(stat.S_ISDIR(metadata.st_mode), "unsafe excluded build directory: " + alias_name)
+                continue
+            safe_path(alias_name)
+            safe_path(physical)
+            if stat.S_ISDIR(metadata.st_mode):
+                child_fd = os.open(child, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
+                try:
+                    require(build_identity(os.fstat(child_fd)) == build_identity(metadata), "build directory replaced: " + physical)
+                    self.directory(alias_name, physical, child_fd, nested)
+                finally: os.close(child_fd)
+            elif stat.S_ISLNK(metadata.st_mode):
+                target = os.readlink(child, dir_fd=fd)
+                if not nested and self.ALIAS.fullmatch(alias_name):
+                    require(target == self.RAW_TARGET, "unsafe Next directory alias target: " + alias_name)
+                    # Exactly this relative spelling is accepted; arbitrary '..',
+                    # absolute paths and a second symlink hop are never resolved.
+                    require(os.path.normpath(str(PurePosixPath(alias_name).parent / target)) == self.TARGET,
+                            "Next alias escapes locked dependency")
+                    expected = self.lock["packages"].get(self.TARGET)
+                    require(expected and isinstance(expected.get("version"), str), "Next alias dependency is not locked")
+                    target_fd = open_build_directory(self.root / self.TARGET)
+                    try: self.directory(alias_name, self.TARGET, target_fd, nested=True)
+                    finally: os.close(target_fd)
+                    require(build_json(self.root / self.TARGET / "package.json")["version"] == expected["version"],
+                            "Next alias package version mismatch")
+                    self.links[physical] = (build_identity(metadata), target)
+                    alias_entries = [entry for name, entry in self.entries.items() if name.startswith(alias_name + "/")]
+                    self.aliases.append({"path": alias_name, "target": target, "canonical": str(self.root / self.TARGET),
+                                         "regular_files": len(alias_entries), "bytes": sum(entry["size"] for entry in alias_entries),
+                                         "nested_links": 0, "special_files": 0})
+                else:
+                    require(not nested, "nested link in Next dependency: " + physical)
+                    self.add(alias_name, physical, metadata, target)
+            else:
+                self.add(alias_name, physical, metadata)
+        require(build_identity(os.fstat(fd)) == identity, "build directory changed: " + origin)
+
+    def collect(self, sources):
+        self.prepare_hardlinks()
+        for name in sources:
+            safe_path(name)
+            with open_regular(self.root / name) as src:
+                self.add(name, name, os.fstat(src.fileno()))
+        for directory in ("node_modules", ".next", "src/generated/prisma-v29"):
+            fd = open_build_directory(self.root / directory)
+            try: self.directory(directory, directory, fd)
+            finally: os.close(fd)
+        validate_entries(self.entries)
+        # Detect USTAR limits before exclusively creating any output. Keep the
+        # existing format and reject extended headers rather than relaxing import.
+        raw = json_bytes(self.entries)
+        require(len(raw) <= 32 * 1024 ** 2, "oversized file manifest")
+        for name, entry in self.entries.items():
+            self.tarinfo(name, entry).tobuf(format=tarfile.USTAR_FORMAT)
+        self.verify()
+        return self.entries
+
+    @staticmethod
+    def tarinfo(name, entry):
+        info = tarfile.TarInfo(name)
+        if entry["type"] == "file":
+            info.size, info.mode = entry["size"], entry["mode"]
+        else:
+            info.type, info.linkname, info.mode = tarfile.SYMTYPE, entry["target"], 0o777
+        return info
+
+    def verify(self):
+        for origin, identity in self.directories.items():
+            fd = open_build_directory(self.root / origin)
+            try: require(build_identity(os.fstat(fd)) == identity, "build directory changed: " + origin)
+            finally: os.close(fd)
+        for origin, (identity, target) in self.links.items():
+            parent_fd = open_build_directory((self.root / origin).parent)
+            try:
+                require(build_identity(os.stat(Path(origin).name, dir_fd=parent_fd, follow_symlinks=False)) == identity and
+                        os.readlink(Path(origin).name, dir_fd=parent_fd) == target, "build symlink changed: " + origin)
+            finally: os.close(parent_fd)
+
+    def write(self, tar):
+        self.verify()
+        for name, entry in sorted(self.entries.items()):
+            info = self.tarinfo(name, entry)
+            if entry["type"] == "file":
+                with self.open_file(self.origins[name]) as src:
+                    require(build_identity(os.fstat(src.fileno())) == self.identities[name], "build file replaced before archive: " + name)
+                    tar.addfile(info, src)
+                    require(build_identity(os.fstat(src.fileno())) == self.identities[name], "build file changed during archive: " + name)
+            else: tar.addfile(info)
+        self.verify()
+
+
 def _pack(root, output, commit, owned):
     exact_sha(commit)
     require(git(root, "rev-parse", "HEAD").decode().strip() == commit, "source SHA mismatch")
     require(not git(root, "status", "--porcelain"), "pack requires a clean exact checkout")
     platform = platform_info()
     validate_platform(platform)
-    lock = load_json((root / "package-lock.json").read_bytes())
+    lock = build_json(root / "package-lock.json")
     for name, version in (("next", VERSIONS["next"]), ("prisma", VERSIONS["prisma"]), ("@prisma/client", VERSIONS["prisma"])):
         require(lock["packages"]["node_modules/" + name]["version"] == version, "locked version mismatch")
-        require(load_json((root / "node_modules" / name / "package.json").read_bytes())["version"] == version, "installed version mismatch")
+        require(build_json(root / "node_modules" / name / "package.json")["version"] == version, "installed version mismatch")
     validate_installed(root, lock)
     sources = source_paths(root)
-    paths = list(sources)
-    for directory in ("node_modules", ".next", "src/generated/prisma-v29"):
-        require((root / directory).is_dir() and not (root / directory).is_symlink(), "missing or unsafe build directory")
-        for base, dirs, files in os.walk(root / directory, followlinks=False):
-            rel = Path(base).relative_to(root).as_posix()
-            dirs[:] = sorted(d for d in dirs if rel + "/" + d not in (".next/cache", ".next/dev", ".next/diagnostics", ".next/standalone", "node_modules/.cache"))
-            for name in dirs:
-                require(not (Path(base) / name).is_symlink(), "directory symlink in build")
-            paths.extend(Path(base, name).relative_to(root).as_posix() for name in sorted(files))
-    paths = sorted(set(paths))
-    entries = {}
-    for name in paths:
-        safe_path(name)
-        path = root / name
-        mode = path.lstat().st_mode
-        if stat.S_ISLNK(mode):
-            entries[name] = {"type": "link", "target": os.readlink(path)}
-        else:
-            require(stat.S_ISREG(mode) and path.stat().st_size <= MAX_FILE, "unsafe build file")
-            entries[name] = {"type": "file", "size": path.stat().st_size, "mode": 0o755 if mode & 0o111 else 0o644, "sha256": file_digest(path)}
-    validate_entries(entries)
+    inventory = BuildInventory(root, lock)
+    entries = inventory.collect(sources)
+    print("Verified Next directory aliases: " + json.dumps(inventory.aliases), flush=True)
+    require(build_json(root / "package-lock.json") == lock, "lockfile changed during pack preflight")
+    validate_installed(root, lock)
+    for name in sources:
+        require(entries[name]["sha256"] == digest(git(root, "show", commit + ":" + name)), "source differs from exact commit: " + name)
     native = sorted(name for name in entries if name.endswith(".node") or PurePosixPath(name).name.startswith("schema-engine-"))
     require(any(name.endswith(".node") for name in native) and any("schema-engine-" in name for name in native), "native runtime or migration engine missing")
     for name in native:
-        with open(root / name, "rb") as f:
+        with open_regular(root / inventory.origins[name]) as f:
+            require(build_identity(os.fstat(f.fileno())) == inventory.identities[name], "native build file replaced")
             require(f.read(4) == b"\x7fELF", "non-Linux native binary")
     manifest = {"format": FORMAT, "repository": REPOSITORY, "commit": commit,
                 "runtime": "next-start", "versions": VERSIONS, "platform": platform,
                 "lock_sha256": entries["package-lock.json"]["sha256"], "sources": sources,
                 "native_files": native, "release_allowed": False, "files": entries}
-    require(not output.exists(), "artifact output already exists")
+    raw = json_bytes(manifest)
+    require(len(raw) <= 32 * 1024 ** 2, "oversized manifest")
+    require(git(root, "rev-parse", "HEAD").decode().strip() == commit and not git(root, "status", "--porcelain"),
+            "source checkout changed during pack preflight")
+    print("Pack preflight: " + json.dumps({"commit": commit, "files": len(entries), "bytes": inventory.total,
+          "max_file_bytes": max(entry.get("size", 0) for entry in entries.values()),
+          "file_links": [{"path": name, "target": entry["target"]} for name, entry in entries.items() if entry["type"] == "link"],
+          "hardlink_pair": list(inventory.hardlinks), "native_files": native,
+          "manifest_bytes": len(raw), "manifest_sha256": digest(raw)}), flush=True)
+    require(not os.path.lexists(output), "artifact output already exists")
     output.parent.mkdir(parents=True, exist_ok=True)
+    capacity(output.parent, inventory.total + (len(entries) + 1) * 1024 + len(raw))
     with exclusive_output(output, owned) as out, tarfile.open(fileobj=out, mode="w:gz", format=tarfile.USTAR_FORMAT, dereference=False) as tar:
-        raw = json_bytes(manifest)
         info = tarfile.TarInfo(MANIFEST)
         info.size, info.mode = len(raw), 0o644
         tar.addfile(info, io.BytesIO(raw))
-        for name in paths:
-            info = tar.gettarinfo(str(root / name), arcname=name)
-            info.uid = info.gid = info.mtime = 0
-            info.uname = info.gname = ""
-            info.mode = entries[name].get("mode", 0o777)
-            if info.isfile():
-                with open(root / name, "rb") as f:
-                    tar.addfile(info, f)
-            else:
-                tar.addfile(info)
+        inventory.write(tar)
     checksum = file_digest(output)
     read_archive(output, checksum, commit)
+    inventory.verify()
+    require(git(root, "rev-parse", "HEAD").decode().strip() == commit and not git(root, "status", "--porcelain"),
+            "source checkout changed during pack")
     with exclusive_output(output.with_suffix(output.suffix + ".sha256"), owned) as sidecar:
         sidecar.write((checksum + "  " + output.name + "\n").encode())
     print(json.dumps({"commit": commit, "sha256": checksum, "bytes": output.stat().st_size, "files": len(entries), "release_allowed": False}))
@@ -271,7 +493,7 @@ def pack(root, output, commit):
     owned = []
     try:
         _pack(root, output, commit, owned)
-    except Exception:
+    except BaseException:
         # Output creation is exclusive. Only this operation's own regular files
         # may be removed; a preexisting output/sidecar is never overwritten.
         for path, device, inode in owned:

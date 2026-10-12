@@ -105,7 +105,9 @@ jobs:
           npm run test:deployer
           sha256sum .next/BUILD_ID
       - name: Prebuilt import and activation safety tests
-        run: python3 scripts/test-prebuilt-artifact.py
+        run: |
+          python3 scripts/test-prebuilt-pack.py
+          python3 scripts/test-prebuilt-artifact.py
       - name: Real root and nonprivileged Linux permission tests
         run: sudo env "PATH=$PATH" "NUAAFA_TEST_EVIDENCE=$NUAAFA_TEST_EVIDENCE" python3 scripts/test-prebuilt-linux.py
       - name: Package, actually import twice and start exact Linux runtime

@@ -90,6 +90,21 @@ const p = new PrismaClient({adapter: new PrismaLibSql({url: process.env.DATABASE
 (async () => { if (await p.referee.count() !== 0) throw Error('synthetic database not empty'); await p.$disconnect(); })().catch(e=>{console.error(e);process.exitCode=1});`);
   await run([probe]);
   events.push("relocated generated Prisma client and native libSQL query PASS");
+  const aliasRoot = path.join(runtime, ".next/node_modules/@libsql");
+  const aliases = await readdir(aliasRoot);
+  assert(aliases.length > 0 && aliases.every((name) => /^client-[0-9a-f]{16}$/.test(name)), "Unexpected Next libSQL alias inventory");
+  const nextRequire = createRequire(path.join(runtime, ".next/server/chunks/runtime-probe.cjs"));
+  for (const alias of aliases) {
+    const directory = path.join(aliasRoot, alias);
+    const metadata = await lstat(directory);
+    assert(metadata.isDirectory() && !metadata.isSymbolicLink(), "Next dependency must be materialized");
+    const resolved = nextRequire.resolve(`@libsql/${alias}`);
+    assert(resolved.startsWith(directory + path.sep), "Next alias resolved outside materialized package");
+    const client = nextRequire(`@libsql/${alias}`).createClient({ url: env.DATABASE_URL });
+    try { assert.equal((await client.execute("SELECT 1 AS value")).rows[0].value, 1); }
+    finally { client.close(); }
+  }
+  events.push("materialized Next libSQL aliases, actual Node resolution and SQLite query PASS");
   const port = startup ? 3001 : await freePort();
   let log = "";
   server = startup
