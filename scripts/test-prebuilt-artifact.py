@@ -2,6 +2,8 @@
 """Small synthetic archives and real local Git/Bash; never touch /srv or live data."""
 import contextlib
 import copy
+import ctypes
+import errno
 from datetime import datetime, timezone
 import importlib.util
 import io
@@ -10,11 +12,13 @@ import os
 from pathlib import Path
 import re
 import shutil
+import signal
 import sqlite3
 import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 
@@ -51,6 +55,10 @@ def case_evidence(case_name, result, inputs, started_at, script="", expected_sta
                     finished_at=datetime.now(timezone.utc).isoformat(),
                     exit_code=result.returncode, expected_exit_code=expected_status,
                     timed_out=getattr(result, "timed_out", False),
+                    process_group=getattr(result, "process_group", None),
+                    cleanup=getattr(result, "cleanup", None),
+                    exception=getattr(result, "exception", None),
+                    cleanup_exception=getattr(result, "cleanup_exception", None),
                     platform=sys.platform, uid=os.getuid(), inputs=inputs)
     for name, value in (("stdout.log", result.stdout), ("stderr.log", result.stderr),
                         ("input.sh", script), ("result.json", json.dumps(metadata, indent=2) + "\n")):
@@ -60,19 +68,242 @@ def case_evidence(case_name, result, inputs, started_at, script="", expected_sta
     return destination
 
 
+@contextlib.contextmanager
+def descendant_reaper():
+    # Linux must reap orphaned grandchildren itself, rather than depending on
+    # the runner's PID 1. Reap only owned children while the leader is pinned.
+    previous = ctypes.c_int()
+    libc = None
+    if sys.platform == "linux":
+        libc = ctypes.CDLL(None, use_errno=True)
+        if libc.prctl(37, ctypes.byref(previous), 0, 0, 0) != 0 or libc.prctl(36, 1, 0, 0, 0) != 0:
+            raise OSError(ctypes.get_errno(), "cannot enable test descendant reaping")
+    original_error = None
+    try:
+        yield
+    except BaseException as error:
+        original_error = error
+        raise
+    finally:
+        if libc is not None and libc.prctl(36, previous.value, 0, 0, 0) != 0:
+            restore_error = OSError(ctypes.get_errno(), "cannot restore descendant reaping")
+            if original_error is not None:
+                original_error.reaper_error = restore_error
+                raise original_error from restore_error
+            raise restore_error
+
+
+def darwin_group_members(pgid, live_only=False):
+    # Darwin killpg reports EPERM for an empty group whose zombie leader is
+    # still waitable. Inspect this ONE pinned group; never global PID lookup.
+    query = subprocess.run(["/bin/ps", "-g", str(pgid), "-o", "pid=,stat="],
+                           env={"PATH": "/usr/bin:/bin"}, capture_output=True, text=True, timeout=5)
+    if query.returncode not in (0, 1) or query.stderr:
+        raise RuntimeError("cannot inspect owned Darwin group: " + query.stderr)
+    members = [line.split() for line in query.stdout.splitlines()]
+    return [int(pid) for pid, state in members if not live_only or not state.startswith("Z")]
+
+
+def group_exists(pgid):
+    if sys.platform == "darwin":
+        return bool(darwin_group_members(pgid))
+    try:
+        os.killpg(pgid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+
+
+def child_exited(pid):
+    """Observe only our direct child without releasing its PID/PGID identity."""
+    options = os.WEXITED | os.WNOHANG | os.WNOWAIT
+    if hasattr(os, "waitid"):
+        info = os.waitid(os.P_PID, pid, options)
+        return info is not None and info.si_pid == pid
+    if sys.platform != "darwin":
+        raise RuntimeError("WNOWAIT child observation is unavailable")
+    # Apple sys/signal.h: siginfo_t begins with signo, errno, code, pid,
+    # uid and status. Use an oversized aligned buffer; only read the PID.
+    info = (ctypes.c_int * 64)()
+    libc = ctypes.CDLL(None, use_errno=True)
+    waitid = libc.waitid
+    waitid.argtypes = [ctypes.c_uint, ctypes.c_uint, ctypes.c_void_p, ctypes.c_int]
+    waitid.restype = ctypes.c_int
+    if waitid(os.P_PID, pid, ctypes.byref(info), options) != 0:
+        number = ctypes.get_errno()
+        if number == errno.ECHILD:  # Identity has already been released.
+            raise ChildProcessError(number, os.strerror(number))
+        raise OSError(number, os.strerror(number))
+    return info[3] == pid
+
+
+def wait_child_exit(process, timeout):
+    deadline = time.monotonic() + timeout
+    while not child_exited(process.pid):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired(process.args, timeout)
+        time.sleep(min(0.02, remaining))
+
+
+def owned_group_children(pgid):
+    # Linux subreaper adoption is inspected only among OUR direct children.
+    # Never enumerate global processes or reap by a possibly reused PGID.
+    if sys.platform != "linux":
+        return []
+    children = Path("/proc/self/task") / str(os.getpid()) / "children"
+    result = []
+    for value in children.read_text().split():
+        pid = int(value)
+        if pid != pgid and os.getpgid(pid) == pgid:
+            result.append(pid)
+    return result
+
+
+def terminate_group(process):
+    """Last group signal precedes ANY leader wait/poll/communicate/reaping."""
+    pgid = process.pid  # Popen(start_new_session=True) is owned by recorded_run.
+    if getattr(process, "cleanup_started", False):
+        raise RuntimeError("refusing repeated process group cleanup")
+    process.cleanup_started = True
+
+    def trusted_leader():
+        if pgid <= 1 or pgid == os.getpgrp() or process.returncode is not None:
+            raise RuntimeError("refusing untrusted/reaped or runner process group")
+        exited = child_exited(pgid)  # ECHILD refuses even with stale returncode.
+        # Darwin no longer exposes getpgid/getsid for zombies. The unconsumed
+        # direct-child wait identity still pins the start_new_session PID.
+        if not exited:
+            try:
+                if os.getpgid(pgid) != pgid or os.getsid(pgid) != pgid:
+                    raise RuntimeError("child is not the owned session/group leader")
+            except ProcessLookupError:
+                if not child_exited(pgid):
+                    raise  # Darwin may transition to zombie during this check.
+
+    def send(sig):
+        trusted_leader()
+        try:
+            os.killpg(pgid, sig)
+        except ProcessLookupError:
+            pass  # No group remains, but the unreaped child still pins its ID.
+        except PermissionError:
+            if sys.platform != "darwin" or darwin_group_members(pgid, live_only=True):
+                raise  # Never turn a real signaling failure into success.
+
+    trusted_leader()
+    failures = []
+    process.descendants_seen = False
+    try:
+        if child_exited(pgid):
+            process.descendants_seen = (bool(owned_group_children(pgid)) if sys.platform == "linux"
+                                        else any(pid != pgid for pid in darwin_group_members(pgid)))
+        send(signal.SIGTERM)
+        try:
+            wait_child_exit(process, 2)
+        except subprocess.TimeoutExpired:
+            pass
+    except BaseException as error:
+        failures.append(error)
+    finally:
+        # An exited but UNREAPED child still reserves the numeric PGID. Even
+        # interrupt/failure during the TERM grace period must attempt KILL.
+        send(signal.SIGKILL)
+        process.group_signals_finished = True
+
+    wait_child_exit(process, 5)
+    deadline = time.monotonic() + 5
+    process.descendants_reaped = 0
+    while True:
+        children = (owned_group_children(pgid) if sys.platform == "linux"
+                    else [pid for pid in darwin_group_members(pgid) if pid != pgid])
+        if not children:
+            break
+        if sys.platform == "linux":
+            for pid in children:
+                reaped, _ = os.waitpid(pid, os.WNOHANG)
+                process.descendants_reaped += bool(reaped)
+        # Darwin PID 1 reaps orphans. Keep our zombie leader pinned until the
+        # targeted group contains no other member, including orphan zombies.
+        if time.monotonic() >= deadline:
+            raise RuntimeError("owned descendants remain after group KILL")
+        time.sleep(0.02)
+    # No group signal, group query or group-based wait follows leader reaping.
+    process.wait(timeout=5)
+    if failures:
+        raise RuntimeError("process cleanup failed: " + "; ".join(map(str, failures))) from failures[0]
+
+
 def recorded_run(args, case_name, inputs, script="", expected_status=0, timeout=120, **kwargs):
     started_at = datetime.now(timezone.utc).isoformat()
+    process = None
+    result = subprocess.CompletedProcess(args, None, "", "")
     try:
-        result = subprocess.run(args, capture_output=True, text=True, timeout=timeout, **kwargs)
-    except (subprocess.TimeoutExpired, OSError) as error:
-        def decoded(value):
-            return value.decode(errors="replace") if isinstance(value, bytes) else value or ""
-        result = subprocess.CompletedProcess(args, None, decoded(getattr(error, "stdout", "")),
-                                             decoded(getattr(error, "stderr", "")) + "\n" + str(error))
-        result.timed_out = isinstance(error, subprocess.TimeoutExpired)
-        case_evidence(case_name, result, inputs, started_at, script, expected_status)
+        # File-backed output avoids pipe deadlocks without communicate()'s
+        # implicit wait/reap (including its KeyboardInterrupt fast wait).
+        with descendant_reaper(), tempfile.TemporaryFile(mode="w+", errors="replace") as stdout, \
+             tempfile.TemporaryFile(mode="w+", errors="replace") as stderr:
+            try:
+                try:
+                    process = subprocess.Popen(args, stdout=stdout, stderr=stderr,
+                                               text=True, start_new_session=True, **kwargs)
+                    result.process_group = process.pid
+                    wait_child_exit(process, timeout)
+                except BaseException as error:
+                    result.timed_out = isinstance(error, subprocess.TimeoutExpired)
+                    try:
+                        if process is not None:
+                            terminate_group(process)
+                            result.cleanup = "process group removed and children reaped"
+                    except BaseException as cleanup_error:
+                        result.cleanup = "FAILED: " + str(cleanup_error)
+                        result.cleanup_exception = type(cleanup_error).__name__ + ": " + str(cleanup_error)
+                        error.cleanup_error = cleanup_error
+                        raise error from cleanup_error  # Retain original type/identity.
+                    raise
+                else:
+                    try:
+                        terminate_group(process)
+                        result.cleanup = "process group removed and children reaped"
+                    except BaseException as cleanup_error:
+                        result.cleanup = "FAILED: " + str(cleanup_error)
+                        result.cleanup_exception = type(cleanup_error).__name__ + ": " + str(cleanup_error)
+                        raise
+                    if process.descendants_seen or process.descendants_reaped:
+                        raise RuntimeError("command left descendants after exit")
+            finally:
+                stdout.seek(0); stderr.seek(0)
+                result.stdout, result.stderr = stdout.read(), stderr.read()
+                result.returncode = process.returncode if process is not None else None
+    except BaseException as error:
+        if process is not None:
+            result.returncode = process.returncode
+        result.exception = type(error).__name__ + ": " + str(error)
+        result.stderr += "\n" + result.exception
+        if getattr(result, "cleanup_exception", None):
+            result.stderr += "\ncleanup failed: " + result.cleanup_exception
+        if isinstance(error, subprocess.TimeoutExpired):
+            error.output, error.stderr = result.stdout, result.stderr
+        try:
+            result.evidence_path = case_evidence(case_name, result, inputs, started_at, script, expected_status)
+        except BaseException as evidence_error:
+            error.evidence_error = evidence_error
+            raise error from evidence_error
         raise
-    case_evidence(case_name, result, inputs, started_at, script, expected_status)
+    result.evidence_path = case_evidence(case_name, result, inputs, started_at, script, expected_status)
+    return result
+
+
+def shared_snapshot(case):
+    """Synthetic DB/env bytes, links, modes and owners, including SQLite sidecars."""
+    root = case / "shared"
+    paths = [root, *sorted(root.rglob("*"))] if root.exists() else []
+    result = {}
+    for path in paths:
+        info = path.lstat()
+        result[str(path.relative_to(case))] = dict(uid=info.st_uid, gid=info.st_gid,
+            mode=info.st_mode, link=os.readlink(path) if path.is_symlink() else None,
+            sha256=A.file_digest(path) if path.is_file() and not path.is_symlink() else None)
     return result
 
 
@@ -453,14 +684,17 @@ if verify_service_contract; then exit 90; fi
         (old / "prisma/dev.db").symlink_to(case / "shared/prisma/dev.db")
         (case / "current").symlink_to(old)
         before = A.file_digest(case / "shared/prisma/dev.db")
-        self.execute_case(case_name, case, extra, initial_import, deployer, helper, expected_status)
+        self.execute_case(case_name, case, extra, initial_import, deployer, helper, expected_status,
+                          verify_shared_unchanged=not changed_fixture)
         if not changed_fixture:
             self.assertEqual(A.file_digest(case / "shared/prisma/dev.db"), before)
         self.assertEqual((case / "shared/.env.production").read_text(), "SYNTHETIC=1\n")
         self.assertEqual(list(case.glob(".prebuilt-import.*")), [])
         return case
 
-    def execute_case(self, case_name, case, extra, initial_import=True, deployer=None, helper=None, expected_status=0):
+    def execute_case(self, case_name, case, extra, initial_import=True, deployer=None, helper=None, expected_status=0,
+                     verify_shared_unchanged=True):
+        shared_before = shared_snapshot(case)
         script = r'''
 set -Eeuo pipefail
 source "$DEPLOYER"
@@ -524,6 +758,12 @@ main --import-artifact "$ARCHIVE" --artifact-sha256 "$DIGEST" "$COMMIT"
                       source=str(self.source), source_head=run("git", "-C", str(self.source), "rev-parse", "HEAD"),
                       deployer_sha256=A.file_digest(env["DEPLOYER"]), helper_sha256=A.file_digest(env["HELPER"]))
         result = recorded_run(["bash", "-c", script + extra], case_name, inputs, script + extra, expected_status, env=env)
+        shared_after = shared_snapshot(case)
+        with (result.evidence_path / "shared-postconditions.json").open("x") as output:
+            json.dump(dict(before=shared_before, after=shared_after, equal=shared_before == shared_after,
+                           equality_required=verify_shared_unchanged), output, indent=2)
+        if verify_shared_unchanged:
+            self.assertEqual(shared_after, shared_before, "synthetic shared DB/env metadata or bytes changed")
         self.assertEqual(result.returncode, expected_status, result.stdout + result.stderr)
         return result
 
@@ -546,7 +786,54 @@ main --import-artifact "$ARCHIVE" --artifact-sha256 "$DIGEST" "$COMMIT"
                          "timeout-case", dict(commit=self.commit), timeout=0.2)
         timed_out = json.loads(next(destination.glob("timeout-case-*/result.json")).read_text())
         self.assertTrue(timed_out["timed_out"])
-        self.assertIsNone(timed_out["exit_code"])
+        self.assertNotEqual(timed_out["exit_code"], 0)
+        self.assertEqual(timed_out["cleanup"], "process group removed and children reaped")
+
+    def test_timeout_reaps_descendant_process_tree(self):
+        parent = Path(os.environ.get("NUAAFA_TEST_EVIDENCE", str(self.root)))
+        destination = Path(tempfile.mkdtemp(prefix="process-tree-", dir=parent))
+        script = destination / "tree.py"
+        script.write_text('''import os,signal,subprocess,sys,time
+from pathlib import Path
+root=Path(sys.argv[1]); level=int(sys.argv[2])
+signal.signal(signal.SIGTERM, signal.SIG_IGN)
+(root/('pid-'+str(level))).write_text(str(os.getpid()))
+if level < 2: subprocess.Popen([sys.executable,'-u',__file__,str(root),str(level+1)])
+print('partial stdout '+str(level),flush=True)
+print('partial stderr '+str(level),file=sys.stderr,flush=True)
+while True: time.sleep(0.05)
+''')
+        runner_group = os.getpgrp()
+        with patch.dict(os.environ, NUAAFA_TEST_EVIDENCE=str(destination)), self.assertRaises(subprocess.TimeoutExpired):
+            recorded_run([sys.executable, "-u", str(script), str(destination), "0"],
+                         "descendant-timeout", dict(synthetic=True), timeout=1)
+        pids = [int((destination / ("pid-" + str(i))).read_text()) for i in range(3)]
+        for pid in pids:
+            with self.assertRaises(ProcessLookupError): os.kill(pid, 0)
+        self.assertEqual(os.getpgrp(), runner_group)
+        record = next(destination.glob("descendant-timeout-*/result.json"))
+        metadata = json.loads(record.read_text())
+        self.assertTrue(metadata["timed_out"])
+        self.assertNotEqual(metadata["exit_code"], 0)
+        self.assertNotEqual(metadata["process_group"], runner_group)
+        self.assertIn("partial stdout 2", (record.parent / "stdout.log").read_text())
+        self.assertIn("partial stderr 2", (record.parent / "stderr.log").read_text())
+        self.assertIn("reaped", metadata["cleanup"])
+
+    def test_timeout_cleanup_failure_is_visible(self):
+        cleanup = terminate_group
+        def fail_after_cleanup(process):
+            cleanup(process)
+            raise RuntimeError("injected cleanup failure")
+        with patch(__name__ + ".terminate_group", side_effect=fail_after_cleanup) as cleanup_call, \
+             self.assertRaises(subprocess.TimeoutExpired) as caught:
+            recorded_run([sys.executable, "-c", "import time; time.sleep(10)"],
+                         "cleanup-failure", dict(synthetic=True), timeout=0.1)
+        self.assertEqual(cleanup_call.call_count, 1)
+        self.assertIsInstance(caught.exception.cleanup_error, RuntimeError)
+        self.assertIn("injected cleanup failure", str(caught.exception.cleanup_error))
+        self.assertIs(caught.exception.__cause__, caught.exception.cleanup_error)
+        self.assertIn("cleanup failed", caught.exception.stderr)
 
     def legacy_setup(self):
         # Only side-effectful build/service/database actions are synthetic.
@@ -572,6 +859,27 @@ test "$(git_in_release "$release_root/$COMMIT" rev-parse HEAD)" = "$COMMIT"
 test "$(readlink "$current_link")" = "$release_root/$OLD"
 test ! -e "$CASE/events"
 ''')
+
+    def test_repeat_import_preserves_shared_metadata_receipt_and_links(self):
+        case = self.deploy_case("repeat-postconditions-first", 'test ! -e "$CASE/events"\n')
+        receipt = case / "prebuilt" / (self.commit + ".json")
+        receipt_before = receipt.read_bytes()
+        link_before = os.readlink(case / "current")
+        shared_before = shared_snapshot(case)
+        refs_before = run("git", "-C", str(self.source), "show-ref")
+        self.execute_case("repeat-postconditions-second", case, r'''
+main --import-artifact "$ARCHIVE" --artifact-sha256 "$DIGEST" "$COMMIT"
+test ! -e "$CASE/events"
+test ! -e "$activation_state"
+test ! -e "$prebuilt_approvals"
+test ! -e "$release_root/$COMMIT/.env.production"
+test ! -e "$release_root/$COMMIT/prisma/dev.db"
+''', initial_import=False)
+        self.assertEqual(receipt.read_bytes(), receipt_before)
+        self.assertEqual(os.readlink(case / "current"), link_before)
+        self.assertEqual(shared_snapshot(case), shared_before)
+        self.assertEqual(run("git", "-C", str(self.source), "show-ref"), refs_before)
+        self.assertEqual(A.file_digest(self.archive), self.checksum)
 
     def test_commit_source_omission_rejected_through_import_entry(self):
         manifest = copy.deepcopy(self.manifest)
@@ -642,6 +950,8 @@ test "$(readlink "$current_link")" = "$release_root/$OLD"
 main --activate-staged "$OLD"
 cmp "$activation_state" "$CASE/journal-before"
 cmp "$CASE/events" "$CASE/events-before"
+cp "$activation_state" "$CASE/journal-after-A-noop"
+cmp "$CASE/journal-after-A-noop" "$CASE/journal-before"
 main "$COMMIT"
 run_prebuilt_helper check-state --path "$activation_state" --current "$current_link"
 cp "$activation_state" "$CASE/healthy-B"
@@ -690,6 +1000,11 @@ cmp "$CASE/events" "$CASE/events-B"
                     extra += 'main ' + invocation + '\nrun_prebuilt_helper check-state --path "$activation_state" --current "$current_link"\n'
                 else:
                     extra += 'expect_fail ' + invocation + '\ntest ! -e "$CASE/events"\ntest ! -e "$activation_state"\ntest "$(readlink "$current_link")" = "$release_root/$OLD"\n'
+                if kind == "shared-mode":
+                    # This negative case deliberately changed the fixture. Prove
+                    # rejection left that mode intact, then undo our own mutation
+                    # before the common DB/env postcondition comparison.
+                    extra += 'test "$(stat -c %a "$shared/.env.production")" = 666\nchmod 0600 "$shared/.env.production"\n'
                 self.deploy_case("old-precheck-" + mode + "-" + kind, extra, initial_import=mode == "prebuilt")
 
     def test_deployer_invalid_archives_and_late_failure_cleanup(self):
@@ -819,6 +1134,233 @@ test ! -e "$CASE/events"
                     self.assertEqual(events[-1], "health")
                 elif kind != "backup": self.assertEqual(events[-1], "stop")
 
+
+
+class ProcessLifecycleTests(unittest.TestCase):
+    """Real isolated POSIX processes; native Linux adoption is a separate gate."""
+    def setUp(self):
+        parent = os.environ.get("NUAAFA_TEST_EVIDENCE")
+        if parent:
+            Path(parent).mkdir(parents=True, exist_ok=True)
+            self.root = Path(tempfile.mkdtemp(prefix="lifecycle-", dir=parent))
+        else:
+            self.temp = tempfile.TemporaryDirectory(prefix="lifecycle-")
+            self.addCleanup(self.temp.cleanup)
+            self.root = Path(self.temp.name)
+        self.evidence = self.root / "evidence"
+        self.environment = patch.dict(os.environ, NUAAFA_TEST_EVIDENCE=str(self.evidence))
+        self.environment.start()
+        self.addCleanup(self.environment.stop)
+        self.outsider = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"], start_new_session=True)
+        self.addCleanup(self.stop_outsider)
+        self.runner_group = os.getpgrp()
+
+    def stop_outsider(self):
+        # A direct Popen handle, never a discovered PID or shared group.
+        if self.outsider.poll() is None:
+            self.outsider.kill()
+        self.outsider.wait(timeout=5)
+
+    def assert_isolated(self, metadata):
+        self.assertEqual(os.getpgrp(), self.runner_group)
+        self.assertIsNone(self.outsider.poll())
+        self.assertNotEqual(metadata["process_group"], self.outsider.pid)
+        self.assertNotEqual(metadata["process_group"], self.runner_group)
+        self.assertFalse(group_exists(metadata["process_group"]))
+
+    def record(self, name):
+        path = next(self.evidence.glob(name + "-*/result.json"))
+        return json.loads(path.read_text()), path.parent
+
+    def command(self):
+        ready = self.root / "ready"
+        source = "import sys,time; from pathlib import Path; print('kept stdout',flush=True); print('kept stderr',file=sys.stderr,flush=True); Path(" + repr(str(ready)) + ").write_text('ready'); time.sleep(30)"
+        return [sys.executable, "-u", "-c", source], ready
+
+    def injected_run(self, error, cleanup_error=None):
+        command, ready = self.command()
+        real_wait, real_cleanup = wait_child_exit, terminate_group
+        def injected_wait(process, timeout):
+            if timeout != 7:
+                return real_wait(process, timeout)
+            deadline = time.monotonic() + 3
+            while not ready.exists():
+                if time.monotonic() >= deadline:
+                    raise RuntimeError("fixture readiness timeout")
+                time.sleep(0.01)
+            raise error
+        def cleanup(process):
+            real_cleanup(process)
+            if cleanup_error is not None:
+                raise cleanup_error
+        with patch(__name__ + ".wait_child_exit", side_effect=injected_wait), \
+             patch(__name__ + ".terminate_group", side_effect=cleanup) as clean, \
+             self.assertRaises(type(error)) as caught:
+            recorded_run(command, "injected", dict(synthetic=True), timeout=7)
+        self.assertIs(caught.exception, error)
+        clean.assert_called_once()
+        metadata, path = self.record("injected")
+        self.assert_isolated(metadata)
+        self.assertFalse(metadata["timed_out"])
+        self.assertNotEqual(metadata["exit_code"], 0)
+        self.assertIn("kept stdout", (path / "stdout.log").read_text())
+        self.assertIn("kept stderr", (path / "stderr.log").read_text())
+        self.assertIn(type(error).__name__, metadata["exception"])
+        if cleanup_error is not None:
+            self.assertIs(error.cleanup_error, cleanup_error)
+            self.assertIs(error.__cause__, cleanup_error)
+            self.assertIn(str(error), (path / "stderr.log").read_text())
+            self.assertIn(str(cleanup_error), metadata["cleanup_exception"])
+            self.assertIn(str(cleanup_error), (path / "stderr.log").read_text())
+
+    def test_normal_exit_and_nonzero_exit_preserve_output(self):
+        for status in (0, 7):
+            with self.subTest(status=status):
+                result = recorded_run([sys.executable, "-c", "import sys; print('normal'); print('err',file=sys.stderr); sys.exit(" + str(status) + ")"],
+                                      "normal-" + str(status), dict(synthetic=True))
+                self.assertEqual(result.returncode, status)
+                self.assertEqual(result.stdout, "normal\n")
+                self.assertEqual(result.stderr, "err\n")
+                metadata, _ = self.record("normal-" + str(status))
+                self.assertIsNone(metadata["exception"])
+                self.assertFalse(metadata["timed_out"])
+                self.assert_isolated(metadata)
+
+    def test_large_output_does_not_block_leader_wait(self):
+        result = recorded_run([sys.executable, "-c", "import sys; sys.stdout.write('o'*1048576); sys.stderr.write('e'*1048576)"],
+                              "large-output", dict(synthetic=True), timeout=5)
+        self.assertEqual(result.stdout, "o" * 1048576)
+        self.assertEqual(result.stderr, "e" * 1048576)
+        self.assertEqual(result.returncode, 0)
+        self.assert_isolated(self.record("large-output")[0])
+
+    def test_timeout_kills_descendant_after_leader_exits_on_term(self):
+        parent_pid, child_pid = self.root / "parent.pid", self.root / "child.pid"
+        child = "import os,signal,time; from pathlib import Path; signal.signal(signal.SIGTERM,signal.SIG_IGN); Path(" + repr(str(child_pid)) + ").write_text(str(os.getpid())); print('descendant stdout',flush=True); time.sleep(30)"
+        parent = "import os,subprocess,sys,time; from pathlib import Path; Path(" + repr(str(parent_pid)) + ").write_text(str(os.getpid())); subprocess.Popen([sys.executable,'-u','-c'," + repr(child) + "]); time.sleep(30)"
+        killpg = os.killpg
+        pinned_at_kill = []
+        def signal_group(pgid, sig):
+            if sig == signal.SIGKILL:
+                pinned_at_kill.append(child_exited(pgid))
+            return killpg(pgid, sig)
+        with patch.object(os, "killpg", side_effect=signal_group), self.assertRaises(subprocess.TimeoutExpired):
+            recorded_run([sys.executable, "-u", "-c", parent], "leader-term-exit", dict(synthetic=True), timeout=0.5)
+        self.assertEqual(pinned_at_kill, [True])
+        for path in (parent_pid, child_pid):
+            with self.assertRaises(ProcessLookupError):
+                os.kill(int(path.read_text()), 0)
+        metadata, path = self.record("leader-term-exit")
+        self.assertTrue(metadata["timed_out"])
+        self.assertIsNone(metadata["cleanup_exception"])
+        self.assertIn("descendant stdout", (path / "stdout.log").read_text())
+        self.assert_isolated(metadata)
+
+    def test_normal_exit_with_descendants_fails_after_cleanup(self):
+        child = "import time; time.sleep(30)"
+        parent = "import subprocess,sys; subprocess.Popen([sys.executable,'-c'," + repr(child) + "])"
+        with self.assertRaisesRegex(RuntimeError, "left descendants"):
+            recorded_run([sys.executable, "-c", parent], "normal-descendants", dict(synthetic=True))
+        metadata, _ = self.record("normal-descendants")
+        self.assertIn("left descendants", metadata["exception"])
+        self.assert_isolated(metadata)
+
+    def test_final_signal_precedes_reaping_even_after_leader_exits(self):
+        create, killpg = subprocess.Popen, os.killpg
+        owned, events = [], []
+        def popen(*args, **kwargs):
+            process = create(*args, **kwargs)
+            if args[0][0] == "/bin/ps":
+                return process
+            owned.append(process)
+            wait = process.wait
+            def reap(*args, **kwargs):
+                events.append("reap")
+                return wait(*args, **kwargs)
+            process.wait = reap
+            return process
+        def signal_group(pgid, sig):
+            if sig:
+                self.assertEqual(pgid, owned[0].pid)
+                self.assertIsNone(owned[0].returncode)
+                self.assertTrue(child_exited(pgid))
+                events.append(sig)
+            return killpg(pgid, sig)
+        with patch.object(subprocess, "Popen", side_effect=popen), patch.object(os, "killpg", side_effect=signal_group):
+            result = recorded_run([sys.executable, "-c", "pass"], "already-exited", dict(synthetic=True))
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(events, [signal.SIGTERM, signal.SIGKILL, "reap"])
+        self.assert_isolated(self.record("already-exited")[0])
+
+    def test_keyboard_interrupt_cleans_only_owned_group(self):
+        self.injected_run(KeyboardInterrupt("injected KeyboardInterrupt"))
+
+    def test_ordinary_exception_cleans_only_owned_group(self):
+        self.injected_run(ValueError("injected ordinary exception"))
+
+    def test_system_exit_cleans_only_owned_group(self):
+        self.injected_run(SystemExit("injected SystemExit"))
+
+    def test_original_exception_and_cleanup_failure_both_survive(self):
+        self.injected_run(KeyboardInterrupt("original interrupt"), RuntimeError("injected cleanup failure"))
+
+    def test_term_failure_still_kills_and_returns_failure(self):
+        command, _ = self.command()
+        killpg = os.killpg
+        events = []
+        def fail_term(pgid, sig):
+            if sig:
+                events.append(sig)
+            if sig == signal.SIGTERM:
+                raise PermissionError("injected TERM failure")
+            return killpg(pgid, sig)
+        with patch.object(os, "killpg", side_effect=fail_term), self.assertRaises(subprocess.TimeoutExpired) as caught:
+            recorded_run(command, "term-failure", dict(synthetic=True), timeout=0.2)
+        self.assertEqual(events, [signal.SIGTERM, signal.SIGKILL])
+        self.assertIn("injected TERM failure", str(caught.exception.cleanup_error))
+        metadata, _ = self.record("term-failure")
+        self.assertTrue(metadata["timed_out"])
+        self.assertIn("FAILED", metadata["cleanup"])
+        self.assert_isolated(metadata)
+
+    def test_reaped_leader_refuses_all_signals(self):
+        process = subprocess.Popen([sys.executable, "-c", "pass"], start_new_session=True)
+        process.wait(timeout=5)
+        with patch.object(os, "killpg") as send, self.assertRaisesRegex(RuntimeError, "reaped"):
+            terminate_group(process)
+        send.assert_not_called()
+
+    def test_stale_returncode_cannot_bypass_child_identity(self):
+        process = subprocess.Popen([sys.executable, "-c", "pass"], start_new_session=True)
+        process.wait(timeout=5)
+        process.returncode = None  # Fault injection: consumed child wait identity.
+        try:
+            with patch.object(os, "killpg") as send, self.assertRaises(ChildProcessError):
+                terminate_group(process)
+            send.assert_not_called()
+        finally:
+            process.returncode = 0
+
+    def test_repeated_cleanup_refuses_further_signals(self):
+        process = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"], start_new_session=True)
+        terminate_group(process)
+        with patch.object(os, "killpg") as send, self.assertRaisesRegex(RuntimeError, "repeated"):
+            terminate_group(process)
+        send.assert_not_called()
+
+    def test_linux_waitid_contract_portable_simulation(self):
+        # This is an API-contract mock, explicitly NOT real Linux evidence.
+        info = type("WaitInfo", (), {"si_pid": 12345})()
+        with patch.object(os, "waitid", create=True, return_value=info) as wait:
+            self.assertTrue(child_exited(12345))
+        wait.assert_called_once_with(os.P_PID, 12345, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+
+    @unittest.skipUnless(sys.platform == "linux", "NOT RUN: native Linux WNOWAIT/subreaper required")
+    def test_linux_adoption_reaps_only_owned_children_before_leader(self):
+        code = "import subprocess,sys,time; subprocess.Popen([sys.executable,'-c','import signal,time; signal.signal(signal.SIGTERM,signal.SIG_IGN); time.sleep(30)']); time.sleep(.1)"
+        with self.assertRaisesRegex(RuntimeError, "left descendants"):
+            recorded_run([sys.executable, "-c", code], "linux-adoption", dict(synthetic=True))
+        self.assert_isolated(self.record("linux-adoption")[0])
 
 
 if __name__ == "__main__":

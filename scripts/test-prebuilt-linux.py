@@ -6,29 +6,144 @@ Synthetic archive binaries are fixtures, not native-runtime evidence. Optional
 No production paths, service installation, credentials or network deployment.
 """
 import argparse
+import grp
 import importlib.util
 import json
 import os
 from pathlib import Path
 import pwd
 import re
+import secrets
 import shutil
 import sqlite3
+import stat
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.dont_write_bytecode = True
+from prebuilt_test_support import exclusive_fixture, resolve_runuser, resolve_system_command, trusted_path, fixture_parent
+
 REPO = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("fixtures", REPO / "scripts/test-prebuilt-artifact.py")
 F = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(F)
 A = F.A
+RUNUSER = None
+
+
+class FixtureResources:
+    """Track only this invocation's directory/account identities, even on failure."""
+    def __init__(self):
+        self.root = None
+        self.root_identity = None
+        self.user = None
+        self.account = None
+        self.group = None
+
+    def remember_root(self, root):
+        self.root = root
+        info = root.lstat()
+        self.root_identity = (info.st_dev, info.st_ino, info.st_uid)
+
+    def check_root_identity(self):
+        info = self.root.lstat()
+        if not stat.S_ISDIR(info.st_mode) or (info.st_dev, info.st_ino, info.st_uid) != self.root_identity:
+            raise ValueError("refusing cleanup of replaced fixture root: " + str(self.root))
+
+    def create_user(self):
+        self.user = "nuaafa_t" + secrets.token_hex(6)
+        self.home = str(self.root / "home")
+        self.marker = "nuaafa-test:" + self.root.name
+        for lookup in (pwd.getpwnam, grp.getgrnam):
+            try:
+                lookup(self.user)
+            except KeyError:
+                continue
+            raise ValueError("temporary account/group already exists: " + self.user)
+        try:
+            subprocess.run([resolve_system_command("useradd"), "--system", "--user-group", "--no-create-home",
+                            "--home-dir", self.home, "--comment", self.marker, self.user], check=True)
+        finally:
+            # useradd can create an account/group and then fail. A unique marker
+            # and prior absence bind partial creation to this invocation.
+            try:
+                account = pwd.getpwnam(self.user)
+            except KeyError:
+                account = None
+            if account is not None:
+                if (account.pw_dir, account.pw_gecos) != (self.home, self.marker):
+                    raise ValueError("unrecognized partial account; will not delete: " + self.user)
+                self.account = account
+            try:
+                self.group = grp.getgrnam(self.user)
+            except KeyError:
+                pass
+        if self.account is None or self.group is None or self.account.pw_gid != self.group.gr_gid:
+            raise ValueError("temporary application user/group creation incomplete")
+        return self.account
+
+    def cleanup(self):
+        failures = []
+        if self.account is not None:
+            try:
+                try:
+                    current = pwd.getpwnam(self.user)
+                except KeyError:
+                    current = None
+                if current is not None:
+                    if tuple(current) != tuple(self.account):
+                        raise ValueError("refusing deletion of changed account: " + self.user)
+                    subprocess.run([resolve_system_command("userdel"), self.user], check=True, capture_output=True, text=True)
+                try:
+                    pwd.getpwnam(self.user)
+                except KeyError:
+                    self.account = None
+                else:
+                    raise ValueError("temporary user remains: " + self.user)
+            except Exception as error:
+                failures.append("user cleanup: " + str(error))
+        if self.group is not None:
+            try:
+                try:
+                    current = grp.getgrnam(self.user)
+                except KeyError:
+                    current = None
+                if current is not None:
+                    if tuple(current) != tuple(self.group) or current.gr_mem or any(a.pw_gid == current.gr_gid for a in pwd.getpwall()):
+                        raise ValueError("refusing deletion of changed/in-use group: " + self.user)
+                    subprocess.run([resolve_system_command("groupdel"), self.user], check=True, capture_output=True, text=True)
+                try:
+                    grp.getgrnam(self.user)
+                except KeyError:
+                    self.group = None
+                else:
+                    raise ValueError("temporary group remains: " + self.user)
+            except Exception as error:
+                failures.append("group cleanup: " + str(error))
+        if self.root is not None:
+            try:
+                if os.path.lexists(self.root):
+                    self.check_root_identity()
+                    shutil.rmtree(self.root)
+                if os.path.lexists(self.root):
+                    raise ValueError("fixture root remains: " + str(self.root))
+            except Exception as error:
+                failures.append("fixture cleanup: " + str(error))
+        print("fixture cleanup: " + json.dumps(dict(root=str(self.root), user=self.user,
+              owned_user_removed=self.account is None, owned_group_removed=self.group is None,
+              root_removed=self.root is None or not os.path.lexists(self.root), failures=failures)), file=sys.stderr)
+        if failures:
+            raise RuntimeError("; ".join(failures))
 
 
 def run(args, **kwargs):
-    return subprocess.run(args, text=True, capture_output=True, timeout=120, **kwargs)
+    # Git/Bash/runuser probes can spawn descendants too. Keep the same cleanup
+    # guarantee as import/runtime cases; the caller asserts each probe's status.
+    return F.recorded_run(args, "linux-command", dict(command=list(map(str, args)), status_asserted_by_caller=True),
+                          expected_status=None, timeout=kwargs.pop("timeout", 120), **kwargs)
 
 
 def user_git(user, *args):
@@ -36,7 +151,7 @@ def user_git(user, *args):
     # No inherited Git config or wildcard trust exception. Run source operations
     # as its actual owner; all destination operations use the application UID.
     command = ["/usr/bin/git", "--no-replace-objects", "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", *map(str, args)]
-    return run(["runuser", "-u", user, "--", "env", "-i", "PATH=/usr/bin:/bin",
+    return run([RUNUSER or resolve_runuser(), "-u", user, "--", "env", "-i", "PATH=/usr/bin:/bin",
                 "HOME=" + account.pw_dir, "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null",
                 "GIT_OPTIONAL_LOCKS=0", *command])
 
@@ -97,11 +212,24 @@ class LinuxPermissions(unittest.TestCase):
     def setUpClass(cls):
         if sys.platform != "linux" or os.geteuid() != 0:
             raise unittest.SkipTest("NOT RUN: real Linux root is required")
-        cls.root = Path(tempfile.mkdtemp(prefix="nuaafa-permission-", dir="/opt"))
-        cls.root.chmod(0o755)
-        cls.user = "nuaafa_t" + str(os.getpid())
-        subprocess.run(["useradd", "--system", "--user-group", "--no-create-home", "--home-dir", str(cls.root / "home"), cls.user], check=True)
-        cls.account = pwd.getpwnam(cls.user)
+        cls.resources = FixtureResources()
+        try:
+            cls.initialize()
+        except BaseException as setup_error:
+            try:
+                cls.resources.cleanup()
+            except Exception as cleanup_error:
+                raise RuntimeError("Linux fixture setup failed: " + str(setup_error) +
+                                   "; cleanup failed: " + str(cleanup_error)) from setup_error
+            raise
+
+    @classmethod
+    def initialize(cls):
+        global RUNUSER
+        RUNUSER = resolve_runuser()
+        cls.root = exclusive_fixture(cls.resources)
+        cls.account = cls.resources.create_user()
+        cls.user = cls.resources.user
         (cls.root / "home").mkdir(mode=0o700)
         os.chown(cls.root / "home", cls.account.pw_uid, cls.account.pw_gid)
         cls.helper = cls.root / "trusted/prebuilt-artifact.py"
@@ -126,12 +254,11 @@ class LinuxPermissions(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        F.ArtifactTests.tearDownClass()
-        subprocess.run(["userdel", cls.user], check=True)
-        shutil.rmtree(cls.root)
+        cls.resources.cleanup()
 
     def case(self, case_name, body, archive=None, commit=None, checksum=None, seed=None,
-             initial_import=True, previous=None, with_shared=False, allow_events=False):
+             initial_import=True, previous=None, with_shared=False, allow_events=False,
+             preserve_shared=False):
         case = self.root / case_name
         case.mkdir(mode=0o755)
         (case / "releases").mkdir(mode=0o755)
@@ -140,7 +267,7 @@ class LinuxPermissions(unittest.TestCase):
         os.chown(old, self.account.pw_uid, self.account.pw_gid)
         for command in (["git", "clone", "--no-hardlinks", "--no-checkout", str(F.ArtifactTests.source), str(old)],
                         ["git", "-C", str(old), "checkout", "--detach", previous or F.ArtifactTests.old]):
-            r = run(["runuser", "-u", self.user, "--", *command])
+            r = run([RUNUSER, "-u", self.user, "--", *command])
             self.assertEqual(r.returncode, 0, r.stderr)
         (case / "current").symlink_to(old)
         if with_shared:
@@ -183,9 +310,15 @@ main --import-artifact "$ARCHIVE" --artifact-sha256 "$DIGEST" "$COMMIT"
                    SEED=str(seed or F.ArtifactTests.source), APP_USER=self.user, ARCHIVE=str(archive or F.ArtifactTests.archive),
                    DIGEST=checksum or F.ArtifactTests.checksum, COMMIT=commit or F.ArtifactTests.commit,
                    OLD=F.ArtifactTests.old, PRIOR=F.ArtifactTests.prior, NODE=str(self.node), GUARD=str(self.guard))
+        shared_before = F.shared_snapshot(case)
         result = F.recorded_run(["bash", "-c", script], case_name, dict(commit=env["COMMIT"], archive_sha256=A.file_digest(env["ARCHIVE"]),
                         fixture_checkout_uid=F.ArtifactTests.source.stat().st_uid, root_uid=os.getuid(),
                         app_uid=self.account.pw_uid, remote=env["SEED"]), script, env=env)
+        shared_after = F.shared_snapshot(case)
+        with (result.evidence_path / "shared-postconditions.json").open("x") as output:
+            json.dump(dict(before=shared_before, after=shared_after, equal=shared_before == shared_after,
+                           equality_required=preserve_shared), output, indent=2)
+        if preserve_shared: self.assertEqual(shared_after, shared_before)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         if not allow_events: self.assertFalse((case / "events").exists())
         self.assertEqual(list(case.glob(".prebuilt-import.*")), [])
@@ -209,6 +342,9 @@ cmp "$CASE/events" "$CASE/events-A"
 test "$(readlink "$current_link")" = "$release_root/$OLD"
 main --activate-staged "$OLD"
 cmp "$activation_state" "$CASE/journal-A"
+cmp "$CASE/events" "$CASE/events-A"
+cp "$activation_state" "$CASE/journal-after-A-noop"
+cmp "$CASE/journal-after-A-noop" "$CASE/journal-A"
 main "$COMMIT"
 run_prebuilt_helper check-state --path "$activation_state" --current "$current_link"
 cp "$activation_state" "$CASE/journal-B"
@@ -278,6 +414,18 @@ printf synthetic > "$CASE/private/archive"
 if run_as_deploy_user cat "$CASE/private/archive"; then exit 93; fi
 ''')
 
+    def test_real_repeat_import_preserves_shared_receipt_and_links(self):
+        self.case("real-repeat-postconditions", r'''
+cp "$prebuilt_state/$COMMIT.json" "$CASE/receipt-before"
+main --import-artifact "$ARCHIVE" --artifact-sha256 "$DIGEST" "$COMMIT"
+cmp "$prebuilt_state/$COMMIT.json" "$CASE/receipt-before"
+test "$(readlink "$current_link")" = "$release_root/$OLD"
+test ! -e "$activation_state"
+test ! -e "$prebuilt_approvals"
+test ! -e "$release_root/$COMMIT/.env.production"
+test ! -e "$release_root/$COMMIT/prisma/dev.db"
+''', with_shared=True, preserve_shared=True)
+
     def test_cross_uid_bundle_remote_and_wrong_commit(self):
         # Unlike the app-owned synthetic source, this checkout belongs to root.
         source = self.root / "root-checkout"
@@ -325,9 +473,16 @@ if run_as_deploy_user cat "$CASE/private/archive"; then exit 93; fi
         candidate = self.root / "bad-helper.py"
         candidate.write_text("raise RuntimeError('UNTRUSTED HELPER EXECUTED')\n")
         candidate.chmod(0o666)
+        # Prove the same ancestor chain passes before introducing a bad leaf.
+        positive = run(["bash", "-c", 'source "$1/ops/deploy/nuaafa-deploy"; verify_root_metadata "$2"',
+                        "test", str(REPO), str(self.helper)])
+        self.assertEqual(positive.returncode, 0, positive.stderr)
+        with self.assertRaisesRegex(ValueError, re.escape(str(candidate)) + ": group/world writable"):
+            trusted_path(candidate, kind="file")
         result = run(["bash", "-c", 'source "$1/ops/deploy/nuaafa-deploy"; prebuilt_helper="$2"; if run_prebuilt_helper platform; then exit 90; fi; verify_root_metadata "$2" && exit 91; exit 0', "test", str(REPO), str(candidate)])
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("STOP", result.stderr)
+        self.assertIn("trusted metadata is writable by non-root users", result.stderr)
         self.assertNotIn("UNTRUSTED HELPER EXECUTED", result.stderr)
 
     def test_service_contract_actual_metadata_and_environment_rejection(self):
@@ -358,6 +513,223 @@ if verify_service_contract; then exit 92; fi
 '''
         result = run(["bash", "-c", script], env=dict(os.environ, TEST_REPO=str(REPO), CONTRACT=str(contract), APP_USER=self.user))
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+
+class HarnessTests(unittest.TestCase):
+    """Portable fault injection only; never evidence of real Linux root/app PASS."""
+    def test_trusted_path_positive_and_specific_rejections(self):
+        target = Path("/var/lib/nuaafa-fixture")
+        def info(mode=stat.S_IFDIR | 0o755, uid=0):
+            return os.stat_result((mode, 1, 1, 1, uid, 0, 0, 0, 0, 0))
+        with patch.object(Path, "resolve", return_value=target), \
+             patch.object(Path, "lstat", return_value=info()):
+            self.assertEqual(trusted_path(target), target)
+        for bad_path, metadata, reason in (
+            (target, info(uid=1001), "owner is not root"),
+            (target.parent, info(mode=stat.S_IFDIR | 0o777), "group/world writable"),
+            (target, info(mode=stat.S_IFLNK | 0o777), "symlink"),
+            (target, info(mode=stat.S_IFREG | 0o755), "wrong file type"),
+        ):
+            with self.subTest(path=bad_path, reason=reason), \
+                 patch.object(Path, "resolve", return_value=target), \
+                 patch.object(Path, "lstat", autospec=True, side_effect=lambda path: metadata if path == bad_path else info()), \
+                 self.assertRaisesRegex(ValueError, re.escape(str(bad_path)) + ": " + reason):
+                trusted_path(target)
+        with patch.object(Path, "resolve", return_value=Path("/elsewhere")), \
+             patch.object(Path, "lstat", return_value=info()), self.assertRaisesRegex(ValueError, "noncanonical"):
+            trusted_path(target)
+        with patch.object(Path, "resolve", side_effect=RuntimeError("symlink loop")), \
+             patch.object(Path, "lstat", return_value=info()), self.assertRaisesRegex(ValueError, "symlink loop"):
+            trusted_path(target)
+        executable = Path("/usr/sbin/runuser")
+        with patch.object(Path, "resolve", return_value=executable), \
+             patch.object(Path, "lstat", autospec=True, side_effect=lambda path: info(stat.S_IFREG | 0o755) if path == executable else info()):
+            self.assertEqual(trusted_path(executable, kind="file"), executable)
+        with patch.object(Path, "resolve", return_value=executable), \
+             patch.object(Path, "lstat", return_value=info()), self.assertRaisesRegex(ValueError, "wrong file type"):
+            trusted_path(executable, kind="file")
+
+    def test_no_trusted_parent_fails_without_creation(self):
+        with patch("prebuilt_test_support.trusted_path", side_effect=ValueError("/var/lib uid=1001 mode=0777")), \
+             patch("prebuilt_test_support.tempfile.mkdtemp") as create, \
+             self.assertRaisesRegex(ValueError, "no trusted.*uid=1001"):
+            fixture_parent()
+        create.assert_not_called()
+
+    def test_exclusive_creation_registers_and_revalidates(self):
+        with tempfile.TemporaryDirectory() as name:
+            parent = Path(name).resolve()
+            sentinel = parent / "existing"
+            sentinel.write_text("must survive")
+            resources = [FixtureResources(), FixtureResources()]
+            with patch("prebuilt_test_support.fixture_parent", return_value=parent), \
+                 patch("prebuilt_test_support.trusted_path") as verify:
+                roots = [exclusive_fixture(r) for r in resources]
+            self.assertNotEqual(roots[0], roots[1])
+            self.assertEqual(verify.call_count, 2)
+            for resource in resources:
+                self.assertEqual(resource.root.stat().st_uid, os.getuid())
+                self.assertEqual(stat.S_IMODE(resource.root.stat().st_mode), 0o755)
+                resource.cleanup()
+                resource.cleanup()
+                self.assertFalse(resource.root.exists())
+            self.assertEqual(sentinel.read_text(), "must survive")
+
+    def test_partial_initialization_cleans_each_created_resource(self):
+        for stage in ("allocation", "postcreation", "useradd", "useradd-group-only", "home", "helper", "artifact"):
+            with self.subTest(stage=stage), tempfile.TemporaryDirectory() as name:
+                parent = Path(name).resolve()
+                outsider = parent / "other-test"
+                outsider.mkdir()
+                users, groups = {}, {}
+                def user_lookup(user):
+                    if user not in users: raise KeyError(user)
+                    return users[user]
+                def group_lookup(user):
+                    if user not in groups: raise KeyError(user)
+                    return groups[user]
+                def command(args, **kwargs):
+                    user = args[-1]
+                    if args[0] == "useradd":
+                        groups[user] = grp.struct_group((user, "x", 19991, []))
+                        if stage == "useradd-group-only": raise subprocess.CalledProcessError(9, args)
+                        users[user] = pwd.struct_passwd((user, "x", 19991, 19991,
+                            args[args.index("--comment") + 1], args[args.index("--home-dir") + 1], "/bin/false"))
+                        if stage == "useradd": raise subprocess.CalledProcessError(9, args)
+                    elif args[0] == "userdel": users.pop(user)
+                    elif args[0] == "groupdel": groups.pop(user)
+                    return subprocess.CompletedProcess(args, 0)
+                def allocate(resource):
+                    if stage == "allocation": raise OSError("injected fixture allocation")
+                    root = Path(tempfile.mkdtemp(prefix="owned-", dir=parent))
+                    resource.remember_root(root)
+                    if stage == "postcreation": raise ValueError("injected postcreation validation")
+                    return root
+                def copy(source, destination):
+                    if stage == "helper": raise OSError("injected helper copy")
+                    Path(destination).write_text("synthetic fixture only")
+                def artifact_setup():
+                    temp = Path(tempfile.mkdtemp(prefix="partial-artifact-"))
+                    (temp / "partial").write_text("synthetic fixture only")
+                    raise OSError("injected artifact creation")
+                isolated = type("PartialLinuxPermissions", (LinuxPermissions,), {})
+                with patch.object(sys, "platform", "linux"), patch.object(os, "geteuid", return_value=0), \
+                     patch(__name__ + ".resolve_runuser", return_value="/usr/sbin/runuser"), \
+                     patch(__name__ + ".resolve_system_command", side_effect=lambda name: name), \
+                     patch(__name__ + ".exclusive_fixture", side_effect=allocate), \
+                     patch.object(pwd, "getpwnam", side_effect=user_lookup), \
+                     patch.object(grp, "getgrnam", side_effect=group_lookup), \
+                     patch.object(pwd, "getpwall", side_effect=lambda: list(users.values())), \
+                     patch.object(subprocess, "run", side_effect=command), \
+                     patch.object(os, "chown", side_effect=OSError("injected home ownership") if stage == "home" else None), \
+                     patch.object(shutil, "copyfile", side_effect=copy), \
+                     patch.object(A, "platform_info", return_value=F.PLATFORM), \
+                     patch.object(F.ArtifactTests, "setUpClass", side_effect=artifact_setup), \
+                     self.assertRaises((ValueError, OSError, subprocess.CalledProcessError)):
+                    isolated.setUpClass()
+                self.assertTrue(isolated.resources.root is None or not isolated.resources.root.exists())
+                self.assertEqual(users, {})
+                self.assertEqual(groups, {})
+                self.assertEqual(list(parent.iterdir()), [outsider])
+
+    def test_cleanup_preserves_unknown_account_and_replaced_directory(self):
+        with tempfile.TemporaryDirectory() as name:
+            parent = Path(name).resolve()
+            resource = FixtureResources()
+            root = parent / "owned"
+            root.mkdir(); resource.remember_root(root)
+            root.rename(parent / "original")
+            root.mkdir(); (root / "unknown").write_text("preserve")
+            original = parent / "original"
+            (original / "sentinel").write_text("owned bytes")
+            identities = {p: (p.stat().st_dev, p.stat().st_ino, p.stat().st_mode)
+                          for p in (root, original)}
+            with self.assertRaisesRegex(RuntimeError, "replaced fixture root"):
+                resource.cleanup()
+            self.assertEqual((root / "unknown").read_text(), "preserve")
+            self.assertEqual((original / "sentinel").read_text(), "owned bytes")
+            self.assertEqual({p: (p.stat().st_dev, p.stat().st_ino, p.stat().st_mode)
+                              for p in identities}, identities)
+
+    def test_changed_account_refuses_delete_and_preserves_replaced_root(self):
+        # All resources are local synthetic fixtures. Even a broken cleanup is
+        # fenced from system account commands for the entire assertion scope.
+        with tempfile.TemporaryDirectory() as name, patch.object(subprocess, "run") as delete:
+            parent = Path(name).resolve()
+            root = parent / "owned"
+            root.mkdir()
+            resource = FixtureResources()
+            resource.remember_root(root)
+            root.rename(parent / "original")
+            root.mkdir()
+            sentinel = root / "unknown"
+            sentinel.write_bytes(b"preserve\x00sentinel\n")
+            before = (root.lstat(), sentinel.lstat(), sentinel.read_bytes())
+            resource.user = "synthetic-replaced-account"
+            resource.account = pwd.struct_passwd((resource.user, "x", 19991, 19991, "owned", "/owned", "/bin/false"))
+            changed = pwd.struct_passwd((resource.user, "x", 19992, 19991, "unknown", "/other", "/bin/false"))
+            with patch.object(pwd, "getpwnam", return_value=changed) as lookup, \
+                 self.assertRaisesRegex(RuntimeError, "changed account.*replaced fixture root"):
+                resource.cleanup()
+            lookup.assert_called_once_with(resource.user)
+            delete.assert_not_called()
+            self.assertEqual(resource.account.pw_uid, 19991)
+            self.assertEqual((root.lstat(), sentinel.lstat(), sentinel.read_bytes()), before)
+            self.assertTrue((parent / "original").is_dir())
+
+    def test_changed_account_assertions_reject_unsafe_cleanup(self):
+        for fault, message in (("delete", "Expected 'run' to not have been called"),
+                               ("sentinel", "Tuples differ"), ("directory", "Tuples differ")):
+            def unsafe_cleanup(resource):
+                pwd.getpwnam(resource.user)
+                if fault == "delete":
+                    subprocess.run(["synthetic-userdel", resource.user])
+                elif fault == "sentinel":
+                    (resource.root / "unknown").write_bytes(b"corrupted")
+                else:
+                    original = (resource.root / "unknown").read_bytes()
+                    resource.root.rename(resource.root.parent / "second-original")
+                    resource.root.mkdir()
+                    (resource.root / "unknown").write_bytes(original)
+                raise RuntimeError("changed account; replaced fixture root")
+            probe = HarnessTests("test_changed_account_refuses_delete_and_preserves_replaced_root")
+            with self.subTest(fault=fault), patch.object(FixtureResources, "cleanup", side_effect=unsafe_cleanup, autospec=True):
+                result = unittest.TestResult()
+                probe.run(result)
+                self.assertEqual(len(result.failures), 1)
+                self.assertEqual(result.errors, [])
+                self.assertIn(message, result.failures[0][1])
+
+    def test_auxiliary_timeout_uses_isolated_group_cleanup(self):
+        with tempfile.TemporaryDirectory() as name:
+            with patch.dict(os.environ, NUAAFA_TEST_EVIDENCE=name), self.assertRaises(subprocess.TimeoutExpired):
+                run([sys.executable, "-u", "-c", "import time; print('partial probe'); time.sleep(10)"], timeout=0.1)
+            record = next(Path(name).glob("linux-command-*/result.json"))
+            metadata = json.loads(record.read_text())
+            self.assertTrue(metadata["timed_out"])
+            self.assertNotEqual(metadata["process_group"], os.getpgrp())
+            self.assertFalse(F.group_exists(metadata["process_group"]))
+            self.assertIn("partial probe", (record.parent / "stdout.log").read_text())
+
+    def test_setup_and_cleanup_errors_both_remain_visible(self):
+        isolated = type("CleanupErrorPermissions", (LinuxPermissions,), {})
+        with patch.object(sys, "platform", "linux"), patch.object(os, "geteuid", return_value=0), \
+             patch.object(isolated, "initialize", side_effect=ValueError("injected setup failure")), \
+             patch.object(FixtureResources, "cleanup", side_effect=RuntimeError("injected cleanup failure")), \
+             self.assertRaisesRegex(RuntimeError, "setup failed: injected setup failure; cleanup failed: injected cleanup failure"):
+            isolated.setUpClass()
+
+    def test_user_collision_and_cleanup_failures_are_visible(self):
+        with tempfile.TemporaryDirectory() as name:
+            resource = FixtureResources()
+            resource.remember_root(Path(name).resolve())
+            with patch.object(pwd, "getpwnam", return_value=pwd.getpwuid(os.getuid())), \
+                 patch.object(subprocess, "run") as create, self.assertRaisesRegex(ValueError, "already exists"):
+                resource.create_user()
+            create.assert_not_called()
+            with patch.object(shutil, "rmtree", side_effect=OSError("injected cleanup failure")), \
+                 self.assertRaisesRegex(RuntimeError, "injected cleanup failure"):
+                resource.cleanup()
 
 
 def relocated_runtime(archive, commit, sha256):
@@ -404,7 +776,7 @@ test ! -e "$prebuilt_approvals"
         adaptation = startup.adapt_wrapper(wrapper, start_current, runtime.parent, shared,
                                             LinuxPermissions.node, LinuxPermissions.user)
         home = root / "home"
-        command = ["runuser", "-u", LinuxPermissions.user, "--", "env", "-i",
+        command = [RUNUSER, "-u", LinuxPermissions.user, "--", "env", "-i",
                    "PATH=" + os.environ["PATH"], "HOME=" + str(home), "TMPDIR=" + str(home),
                    "node", str(REPO / "scripts/test-prebuilt-runtime.mjs"), "--runtime=" + str(runtime),
                    "--startup-fixture=" + str(shared), "--wrapper=" + str(wrapper)]
@@ -450,7 +822,11 @@ if __name__ == "__main__":
     parser.add_argument("--archive", type=Path)
     parser.add_argument("--commit")
     parser.add_argument("--sha256")
+    parser.add_argument("--harness-only", action="store_true", help="portable fault injection; not real Linux validation")
     args = parser.parse_args()
+    if args.harness_only:
+        unittest.main(argv=[sys.argv[0], "HarnessTests"], verbosity=2)
+        sys.exit(0)
     if sys.platform != "linux" or os.geteuid() != 0:
         print("NOT RUN: disposable Linux root required", file=sys.stderr)
         sys.exit(2)

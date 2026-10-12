@@ -17,6 +17,10 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
+
+sys.dont_write_bytecode = True
+from prebuilt_test_support import resolve_runuser
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -44,8 +48,10 @@ def adapt_wrapper(destination, current, releases, shared, node, user, port=3001)
 
 class StartupTests(unittest.TestCase):
     def setUp(self):
+        self.runuser = resolve_runuser() if os.getuid() == 0 else None
         parent = os.environ.get("NUAAFA_TEST_ROOT", str(REPO.parent))
         self.temp = tempfile.TemporaryDirectory(prefix="nuaafa-start-test-", dir=parent)
+        self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve()
         self.root.chmod(0o755)
         self.user = os.environ.get("NUAAFA_TEST_APP_USER", pwd.getpwuid(os.getuid()).pw_name)
@@ -89,7 +95,7 @@ class StartupTests(unittest.TestCase):
 
     def launch(self):
         command = [sys.executable, "-I", str(self.wrapper)]
-        if os.getuid() == 0: command = ["runuser", "-u", self.user, "--", *command]
+        if os.getuid() == 0: command = [self.runuser, "-u", self.user, "--", *command]
         return subprocess.run(command, cwd="/", env={"PATH": "/usr/bin:/bin", "NODE_OPTIONS": "--require=/must-not-load", "DATABASE_URL": "file:/must-not-open", "PYTHONPATH": "/must-not-import", "NODE_ENV": "development"}, capture_output=True, text=True, timeout=20)
 
     def test_clean_exec_environment_cwd_and_identity(self):
@@ -126,6 +132,47 @@ class StartupTests(unittest.TestCase):
         (self.release / ".env.production").unlink()
         (self.release / ".env.production").symlink_to(self.shared / "prisma/dev.db")
         self.assertNotEqual(self.launch().returncode, 0)
+
+
+class CommandResolutionTests(unittest.TestCase):
+    def test_root_launch_uses_absolute_command_and_poisoned_minimal_environment(self):
+        fixture = StartupTests("test_clean_exec_environment_cwd_and_identity")
+        fixture.runuser = "/usr/sbin/runuser"
+        fixture.user = "synthetic-app"
+        fixture.wrapper = Path("/synthetic/start-prebuilt")
+        with patch.object(os, "getuid", return_value=0), patch.object(subprocess, "run") as launch:
+            fixture.launch()
+        args, kwargs = launch.call_args
+        self.assertEqual(args[0][:4], ["/usr/sbin/runuser", "-u", "synthetic-app", "--"])
+        self.assertEqual(kwargs["env"], {"PATH": "/usr/bin:/bin", "NODE_OPTIONS": "--require=/must-not-load",
+            "DATABASE_URL": "file:/must-not-open", "PYTHONPATH": "/must-not-import", "NODE_ENV": "development"})
+
+    def test_absolute_runuser_survives_minimal_path(self):
+        # Metadata mocks prove resolution logic only; Linux startup uses real stat.
+        with patch("prebuilt_test_support.shutil.which", return_value="/usr/sbin/runuser") as lookup, \
+             patch("prebuilt_test_support.trusted_path", return_value=Path("/usr/sbin/runuser")) as check, \
+             patch.object(Path, "stat", return_value=type("Info", (), {"st_mode": 0o100755})()), \
+             patch("prebuilt_test_support.os.access", return_value=True), \
+             patch.dict(os.environ, PATH="/usr/bin:/bin"):
+            self.assertEqual(resolve_runuser(), "/usr/sbin/runuser")
+        lookup.assert_called_once_with("runuser", path="/usr/sbin:/usr/bin")
+        check.assert_called_once_with("/usr/sbin/runuser", kind="file")
+
+    def test_missing_unsafe_and_nonexecutable_runuser_are_rejected(self):
+        with patch("prebuilt_test_support.shutil.which", return_value=None), \
+             self.assertRaisesRegex(FileNotFoundError, "runuser.*missing"):
+            resolve_runuser()
+        for reason in ("owner is not root", "group/world writable", "symlink", "wrong file type"):
+            with self.subTest(reason=reason), \
+                 patch("prebuilt_test_support.shutil.which", return_value="/usr/sbin/runuser"), \
+                 patch("prebuilt_test_support.trusted_path", side_effect=ValueError(reason)), \
+                 self.assertRaisesRegex(ValueError, reason):
+                resolve_runuser()
+        with patch("prebuilt_test_support.shutil.which", return_value="/usr/sbin/runuser"), \
+             patch("prebuilt_test_support.trusted_path", return_value=Path("/usr/sbin/runuser")), \
+             patch.object(Path, "stat", return_value=type("Info", (), {"st_mode": 0o100644})()), \
+             self.assertRaisesRegex(ValueError, "not executable"):
+            resolve_runuser()
 
 
 if __name__ == "__main__":
