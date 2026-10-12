@@ -59,6 +59,7 @@ def case_evidence(case_name, result, inputs, started_at, script="", expected_sta
                     cleanup=getattr(result, "cleanup", None),
                     exception=getattr(result, "exception", None),
                     cleanup_exception=getattr(result, "cleanup_exception", None),
+                    lifecycle=getattr(result, "lifecycle", None),
                     platform=sys.platform, uid=os.getuid(), inputs=inputs)
     for name, value in (("stdout.log", result.stdout), ("stderr.log", result.stderr),
                         ("input.sh", script), ("result.json", json.dumps(metadata, indent=2) + "\n")):
@@ -66,6 +67,37 @@ def case_evidence(case_name, result, inputs, started_at, script="", expected_sta
             output.write(value)
         (destination / name).chmod(0o644)
     return destination
+
+
+def bounded_diagnostic(value, limit=2000):
+    text = str(value)
+    for key, secret in os.environ.items():
+        if len(secret) >= 4 and re.search(r"SECRET|TOKEN|PASSWORD|KEY|COOKIE|AUTH|DATABASE_URL", key, re.I):
+            text = text.replace(secret, "[REDACTED]")
+    text = re.sub(r"(?i)((?:password|secret|token|authorization|api[_-]?key)\s*[:=]\s*)([^\s,;]+)",
+                  r"\1[REDACTED]", text)
+    text = re.sub(r"(https?://)[^/@\s]+@", r"\1[REDACTED]@", text)
+    return text[:limit]
+
+
+def emit_failure_diagnostic(case_name, result):
+    lifecycle = copy.deepcopy(getattr(result, "lifecycle", {}))
+    for key in ("before_cleanup", "reaped"):
+        lifecycle[key] = lifecycle.get(key, [])[:8]
+        for child in lifecycle[key]:
+            child["name"] = bounded_diagnostic(child.get("name", ""), 80)
+    summary = dict(case=case_name, evidence_path=bounded_diagnostic(getattr(result, "evidence_path", "NOT SAVED"), 512),
+                   command=[bounded_diagnostic(arg, 160) for arg in result.args[:32]],
+                   exit_code=result.returncode, cleanup=bounded_diagnostic(getattr(result, "cleanup", None), 500),
+                   cleanup_exception=bounded_diagnostic(getattr(result, "cleanup_exception", None), 500),
+                   lifecycle=lifecycle, stdout=bounded_diagnostic(result.stdout),
+                   stderr=bounded_diagnostic(result.stderr))
+    if len(json.dumps(summary)) > 7000:
+        summary["command"] = summary["command"][:6] + ["..."] + summary["command"][-10:]
+        summary["stdout"], summary["stderr"] = summary["stdout"][:500], summary["stderr"][:1000]
+        lifecycle["before_cleanup"], lifecycle["reaped"] = lifecycle["before_cleanup"][:3], lifecycle["reaped"][:3]
+        summary["truncated"] = True
+    print("Test failure diagnostic: " + json.dumps(summary), file=sys.stderr)
 
 
 @contextlib.contextmanager
@@ -160,12 +192,29 @@ def owned_group_children(pgid):
     return result
 
 
+def owned_child_metadata(pgid, pid):
+    # Only an unreaped child enumerated from OUR /proc task may be inspected.
+    value = Path("/proc") / str(pid) / "stat"
+    text = value.read_text()
+    end = text.rindex(")")
+    fields = text[end + 2:].split()
+    metadata = dict(pid=int(text.split(" ", 1)[0]), name=text[text.index("(") + 1:end],
+                    state=fields[0], ppid=int(fields[1]), pgid=int(fields[2]),
+                    start_ticks=int(fields[19]))
+    if metadata["pid"] != pid or pid == pgid or metadata["ppid"] != os.getpid() or metadata["pgid"] != pgid:
+        raise RuntimeError("descendant identity differs from the owned child/group")
+    return metadata
+
+
 def terminate_group(process):
     """Last group signal precedes ANY leader wait/poll/communicate/reaping."""
     pgid = process.pid  # Popen(start_new_session=True) is owned by recorded_run.
     if getattr(process, "cleanup_started", False):
         raise RuntimeError("refusing repeated process group cleanup")
     process.cleanup_started = True
+    process.lifecycle = dict(leader_pid=pgid, leader_pgid=pgid, leader_ppid=os.getpid(),
+                             leader_exit_observed=False, before_cleanup=[], reaped=[],
+                             signals=[], cleanup_complete=False, completed_descendants_proven=False)
 
     def trusted_leader():
         if pgid <= 1 or pgid == os.getpgrp() or process.returncode is not None:
@@ -183,21 +232,31 @@ def terminate_group(process):
 
     def send(sig):
         trusted_leader()
+        event = dict(signal=signal.Signals(sig).name, outcome="attempted")
+        process.lifecycle["signals"].append(event)
         try:
             os.killpg(pgid, sig)
+            event["outcome"] = "sent"
         except ProcessLookupError:
-            pass  # No group remains, but the unreaped child still pins its ID.
+            event["outcome"] = "absent"  # The unreaped child still pins its ID.
         except PermissionError:
             if sys.platform != "darwin" or darwin_group_members(pgid, live_only=True):
+                event["outcome"] = "failed"
                 raise  # Never turn a real signaling failure into success.
+            event["outcome"] = "empty Darwin group"
 
     trusted_leader()
     failures = []
     process.descendants_seen = False
+    process.descendants_reaped = 0
     try:
-        if child_exited(pgid):
-            process.descendants_seen = (bool(owned_group_children(pgid)) if sys.platform == "linux"
-                                        else any(pid != pgid for pid in darwin_group_members(pgid)))
+        process.lifecycle["leader_exit_observed"] = child_exited(pgid)
+        if process.lifecycle["leader_exit_observed"]:
+            if sys.platform == "linux":
+                process.lifecycle["before_cleanup"] = [owned_child_metadata(pgid, pid) for pid in owned_group_children(pgid)]
+                process.descendants_seen = bool(process.lifecycle["before_cleanup"])
+            else:
+                process.descendants_seen = any(pid != pgid for pid in darwin_group_members(pgid))
         send(signal.SIGTERM)
         try:
             wait_child_exit(process, 2)
@@ -213,7 +272,6 @@ def terminate_group(process):
 
     wait_child_exit(process, 5)
     deadline = time.monotonic() + 5
-    process.descendants_reaped = 0
     while True:
         children = (owned_group_children(pgid) if sys.platform == "linux"
                     else [pid for pid in darwin_group_members(pgid) if pid != pgid])
@@ -221,8 +279,12 @@ def terminate_group(process):
             break
         if sys.platform == "linux":
             for pid in children:
-                reaped, _ = os.waitpid(pid, os.WNOHANG)
+                metadata = owned_child_metadata(pgid, pid)
+                reaped, status = os.waitpid(pid, os.WNOHANG)
                 process.descendants_reaped += bool(reaped)
+                if reaped:
+                    metadata["wait_status"] = status
+                    process.lifecycle["reaped"].append(metadata)
         # Darwin PID 1 reaps orphans. Keep our zombie leader pinned until the
         # targeted group contains no other member, including orphan zombies.
         if time.monotonic() >= deadline:
@@ -232,6 +294,17 @@ def terminate_group(process):
     process.wait(timeout=5)
     if failures:
         raise RuntimeError("process cleanup failed: " + "; ".join(map(str, failures))) from failures[0]
+    process.lifecycle["cleanup_complete"] = True
+    before, reaped = process.lifecycle["before_cleanup"], process.lifecycle["reaped"]
+    # A zombie is already dead BEFORE TERM/KILL. Require every such identity
+    # to be reaped, no newly discovered child, and a completed empty-group check.
+    # Live/unknown descendants and all cleanup failures retain the failure gate.
+    process.lifecycle["completed_descendants_proven"] = (
+        sys.platform == "linux" and process.lifecycle["leader_exit_observed"]
+        and all(child["state"] == "Z" for child in before)
+        and len(before) == len(reaped) and all(child["state"] == "Z" for child in reaped)
+        and {(child["pid"], child["start_ticks"]) for child in before}
+        == {(child["pid"], child["start_ticks"]) for child in reaped})
 
 
 def recorded_run(args, case_name, inputs, script="", expected_status=0, timeout=120, **kwargs):
@@ -269,12 +342,13 @@ def recorded_run(args, case_name, inputs, script="", expected_status=0, timeout=
                         result.cleanup = "FAILED: " + str(cleanup_error)
                         result.cleanup_exception = type(cleanup_error).__name__ + ": " + str(cleanup_error)
                         raise
-                    if process.descendants_seen or process.descendants_reaped:
+                    if (process.descendants_seen or process.descendants_reaped) and not process.lifecycle["completed_descendants_proven"]:
                         raise RuntimeError("command left descendants after exit")
             finally:
                 stdout.seek(0); stderr.seek(0)
                 result.stdout, result.stderr = stdout.read(), stderr.read()
                 result.returncode = process.returncode if process is not None else None
+                result.lifecycle = getattr(process, "lifecycle", {})
     except BaseException as error:
         if process is not None:
             result.returncode = process.returncode
@@ -289,6 +363,11 @@ def recorded_run(args, case_name, inputs, script="", expected_status=0, timeout=
         except BaseException as evidence_error:
             error.evidence_error = evidence_error
             raise error from evidence_error
+        try:
+            emit_failure_diagnostic(case_name, result)
+        except BaseException as diagnostic_error:
+            error.diagnostic_error = diagnostic_error
+            raise error from diagnostic_error
         raise
     result.evidence_path = case_evidence(case_name, result, inputs, started_at, script, expected_status)
     return result
@@ -1234,6 +1313,173 @@ class ProcessLifecycleTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assert_isolated(self.record("large-output")[0])
 
+    def test_waited_child_preserves_status_and_output(self):
+        child = "import sys; print('child stdout'); print('child stderr',file=sys.stderr)"
+        parent = "import subprocess,sys; subprocess.run([sys.executable,'-c'," + repr(child) + "],check=True); sys.exit(7)"
+        result = recorded_run([sys.executable, "-c", parent], "waited-child", dict(synthetic=True), expected_status=7)
+        self.assertEqual(result.returncode, 7)
+        self.assertEqual(result.stdout, "child stdout\n")
+        self.assertEqual(result.stderr, "child stderr\n")
+        self.assertTrue(result.lifecycle["cleanup_complete"])
+        self.assertEqual(result.lifecycle["reaped"], [])
+        self.assert_isolated(self.record("waited-child")[0])
+
+    def test_env_git_preserves_actual_nonzero_status_and_stderr(self):
+        source = self.root / "empty-git"
+        source.mkdir()
+        prefix = ["/usr/bin/env", "-i", "PATH=/usr/bin:/bin", "HOME=" + str(self.root),
+                  "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "/usr/bin/git"]
+        initialized = recorded_run([*prefix, "init", source], "env-git-init", dict(synthetic=True))
+        self.assertEqual(initialized.returncode, 0, initialized.stderr)
+        result = recorded_run([*prefix, "-C", source, "rev-parse", "--verify", "HEAD"],
+                              "env-git-reject", dict(synthetic=True), expected_status=128)
+        self.assertEqual(result.returncode, 128)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("fatal:", result.stderr)
+        self.assertTrue(result.lifecycle["cleanup_complete"])
+        self.assert_isolated(self.record("env-git-reject")[0])
+
+    def test_git_bundle_ref_validation_with_isolated_same_uid_repositories(self):
+        source, destination = self.root / "source", self.root / "destination.git"
+        source.mkdir()
+        (source / "fixture").write_text("synthetic Git source\n")
+        prefix = ["/usr/bin/env", "-i", "PATH=/usr/bin:/bin", "HOME=" + str(self.root),
+                  "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "/usr/bin/git"]
+        def checked(*args):
+            result = recorded_run([*prefix, *map(str, args)], "same-uid-bundle", dict(synthetic=True, real_uid=os.getuid()))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(result.lifecycle["cleanup_complete"])
+            self.assert_isolated(json.loads((result.evidence_path / "result.json").read_text()))
+            return result.stdout.strip()
+        checked("init", "--initial-branch=main", source)
+        checked("-C", source, "config", "user.name", "Synthetic Fixture")
+        checked("-C", source, "config", "user.email", "fixture@example.invalid")
+        checked("-C", source, "add", "fixture")
+        checked("-C", source, "commit", "-m", "synthetic source")
+        commit = checked("-C", source, "rev-parse", "HEAD")
+        before = checked("-C", source, "show-ref")
+        bundle = self.root / "source.bundle"
+        checked("-C", source, "bundle", "create", bundle, "HEAD")
+        checked("init", "--bare", "--initial-branch=main", destination)
+        checked("-C", destination, "bundle", "verify", bundle)
+        self.assertEqual(checked("-C", destination, "bundle", "list-heads", bundle), commit + " HEAD")
+        checked("-C", destination, "fetch", "--no-tags", bundle, "HEAD:refs/heads/main")
+        self.assertEqual(checked("-C", destination, "show-ref"), commit + " refs/heads/main")
+        self.assertEqual(checked("-C", source, "show-ref"), before)
+
+    def simulated_linux_probe(self, state, unreapable=False, new_child=False):
+        # Synthetic process identities only: this never signals a real PID.
+        process = type("SimulatedProcess", (), dict(pid=12345, returncode=None))()
+        child = dict(pid=12346, name="git", state=state, ppid=os.getpid(), pgid=12345, start_ticks=77)
+        def popen(args, **kwargs):
+            kwargs["stdout"].write("original Git stdout\n")
+            kwargs["stderr"].write("fatal: repository owned by different users\n")
+            return process
+        def reap_leader(timeout):
+            process.returncode = 128
+            return 128
+        process.wait = reap_leader
+        reaped_child = dict(child, pid=12347, start_ticks=78) if new_child else dict(child)
+        children = [[12346], [reaped_child["pid"]], [12346] if unreapable else []]
+        with patch.object(sys, "platform", "linux"), \
+             patch(__name__ + ".descendant_reaper", side_effect=contextlib.nullcontext), \
+             patch.object(subprocess, "Popen", side_effect=popen), \
+             patch(__name__ + ".child_exited", return_value=True), \
+             patch(__name__ + ".wait_child_exit"), \
+             patch(__name__ + ".owned_group_children", side_effect=children), \
+             patch(__name__ + ".owned_child_metadata", side_effect=[dict(child), reaped_child]), \
+             patch.object(os, "killpg") as send, \
+             patch.object(os, "waitpid", return_value=(0 if unreapable else reaped_child["pid"], 0)), \
+             patch.object(time, "monotonic", side_effect=[0, 6] if unreapable else [0, 0]):
+            if state == "Z" and not unreapable and not new_child:
+                result = recorded_run(["synthetic-runuser", "env", "git", "clone"], "zombie-probe",
+                                      dict(simulated_linux=True), expected_status=128)
+            else:
+                with self.assertRaisesRegex(RuntimeError, "owned descendants remain|left descendants"):
+                    recorded_run(["synthetic-runuser", "env", "git", "clone"], "failed-probe", dict(simulated_linux=True))
+                result = None
+        self.assertEqual(send.call_args_list, [unittest.mock.call(12345, signal.SIGTERM),
+                                               unittest.mock.call(12345, signal.SIGKILL)])
+        return process, result
+
+    def test_simulated_linux_completed_zombie_is_reaped_without_false_leak(self):
+        process, result = self.simulated_linux_probe("Z")
+        self.assertEqual(result.returncode, 128)
+        self.assertEqual(result.stdout, "original Git stdout\n")
+        self.assertEqual(result.stderr, "fatal: repository owned by different users\n")
+        self.assertTrue(process.descendants_seen)
+        self.assertEqual(process.descendants_reaped, 1)
+        self.assertTrue(result.lifecycle["completed_descendants_proven"])
+        self.assertTrue(result.lifecycle["cleanup_complete"])
+        self.assertEqual(result.lifecycle["reaped"][0]["pid"], 12346)
+
+    def test_simulated_linux_live_descendant_still_fails_after_cleanup(self):
+        process, _ = self.simulated_linux_probe("S")
+        metadata, path = self.record("failed-probe")
+        self.assertEqual(metadata["exit_code"], 128)
+        self.assertTrue(metadata["lifecycle"]["cleanup_complete"])
+        self.assertFalse(metadata["lifecycle"]["completed_descendants_proven"])
+        self.assertIn("original Git stdout", (path / "stdout.log").read_text())
+        self.assertIn("different users", (path / "stderr.log").read_text())
+
+    def test_simulated_linux_unreaped_descendant_keeps_cleanup_failure(self):
+        process, _ = self.simulated_linux_probe("Z", unreapable=True)
+        metadata, _ = self.record("failed-probe")
+        self.assertIsNone(process.returncode)  # Leader identity stays unreaped.
+        self.assertFalse(metadata["lifecycle"]["cleanup_complete"])
+        self.assertIn("owned descendants remain", metadata["cleanup_exception"])
+
+    def test_simulated_linux_new_child_cannot_use_zombie_exception(self):
+        process, _ = self.simulated_linux_probe("Z", new_child=True)
+        metadata, _ = self.record("failed-probe")
+        self.assertEqual(metadata["exit_code"], 128)
+        self.assertTrue(metadata["lifecycle"]["cleanup_complete"])
+        self.assertFalse(metadata["lifecycle"]["completed_descendants_proven"])
+
+    def test_linux_child_metadata_parser_checks_pid_parent_and_group(self):
+        fields = ["Z", str(os.getpid()), "12345", "12345"] + ["0"] * 15 + ["77"]
+        text = "12346 (git pack-objects) " + " ".join(fields)
+        with patch.object(Path, "read_text", return_value=text):
+            metadata = owned_child_metadata(12345, 12346)
+        self.assertEqual(metadata, dict(pid=12346, name="git pack-objects", state="Z",
+                                       ppid=os.getpid(), pgid=12345, start_ticks=77))
+        for bad in (text.replace("12346", "12347", 1), text.replace("Z " + str(os.getpid()), "Z 1"),
+                    text.replace("12345", "12344", 1)):
+            with self.subTest(stat=bad), patch.object(Path, "read_text", return_value=bad), \
+                 self.assertRaisesRegex(RuntimeError, "identity differs"):
+                owned_child_metadata(12345, 12346)
+
+    def test_failure_diagnostic_is_bounded_redacted_and_keeps_raw_evidence(self):
+        secret = "synthetic-private-value"
+        output = io.StringIO()
+        with patch.dict(os.environ, SYNTHETIC_TEST_SECRET=secret), contextlib.redirect_stderr(output), \
+             self.assertRaisesRegex(RuntimeError, "left descendants"):
+            parent = "import subprocess,sys; print('" + secret + "',flush=True); subprocess.Popen([sys.executable,'-c','import time; time.sleep(30)'])"
+            recorded_run([sys.executable, "-c", parent], "redacted-failure", dict(synthetic=True))
+        diagnostic = output.getvalue()
+        self.assertIn("Test failure diagnostic:", diagnostic)
+        self.assertIn("[REDACTED]", diagnostic)
+        self.assertNotIn(secret, diagnostic)
+        self.assertLess(len(diagnostic), 7100)
+        metadata, path = self.record("redacted-failure")
+        self.assertIn(secret, (path / "stdout.log").read_text())
+        self.assertTrue(metadata["lifecycle"]["cleanup_complete"])
+        self.assert_isolated(metadata)
+
+    def test_large_failure_diagnostic_remains_valid_bounded_json(self):
+        result = subprocess.CompletedProcess(["synthetic-command", *["x" * 1000] * 40], 128,
+                                             "PASSWORD=synthetic-private " + "o" * 4000, "fatal: " + "e" * 4000)
+        output = io.StringIO()
+        with contextlib.redirect_stderr(output):
+            emit_failure_diagnostic("large-diagnostic", result)
+        text = output.getvalue()
+        self.assertLess(len(text), 7100)
+        summary = json.loads(text.removeprefix("Test failure diagnostic: "))
+        self.assertEqual(summary["exit_code"], 128)
+        self.assertTrue(summary["truncated"])
+        self.assertIn("fatal:", summary["stderr"])
+        self.assertNotIn("synthetic-private", text)
+
     def test_timeout_kills_descendant_after_leader_exits_on_term(self):
         parent_pid, child_pid = self.root / "parent.pid", self.root / "child.pid"
         child = "import os,signal,time; from pathlib import Path; signal.signal(signal.SIGTERM,signal.SIG_IGN); Path(" + repr(str(child_pid)) + ").write_text(str(os.getpid())); print('descendant stdout',flush=True); time.sleep(30)"
@@ -1361,6 +1607,22 @@ class ProcessLifecycleTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "left descendants"):
             recorded_run([sys.executable, "-c", code], "linux-adoption", dict(synthetic=True))
         self.assert_isolated(self.record("linux-adoption")[0])
+
+    @unittest.skipUnless(sys.platform == "linux", "NOT RUN: native Linux zombie adoption required")
+    def test_linux_already_exited_adopted_child_preserves_original_status(self):
+        for status in (0, 23):
+            child = "import sys; print('exited child'); print('child err',file=sys.stderr)"
+            parent = "import os,subprocess,sys; p=subprocess.Popen([sys.executable,'-c'," + repr(child) + "]); os.waitid(os.P_PID,p.pid,os.WEXITED|os.WNOWAIT); os._exit(" + str(status) + ")"
+            name = "native-zombie-" + str(status)
+            result = recorded_run([sys.executable, "-c", parent], name, dict(synthetic=True), expected_status=status)
+            self.assertEqual(result.returncode, status)
+            self.assertEqual(result.stdout, "exited child\n")
+            self.assertEqual(result.stderr, "child err\n")
+            self.assertTrue(result.lifecycle["before_cleanup"])
+            self.assertTrue(all(child["state"] == "Z" for child in result.lifecycle["before_cleanup"]))
+            self.assertTrue(result.lifecycle["completed_descendants_proven"])
+            self.assertTrue(result.lifecycle["cleanup_complete"])
+            self.assert_isolated(self.record(name)[0])
 
 
 if __name__ == "__main__":

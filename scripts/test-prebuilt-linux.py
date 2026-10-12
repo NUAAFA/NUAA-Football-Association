@@ -434,15 +434,24 @@ test ! -e "$release_root/$COMMIT/prisma/dev.db"
         self.assertNotEqual(source.stat().st_uid, self.account.pw_uid)
         unsafe = self.root / "unsafe-local.git"
         unsafe.mkdir(mode=0o755); os.chown(unsafe, self.account.pw_uid, self.account.pw_gid)
+        actual_uid = run([RUNUSER, "-u", self.user, "--", "/usr/bin/id", "-u"])
+        self.assertEqual(actual_uid.returncode, 0, actual_uid.stderr)
+        self.assertEqual(actual_uid.stdout.strip(), str(self.account.pw_uid))
         rejected = user_git(self.user, "clone", "--bare", "--no-hardlinks", source, unsafe)
         self.assertNotEqual(rejected.returncode, 0, "cross-owner local-copy protection was not exercised")
         self.assertRegex(rejected.stderr.lower(), r"ownership|different users")
+        self.assertTrue(rejected.lifecycle["cleanup_complete"])
+        self.assertTrue(rejected.lifecycle["completed_descendants_proven"])
         with self.assertRaises(ValueError):
             bundle_remote(source, self.root / "wrong-head.git", F.ArtifactTests.old, self.user)
         seed = self.root / "bundle-source.git"
         identity = bundle_remote(source, seed, F.ArtifactTests.commit, self.user)
         self.assertEqual(identity["checkout_uid"], 0)
         self.case("bundle-import", 'main --import-artifact "$ARCHIVE" --artifact-sha256 "$DIGEST" "$COMMIT"\n', seed=seed)
+        print("Cross-UID Git probe: " + json.dumps(dict(app_uid=self.account.pw_uid, source_uid=source.stat().st_uid,
+              actual_uid=int(actual_uid.stdout.strip()), negative_exit_code=rejected.returncode,
+              negative_stderr=F.bounded_diagnostic(rejected.stderr), lifecycle=rejected.lifecycle,
+              evidence_path=str(rejected.evidence_path), bundle=identity)), file=sys.stderr)
 
     def test_wrong_receipt_owner_mode_and_parent(self):
         for kind in ("owner", "mode", "parent", "link"):
@@ -517,6 +526,20 @@ if verify_service_contract; then exit 92; fi
 
 class HarnessTests(unittest.TestCase):
     """Portable fault injection only; never evidence of real Linux root/app PASS."""
+    def test_user_git_preserves_identity_environment_and_original_result(self):
+        account = pwd.struct_passwd(("synthetic-app", "x", 19991, 19991, "fixture", "/synthetic/home", "/bin/false"))
+        rejected = subprocess.CompletedProcess([], 128, "original stdout", "fatal: repository owned by different users")
+        with patch.object(pwd, "getpwnam", return_value=account), \
+             patch(__name__ + ".RUNUSER", "/usr/sbin/runuser"), patch(__name__ + ".run", return_value=rejected) as invoke:
+            self.assertIs(user_git(account.pw_name, "clone", "--bare", "/source", "/destination"), rejected)
+        command = invoke.call_args.args[0]
+        self.assertEqual(command[:7], ["/usr/sbin/runuser", "-u", "synthetic-app", "--", "env", "-i", "PATH=/usr/bin:/bin"])
+        self.assertIn("HOME=/synthetic/home", command)
+        self.assertIn("GIT_CONFIG_NOSYSTEM=1", command)
+        self.assertIn("GIT_CONFIG_GLOBAL=/dev/null", command)
+        self.assertIn("/usr/bin/git", command)
+        self.assertNotIn("safe.directory=*", command)
+
     def test_useradd_comment_format_and_identity_marker(self):
         root = Path("/var/lib/nuaafa-permission-comment")
         user = "nuaafa_t0123456789ab"
