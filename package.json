@@ -79,7 +79,7 @@
   "dependencies": {
     "@libsql/client": "^0.17.4",
     "@prisma/adapter-libsql": "^7.9.0",
-    "@prisma/client": "^7.9.0",
+    "@prisma/client": "7.9.1",
     "@tiptap/extension-image": "3.30.5",
     "@tiptap/pm": "3.30.5",
     "@tiptap/react": "3.30.5",
@@ -98,7 +98,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
-    "prisma": "^7.9.0",
+    "prisma": "7.9.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.1",
     "typescript": "^5"
