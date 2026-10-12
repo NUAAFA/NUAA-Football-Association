@@ -56,7 +56,7 @@ class FixtureResources:
     def create_user(self):
         self.user = "nuaafa_t" + secrets.token_hex(6)
         self.home = str(self.root / "home")
-        self.marker = "nuaafa-test:" + self.root.name
+        self.marker = "nuaafa-test-" + self.root.name
         for lookup in (pwd.getpwnam, grp.getgrnam):
             try:
                 lookup(self.user)
@@ -517,6 +517,37 @@ if verify_service_contract; then exit 92; fi
 
 class HarnessTests(unittest.TestCase):
     """Portable fault injection only; never evidence of real Linux root/app PASS."""
+    def test_useradd_comment_format_and_identity_marker(self):
+        root = Path("/var/lib/nuaafa-permission-comment")
+        user = "nuaafa_t0123456789ab"
+        marker = "nuaafa-test-" + root.name
+        group = grp.struct_group((user, "x", 19991, []))
+        for matching in (True, False):
+            with self.subTest(matching_gecos=matching):
+                resource = FixtureResources()
+                resource.root = root
+                account = pwd.struct_passwd((user, "x", 19991, 19991,
+                    marker if matching else marker + "-changed", str(root / "home"), "/bin/false"))
+                with patch.object(secrets, "token_hex", return_value="0123456789ab"), \
+                     patch.object(pwd, "getpwnam", side_effect=[KeyError(user), account]), \
+                     patch.object(grp, "getgrnam", side_effect=[KeyError(user), group]), \
+                     patch(__name__ + ".resolve_system_command", return_value="/usr/sbin/useradd"), \
+                     patch.object(subprocess, "run") as create:
+                    if matching:
+                        self.assertIs(resource.create_user(), account)
+                        self.assertEqual(resource.account.pw_gecos, resource.marker)
+                    else:
+                        with self.assertRaisesRegex(ValueError, "unrecognized partial account"):
+                            resource.create_user()
+                        self.assertIsNone(resource.account)
+                    create.assert_called_once()
+                    args = create.call_args.args[0]
+                    comment = args[args.index("--comment") + 1]
+                    self.assertNotRegex(comment, r"[:\r\n\x00]")
+                    self.assertEqual(comment, marker)
+                    self.assertEqual(comment, resource.marker)
+                    self.assertEqual(args[args.index("--home-dir") + 1], str(root / "home"))
+
     def test_trusted_path_positive_and_specific_rejections(self):
         target = Path("/var/lib/nuaafa-fixture")
         def info(mode=stat.S_IFDIR | 0o755, uid=0):
