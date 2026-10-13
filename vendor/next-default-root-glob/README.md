@@ -1,0 +1,9 @@
+# Next default-root ESLint dependency boundary
+
+Internal private package @nuaafa/next-default-root-glob 1.0.0, UNLICENSED. This newly authored boundary is not fast-glob and does not claim any fast-glob version. It contains no upstream glob implementation. Official Next 16.3.8 plugin and its 22 rule implementations remain unchanged under their original MIT license.
+
+NUAAFA uses the default repository root. Next 16.3.8 get-root-dirs returns context.cwd without calling globSync when settings.next.rootDir is absent. This package removes the unused custom-root scanning implementation, including the external braces/micromatch dependency path. A call to the custom scanning interface throws and fails lint instead of producing incomplete paths. tests/security-dependencies.mjs also rejects any explicit rootDir setting, including empty arrays, and any unexpected fast-glob consumer or plugin version. Monorepo/custom rootDir scanning is unsupported until a separate reviewed resolver profile is implemented. Existing single-repository rule coverage is preserved.
+
+The root dev dependency key fast-glob is an explicit local tarball alias to this private package, with an override scoped to @next/eslint-plugin-next@16.3.8. Its authentic name/version are retained in both package metadata and the lockfile. The installed files are ordinary package files, with no dependency on an external vendor symlink. No upstream compressed package is edited.
+
+Rebuild with python3 vendor/next-default-root-glob/build-package.py. Sorted USTAR members, zero uid/gid/mtime, fixed 0644 modes, gzip mtime zero. An existing different output is rejected; source, archive SHA-256/SHA-512, lock integrity, effective ESLint configs and clean npm ci must be checked together. When changing lint settings or the Next plugin version, first revise this explicit profile and retain all required rule coverage. Do not widen the override or bypass the test.

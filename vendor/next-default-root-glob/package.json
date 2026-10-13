@@ -1,0 +1,11 @@
+{
+  "name": "@nuaafa/next-default-root-glob",
+  "version": "1.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "main": "index.cjs",
+  "description": "Fail-closed dependency boundary for the validated Next 16.3.8 default-root ESLint profile",
+  "engines": {
+    "node": ">=22"
+  }
+}

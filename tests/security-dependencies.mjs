@@ -70,3 +70,4 @@ console.log("PASS GHSA-rgwj-5xj2-c3m3: inflation exceeding the declared packet l
 
 // This focused regression does not replace npm audit. The separate audit gate
 // continues to block unresolved advisories, including the braces dependency.
+await import("./security-lint-profile.mjs");
