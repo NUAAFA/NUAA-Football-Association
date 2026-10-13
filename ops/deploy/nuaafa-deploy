@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 deployer_version="V2.10-PREBUILT-2"
+prebuilt_timing=false
 repository="git@github-nuaafa:NUAAFA/NUAA-Football-Association.git"
 release_root="/srv/nuaafa/releases"
 shared="/srv/nuaafa/shared"
@@ -923,11 +924,28 @@ verify_root_metadata() {
   return 0
 }
 
+prebuilt_phase() {
+  local phase="$1"
+  shift
+  if [ "$prebuilt_timing" = true ]; then
+    # Bash's builtin time preserves the command status and adds no timer process.
+    # These inclusive spans may contain nested helper spans; do not sum them.
+    local TIMEFORMAT="NUAAFA_PREBUILT_SHELL_TIMING {\"phase\":\"$phase\",\"elapsed_seconds\":%R,\"user_seconds\":%U,\"system_seconds\":%S}"
+    time "$@"
+  else
+    "$@"
+  fi
+}
+
 run_prebuilt_helper() {
   verify_root_metadata "$(resolve_existing_path "$prebuilt_python")" || return $?
   verify_root_metadata "$prebuilt_helper" || return $?
   [ -f "$prebuilt_helper" ] || { die "trusted helper must be a regular file"; return 1; }
-  env -i PATH=/usr/bin:/bin "$prebuilt_python" -I "$prebuilt_helper" "$@"
+  if [ "$prebuilt_timing" = true ]; then
+    env -i PATH=/usr/bin:/bin "$prebuilt_python" -I "$prebuilt_helper" --timings "$@"
+  else
+    env -i PATH=/usr/bin:/bin "$prebuilt_python" -I "$prebuilt_helper" "$@"
+  fi
 }
 
 verify_prebuilt_platform() {
@@ -992,23 +1010,23 @@ import_artifact() (
   trap 'exit 130' INT
   trap 'exit 143' TERM
   # Copy before inspecting; the copy is private to root and is the only input used.
-  run_prebuilt_helper snapshot --archive "$artifact_path" --sha256 "$artifact_sha256" --destination "$work/input.tar.gz" || return $?
+  prebuilt_phase archive_snapshot run_prebuilt_helper snapshot --archive "$artifact_path" --sha256 "$artifact_sha256" --destination "$work/input.tar.gz" || return $?
   mkdir -m 0700 "$work/payload" || return $?
-  run_prebuilt_helper extract --archive "$work/input.tar.gz" --sha256 "$artifact_sha256" --commit "$target_commit" --destination "$work/payload" || return $?
+  prebuilt_phase archive_validate_extract run_prebuilt_helper extract --archive "$work/input.tar.gz" --sha256 "$artifact_sha256" --commit "$target_commit" --destination "$work/payload" || return $?
   checkout_candidate="$release_root/.prebuilt-source-$target_commit-$$"
   [ ! -e "$checkout_candidate" ] && ! path_is_symlink "$checkout_candidate" || { die "Git preparation collision"; return 1; }
   mkdir -m 0755 "$checkout_candidate" || return $?
   checkout="$checkout_candidate"
   set_file_owner "$checkout" || return $?
   chmod 0755 "$checkout" || return $?
-  run_as_deploy_user git clone --no-hardlinks --no-checkout "$repository" "$checkout" || return $?
-  validate_origin "$checkout" || return $?
-  fetch_and_verify_reachability "$checkout" "$target_commit" "$allowed_ref" || return $?
+  prebuilt_phase git_clone run_as_deploy_user git clone --no-hardlinks --no-checkout "$repository" "$checkout" || return $?
+  prebuilt_phase git_origin validate_origin "$checkout" || return $?
+  prebuilt_phase git_reachability fetch_and_verify_reachability "$checkout" "$target_commit" "$allowed_ref" || return $?
   remote_head="$fetched_remote_head"
-  git_in_release "$checkout" checkout --detach "$target_commit" || return $?
-  validate_git_state "$checkout" "$target_commit" || return $?
+  prebuilt_phase git_checkout git_in_release "$checkout" checkout --detach "$target_commit" || return $?
+  prebuilt_phase git_state validate_git_state "$checkout" "$target_commit" || return $?
   if [ -e "$release" ] || path_is_symlink "$release"; then
-    verify_prebuilt_release "$release" "$target_commit" || return $?
+    prebuilt_phase repeat_receipt_and_tree_verify verify_prebuilt_release "$release" "$target_commit" || return $?
     echo "Already imported and verified; current unchanged: $target_commit"
     return 0
   fi
@@ -1016,16 +1034,16 @@ import_artifact() (
   staging_candidate="$release_root/.prebuilt-$target_commit-$$"
   [ ! -e "$staging_candidate" ] && ! path_is_symlink "$staging_candidate" || { die "prebuilt staging collision"; return 1; }
   run_prebuilt_helper capacity --directory "$release_root" --manifest "$work/payload/nuaafa-artifact.json" || return $?
-  run_prebuilt_helper materialize --payload "$work/payload" --checkout "$checkout" --destination "$staging_candidate" --repository "$repository" --runtime-user "$deploy_user" || return $?
+  prebuilt_phase materialize run_prebuilt_helper materialize --payload "$work/payload" --checkout "$checkout" --destination "$staging_candidate" --repository "$repository" --runtime-user "$deploy_user" || return $?
   staging="$staging_candidate"
-  "$prebuilt_python" -I - "$work/payload/nuaafa-artifact.json" "$work/receipt.json" "$target_commit" "$artifact_sha256" "$allowed_ref" "$remote_head" <<'PY' || return $?
+  prebuilt_phase receipt_create "$prebuilt_python" -I - "$work/payload/nuaafa-artifact.json" "$work/receipt.json" "$target_commit" "$artifact_sha256" "$allowed_ref" "$remote_head" <<'PY' || return $?
 import json, sys
 with open(sys.argv[1]) as f: manifest = json.load(f)
 with open(sys.argv[2], 'x') as f:
     json.dump(dict(format=1, commit=sys.argv[3], sha256=sys.argv[4], allowed_ref=sys.argv[5], remote_head=sys.argv[6], manifest=manifest), f, sort_keys=True)
 PY
   # Root-private receipt is not taken from candidate code or a candidate checksum.
-  run_prebuilt_helper verify --release "$staging" --receipt "$work/receipt.json" --sha256 "$artifact_sha256" --commit "$target_commit" --allowed-ref "$allowed_ref" --git-user "$deploy_user" || return $?
+  prebuilt_phase receipt_and_tree_verify run_prebuilt_helper verify --release "$staging" --receipt "$work/receipt.json" --sha256 "$artifact_sha256" --commit "$target_commit" --allowed-ref "$allowed_ref" --git-user "$deploy_user" || return $?
   validate_origin "$staging" || return $?
   if [ "$dry_run" = true ]; then
     echo "Archive, trusted Git sources and runtime verified; WOULD import $target_commit; no published deployment state changed."

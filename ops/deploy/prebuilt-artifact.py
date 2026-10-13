@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Trusted, stdlib-only pack/import verifier. Never execute files from an archive."""
 import argparse
+import contextlib
+import functools
 import hashlib
 import io
 import gzip
@@ -16,6 +18,7 @@ import stat
 import subprocess
 import sys
 import tarfile
+import time
 
 FORMAT = 1
 MANIFEST = "nuaafa-artifact.json"
@@ -35,6 +38,72 @@ MAX_FILES = 100000
 MAX_BYTES = 3 * 1024 ** 3
 MAX_FILE = 512 * 1024 ** 2
 RESERVE = 512 * 1024 ** 2
+TIMING_ENABLED = False
+TIMING_AGGREGATES = {}
+
+
+def timing_record(value):
+    # Diagnostics contain phase metadata only, never paths, arguments or env.
+    try:
+        print("NUAAFA_PREBUILT_TIMING " + json.dumps(value, sort_keys=True), file=sys.stderr, flush=True)
+    except OSError:
+        pass  # A diagnostic sink must not change a validation result.
+
+
+@contextlib.contextmanager
+def measured_phase(phase, aggregate=False):
+    if not TIMING_ENABLED:
+        yield
+        return
+    started = time.perf_counter()
+    failed = False
+    if not aggregate:
+        timing_record(dict(phase=phase, event="start", pid=os.getpid(), clock="perf_counter",
+                           monotonic_seconds=started))
+    try:
+        yield
+    except BaseException:
+        failed = True
+        raise
+    finally:
+        elapsed = time.perf_counter() - started
+        if aggregate:
+            total = TIMING_AGGREGATES.setdefault(phase, dict(calls=0, failed_calls=0, elapsed_seconds=0.0))
+            total["calls"] += 1
+            total["failed_calls"] += int(failed)
+            total["elapsed_seconds"] += elapsed
+        else:
+            timing_record(dict(phase=phase, event="end", pid=os.getpid(), clock="perf_counter",
+                               elapsed_seconds=elapsed, status="FAIL" if failed else "PASS"))
+
+
+def measured(phase, aggregate=False):
+    def decorate(function):
+        @functools.wraps(function)
+        def wrapped(*args, **kwargs):
+            with measured_phase(phase, aggregate):
+                return function(*args, **kwargs)
+        return wrapped
+    return decorate
+
+
+def flush_timings():
+    if TIMING_ENABLED:
+        for phase, value in sorted(TIMING_AGGREGATES.items()):
+            timing_record(dict(phase=phase, event="aggregate", pid=os.getpid(), clock="perf_counter", **value))
+    TIMING_AGGREGATES.clear()
+
+
+@contextlib.contextmanager
+def timing_session():
+    global TIMING_ENABLED, TIMING_AGGREGATES
+    previous_enabled, previous_aggregates = TIMING_ENABLED, TIMING_AGGREGATES
+    TIMING_ENABLED, TIMING_AGGREGATES = True, {}
+    try:
+        yield
+    finally:
+        flush_timings()
+        TIMING_ENABLED, TIMING_AGGREGATES = previous_enabled, previous_aggregates
 
 
 def require(condition, message):
@@ -46,6 +115,7 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
+@measured("file_sha256_including_io", aggregate=True)
 def file_digest(path):
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -91,6 +161,7 @@ def _snapshot(source, destination, checksum):
         require(size == info.st_size and h.hexdigest() == checksum, "independent SHA-256 mismatch during private copy")
 
 
+@measured("snapshot_copy_and_sha256")
 def snapshot(source, destination, checksum):
     require(not os.path.lexists(destination), "snapshot output already exists")
     try:
@@ -136,7 +207,8 @@ def load_json(data):
 GIT_USER = None
 
 
-def git(root, *args):
+@measured("git_source_checks", aggregate=True)
+def git(root, *args, stdin_data=None):
     # Execute all repository operations as the application identity, including
     # repeat validation. Never opt out globally from Git ownership protection.
     command = ["/usr/bin/git", "--no-replace-objects", "-c", "core.hooksPath=/dev/null",
@@ -146,7 +218,7 @@ def git(root, *args):
         command = ["/usr/sbin/runuser", "-u", GIT_USER, "--", *command]
     env = {"PATH": "/usr/bin:/bin", "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": "/dev/null",
            "GIT_TERMINAL_PROMPT": "0", "GIT_NO_REPLACE_OBJECTS": "1", "GIT_OPTIONAL_LOCKS": "0"}
-    return subprocess.check_output([*command, "-C", str(root), *args], env=env)
+    return subprocess.check_output([*command, "-C", str(root), *args], env=env, input=stdin_data)
 
 
 
@@ -545,6 +617,7 @@ class BoundedGzip:
     def __init__(self, source):
         self.stream = gzip.GzipFile(fileobj=source)
         self.limit = MAX_BYTES + (MAX_FILES + 1) * 1024 + 32 * 1024 ** 2
+    @measured("gzip_read_including_decompression", aggregate=True)
     def read(self, size=-1):
         remaining = self.limit - self.stream.tell()
         require(remaining >= 0, "decompressed archive limit")
@@ -553,76 +626,124 @@ class BoundedGzip:
         return data
     def seekable(self): return True
     def tell(self): return self.stream.tell()
+    @measured("gzip_seek_including_decompression", aggregate=True)
     def seek(self, offset, whence=0):
         target = offset if whence == 0 else self.tell() + offset if whence == 1 else -1
         require(0 <= target <= self.limit, "decompressed seek limit")
+        if TIMING_ENABLED and target < self.tell():
+            counter = TIMING_AGGREGATES.setdefault("gzip_backward_seek_requests", dict(calls=0, requested_rewind_bytes=0, kind="counter"))
+            counter["calls"] += 1
+            counter["requested_rewind_bytes"] += self.tell() - target
         return self.stream.seek(target)
 
 
+@measured("archive_validation_and_extraction")
 def read_archive(archive, checksum, commit, destination=None):
     exact_sha(commit)
     exact_sha(checksum, 64)
     require(archive.is_file() and not archive.is_symlink() and archive.stat().st_size <= MAX_BYTES, "unsafe archive file")
     # Keep this descriptor open through verification and extraction: no path reopen race.
     with open_regular(archive) as source:
-        h = hashlib.sha256()
-        for chunk in iter(lambda: source.read(1024 * 1024), b""):
-            h.update(chunk)
-        require(h.hexdigest() == checksum, "external SHA-256 mismatch")
+        with measured_phase("archive_sha256_including_io"):
+            h = hashlib.sha256()
+            for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                h.update(chunk)
+            require(h.hexdigest() == checksum, "external SHA-256 mismatch")
         source.seek(0)
         with tarfile.open(fileobj=BoundedGzip(source), mode="r:") as tar:
             members = {}
             total = 0
-            for member in tar:
-                safe_path(member.name)
-                require(member.name not in members and len(members) < MAX_FILES + 1, "duplicate archive path or too many members")
-                require(member.isfile() or member.issym(), "directories, hardlinks, devices and special entries are forbidden")
-                require(not member.pax_headers and not member.mode & 0o7000, "extended headers or privileged mode")
-                require(0 <= member.size <= MAX_FILE, "oversized member")
-                total += member.size
-                require(total <= MAX_BYTES + 32 * 1024 ** 2, "archive exceeds unpacked limit")
-                members[member.name] = member
+            with measured_phase("archive_member_inventory"):
+                for member in tar:
+                    safe_path(member.name)
+                    require(member.name not in members and len(members) < MAX_FILES + 1, "duplicate archive path or too many members")
+                    require(member.isfile() or member.issym(), "directories, hardlinks, devices and special entries are forbidden")
+                    require(not member.pax_headers and not member.mode & 0o7000, "extended headers or privileged mode")
+                    require(0 <= member.size <= MAX_FILE, "oversized member")
+                    total += member.size
+                    require(total <= MAX_BYTES + 32 * 1024 ** 2, "archive exceeds unpacked limit")
+                    members[member.name] = member
             require(MANIFEST in members and members[MANIFEST].isfile() and members[MANIFEST].size <= 32 * 1024 ** 2, "missing or oversized manifest")
             require(members[MANIFEST].mode == 0o644, "unsafe manifest mode")
-            m = load_json(tar.extractfile(members[MANIFEST]).read())
-            validate_manifest(m, commit)
-            require(set(members) == set(m["files"]) | {MANIFEST}, "missing or extra archive file")
-            for name, entry in m["files"].items():
-                member = members[name]
-                if entry["type"] == "link":
-                    require(member.issym() and member.linkname == entry["target"] and member.size == 0, "symlink metadata mismatch")
-                else:
-                    require(member.isfile() and member.size == entry["size"] and member.mode == entry["mode"], "file metadata mismatch")
-                    h = hashlib.sha256()
-                    with tar.extractfile(member) as f:
-                        if name in m["native_files"]:
-                            require(f.read(4) == b"\x7fELF", "non-Linux native binary")
-                            f.seek(0)
-                        for chunk in iter(lambda: f.read(1024 * 1024), b""):
-                            h.update(chunk)
-                    require(h.hexdigest() == entry["sha256"], "member digest mismatch")
-            if destination is not None:
-                require(destination.is_dir() and not destination.is_symlink(), "unsafe extraction root")
-                # Caller gives a new, private empty directory. No tar.extract/all is used.
-                require(not list(destination.iterdir()), "extraction root must be empty")
-                capacity(destination, sum(e.get("size", 0) for e in m["files"].values()))
+            with measured_phase("manifest_validation"):
+                m = load_json(tar.extractfile(members[MANIFEST]).read())
+                validate_manifest(m, commit)
+                require(set(members) == set(m["files"]) | {MANIFEST}, "missing or extra archive file")
+            with measured_phase("member_digest_validation"):
                 for name, entry in m["files"].items():
-                    path = destination / name
-                    path.parent.mkdir(parents=True, exist_ok=True)
-                    for parent in path.parents:
-                        if parent == destination: break
-                        parent.chmod(0o755)
-                    if entry["type"] == "file":
-                        with tar.extractfile(members[name]) as f, open(path, "xb") as out:
-                            shutil.copyfileobj(f, out)
-                        path.chmod(entry["mode"])
-                for name, entry in m["files"].items():
+                    member = members[name]
                     if entry["type"] == "link":
-                        os.symlink(entry["target"], destination / name)
-                (destination / MANIFEST).write_bytes(json_bytes(m))
+                        require(member.issym() and member.linkname == entry["target"] and member.size == 0, "symlink metadata mismatch")
+                    else:
+                        require(member.isfile() and member.size == entry["size"] and member.mode == entry["mode"], "file metadata mismatch")
+                        h = hashlib.sha256()
+                        with tar.extractfile(member) as f:
+                            if name in m["native_files"]:
+                                require(f.read(4) == b"\x7fELF", "non-Linux native binary")
+                                f.seek(0)
+                            for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                                h.update(chunk)
+                        require(h.hexdigest() == entry["sha256"], "member digest mismatch")
+            if destination is not None:
+                with measured_phase("payload_extraction"):
+                    require(destination.is_dir() and not destination.is_symlink(), "unsafe extraction root")
+                    # Caller gives a new, private empty directory. No tar.extract/all is used.
+                    require(not list(destination.iterdir()), "extraction root must be empty")
+                    capacity(destination, sum(e.get("size", 0) for e in m["files"].values()))
+                    for name, entry in m["files"].items():
+                        path = destination / name
+                        path.parent.mkdir(parents=True, exist_ok=True)
+                        for parent in path.parents:
+                            if parent == destination: break
+                            parent.chmod(0o755)
+                        if entry["type"] == "file":
+                            with tar.extractfile(members[name]) as f, open(path, "xb") as out:
+                                shutil.copyfileobj(f, out)
+                            path.chmod(entry["mode"])
+                    for name, entry in m["files"].items():
+                        if entry["type"] == "link":
+                            os.symlink(entry["target"], destination / name)
+                    (destination / MANIFEST).write_bytes(json_bytes(m))
     return m
 
 
+@measured("trusted_source_blob_verification")
+def verify_source_blobs(root, m, commit):
+    # Bound batch memory/process overhead while checking every exact source blob.
+    # The caller already reconciled this source set with the trusted commit.
+    pending, declared_bytes = [], 0
+
+    def verify_batch(names):
+        queries = "".join(commit + ":" + name + "\n" for name in names).encode()
+        # Check actual Git sizes before requesting payload bytes, so a mismatched
+        # manifest cannot turn a small declared batch into a large allocation.
+        headers = git(root, "cat-file", "--batch-check", stdin_data=queries).splitlines(keepends=True)
+        require(len(headers) == len(names), "incomplete trusted source batch metadata")
+        for name, line in zip(names, headers):
+            header = re.fullmatch(rb"[0-9a-f]{40} blob ([0-9]+)\n", line)
+            require(header is not None and int(header.group(1)) == m["files"][name]["size"], "trusted source blob type or size mismatch")
+        result = io.BytesIO(git(root, "cat-file", "--batch", stdin_data=queries))
+        for name, expected_header in zip(names, headers):
+            entry = m["files"][name]
+            require(result.readline() == expected_header, "trusted source blob identity changed")
+            data = result.read(entry["size"])
+            require(len(data) == entry["size"] and result.read(1) == b"\n", "incomplete trusted source blob")
+            require(digest(data) == entry["sha256"], "source differs from trusted commit")
+        require(result.read(1) == b"", "unexpected trusted source batch output")
+
+    for name in m["sources"]:
+        entry = m["files"][name]
+        require(entry["type"] == "file", "trusted source must be a regular file")
+        if pending and (len(pending) >= 64 or declared_bytes + entry["size"] > 32 * 1024 ** 2):
+            verify_batch(pending)
+            pending, declared_bytes = [], 0
+        pending.append(name)
+        declared_bytes += entry["size"]
+    if pending:
+        verify_batch(pending)
+
+
+@measured("final_tree_verification")
 def verify_tree(root, m, commit):
     validate_manifest(m, commit)
     validate_installed(root, load_json((root / "package-lock.json").read_bytes()))
@@ -642,8 +763,7 @@ def verify_tree(root, m, commit):
             require(path.is_file() and not path.is_symlink() and path.stat().st_nlink == 1, "imported file missing or unsafe")
             require(path.stat().st_size == entry["size"] and file_digest(path) == entry["sha256"] and
                     stat.S_IMODE(path.stat().st_mode) == entry["mode"], "imported file differs")
-        if name in m["sources"]:
-            require(digest(git(root, "show", commit + ":" + name)) == entry["sha256"], "source differs from trusted commit")
+    verify_source_blobs(root, m, commit)
     expected_files = set(m["files"])
     actual = set()
     expected_dirs = {str(parent) for name in expected_files for parent in PurePosixPath(name).parents if str(parent) != "."}
@@ -781,6 +901,7 @@ def _materialize(payload, checkout, destination, repository, runtime_user=None):
 
 
 
+@measured("file_and_git_materialization")
 def materialize(payload, checkout, destination, repository, runtime_user=None):
     require(not os.path.lexists(destination), "staging collision")
     if os.getuid() == 0: trusted_directory(destination.parent)
@@ -798,6 +919,7 @@ def trusted_directory(path):
         require(info.st_uid == 0 and not info.st_mode & 0o022 and not p.is_symlink(), "directory must be root-controlled")
 
 
+@measured("sealed_tree_verification")
 def verify_sealed_tree(root, runtime_user=None):
     trusted_directory(root)
     for base, dirs, files in os.walk(root, followlinks=False):
@@ -891,7 +1013,9 @@ def validate_approval(approval, commit, checksum, ref):
 
 
 def main():
+    global TIMING_ENABLED
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--timings", action="store_true", help="Emit optional phase timings to stderr; validation is unchanged")
     sub = parser.add_subparsers(dest="mode", required=True)
     p = sub.add_parser("pack")
     p.add_argument("--source", type=Path, required=True)
@@ -955,6 +1079,7 @@ def main():
     p = sub.add_parser("platform")
     p.add_argument("--receipt", type=Path)
     args = parser.parse_args()
+    TIMING_ENABLED = args.timings
     if args.mode == "pack":
         pack(args.source, args.output, args.commit)
     elif args.mode == "extract":
@@ -1027,3 +1152,5 @@ if __name__ == "__main__":
     except (ValueError, KeyError, TypeError, OSError, tarfile.TarError, subprocess.CalledProcessError, EOFError, sqlite3.Error) as error:
         print("STOP: " + str(error), file=sys.stderr)
         sys.exit(1)
+    finally:
+        flush_timings()

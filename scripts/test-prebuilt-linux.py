@@ -389,7 +389,7 @@ class LinuxPermissions(unittest.TestCase):
 
     def case(self, case_name, body, archive=None, commit=None, checksum=None, seed=None,
              initial_import=True, previous=None, with_shared=False, allow_events=False,
-             preserve_shared=False):
+             preserve_shared=False, timings=False):
         case = self.root / case_name
         case.mkdir(mode=0o755)
         (case / "releases").mkdir(mode=0o755)
@@ -436,6 +436,9 @@ main --import-artifact "$ARCHIVE" --artifact-sha256 "$DIGEST" "$COMMIT"
 '''
         if not initial_import:
             script = script.replace('main --import-artifact "$ARCHIVE" --artifact-sha256 "$DIGEST" "$COMMIT"\n', '')
+        elif timings:
+            script = script.replace('main --import-artifact "$ARCHIVE" --artifact-sha256 "$DIGEST" "$COMMIT"\n',
+                                    'prebuilt_timing=true\nprebuilt_phase first_import main --import-artifact "$ARCHIVE" --artifact-sha256 "$DIGEST" "$COMMIT"\n', 1)
         script += body
         env = dict(os.environ, TEST_REPO=str(REPO), CASE=str(case), HELPER=str(self.helper),
                    SEED=str(seed or F.ArtifactTests.source), APP_USER=self.user, ARCHIVE=str(archive or F.ArtifactTests.archive),
@@ -444,7 +447,8 @@ main --import-artifact "$ARCHIVE" --artifact-sha256 "$DIGEST" "$COMMIT"
         shared_before = F.shared_snapshot(case)
         result = F.recorded_run(["bash", "-c", script], case_name, dict(commit=env["COMMIT"], archive_sha256=A.file_digest(env["ARCHIVE"]),
                         fixture_checkout_uid=F.ArtifactTests.source.stat().st_uid, root_uid=os.getuid(),
-                        app_uid=self.account.pw_uid, remote=env["SEED"]), script, env=env)
+                        app_uid=self.account.pw_uid, remote=env["SEED"], phase_timings=timings,
+                        timeout_scope="entire_case"), script, env=env)
         shared_after = F.shared_snapshot(case)
         with (result.evidence_path / "shared-postconditions.json").open("x") as output:
             json.dump(dict(before=shared_before, after=shared_after, equal=shared_before == shared_after,
@@ -1046,7 +1050,7 @@ class HarnessTests(unittest.TestCase):
 
 def relocated_runtime(archive, commit, sha256):
     # Real CI ELF files are tested here; no platform/native mocks.
-    with runtime_fixture_lifecycle():
+    with runtime_fixture_lifecycle(), A.timing_session():
         root = LinuxPermissions.root
         driver_identity = stage_runtime_fixture(REPO, root / "runtime-fixture", commit)
         access = runtime_access_evidence(driver_identity, LinuxPermissions.node, LinuxPermissions.user)
@@ -1059,16 +1063,18 @@ def relocated_runtime(archive, commit, sha256):
             raise ValueError("real CI checkout/app UIDs must differ")
         test = LinuxPermissions("test_real_import_repeat_git_identity_and_sealed_files")
         case = test.case("real-archive", r'''
-main --import-artifact "$ARCHIVE" --artifact-sha256 "$DIGEST" "$COMMIT"
+prebuilt_phase repeat_import main --import-artifact "$ARCHIVE" --artifact-sha256 "$DIGEST" "$COMMIT"
 test "$(readlink "$current_link")" = "$release_root/$OLD"
 test ! -e "$shared"
 test ! -e "$activation_state"
 test ! -e "$prebuilt_approvals"
-''', archive=archive, commit=commit, checksum=sha256, seed=seed)
+''', archive=archive, commit=commit, checksum=sha256, seed=seed, timings=True)
         runtime = case / "releases" / commit
-        receipt = A.load_json((case / "prebuilt" / (commit + ".json")).read_bytes())
-        if (receipt["commit"], receipt["sha256"], receipt["allowed_ref"], receipt["remote_head"]) != (commit, sha256, "refs/heads/main", commit):
-            raise ValueError("real archive receipt identity mismatch")
+        # The receipt and post-runtime checks are outside the 120-second case.
+        with A.measured_phase("post_case_receipt_identity"):
+            receipt = A.load_json((case / "prebuilt" / (commit + ".json")).read_bytes())
+            if (receipt["commit"], receipt["sha256"], receipt["allowed_ref"], receipt["remote_head"]) != (commit, sha256, "refs/heads/main", commit):
+                raise ValueError("real archive receipt identity mismatch")
         shared = case / "shared"
         shared.mkdir(mode=0o755)
         (shared / "prisma").mkdir(mode=0o755)

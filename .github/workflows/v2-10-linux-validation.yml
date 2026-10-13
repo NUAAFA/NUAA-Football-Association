@@ -64,6 +64,23 @@ jobs:
           cat /etc/os-release
           ldd --version
           node -p 'JSON.stringify(process.versions)'
+          npm --version
+          lscpu
+          systemd-detect-virt || true
+          free -b
+          df -T "$GITHUB_WORKSPACE" "$RUNNER_TEMP"
+          cat /proc/sys/kernel/core_pattern
+          ulimit -c
+          python3 - <<'PY'
+          import json, os, shutil
+          minimum = 20 * 1024 ** 3
+          for name in ("GITHUB_WORKSPACE", "RUNNER_TEMP"):
+              usage = shutil.disk_usage(os.environ[name])
+              print("NUAAFA_DISK_PREFLIGHT " + json.dumps(dict(location=name, total_bytes=usage.total,
+                    free_bytes=usage.free, required_free_bytes=minimum)), flush=True)
+              if usage.free < minimum:
+                  raise SystemExit("STOP: insufficient free space for isolated archive diagnostics")
+          PY
       - name: Install locked dependencies
         run: npm ci --include=dev --include=optional
       - name: Prisma generation, validation and synthetic migrations
@@ -122,6 +139,42 @@ jobs:
           sudo env "PATH=$PATH" "NUAAFA_TEST_EVIDENCE=$NUAAFA_TEST_EVIDENCE" python3 scripts/test-prebuilt-linux.py --archive="$RUNNER_TEMP/prebuilt-output/nuaafa-$EXPECTED_SOURCE_SHA.tar.gz" --commit="$EXPECTED_SOURCE_SHA" --sha256="$digest" | tee "$RUNNER_TEMP/prebuilt-output/runtime-validation.json"
           # Recheck the same tested bytes; optional upload never controls validation.
           (cd "$RUNNER_TEMP/prebuilt-output" && sha256sum -c ./*.sha256)
+      - name: Emit bounded real-archive phase and lifecycle diagnostics
+        if: always()
+        # Text only: do not upload archives, environment files or crash payloads.
+        run: |
+          python3 - <<'PY'
+          from datetime import datetime
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path(os.environ["RUNNER_TEMP"]) / "prebuilt-output"
+          remaining = 2 * 1024 ** 2
+          def emit(path):
+              global remaining
+              if not path.is_file() or path.is_symlink() or remaining <= 0:
+                  return
+              with path.open("rb") as stream:
+                  data = stream.read(min(remaining, 256 * 1024))
+              remaining -= len(data)
+              print("NUAAFA_DIAGNOSTIC_FILE " + json.dumps(dict(file=str(path.relative_to(root)),
+                    file_bytes=path.stat().st_size, emitted_bytes=len(data), emitted_sha256=hashlib.sha256(data).hexdigest(),
+                    truncated=len(data) < path.stat().st_size)))
+              print(data.decode("utf-8", errors="replace"))
+          cases = sorted((root / "case-logs").glob("real-archive-*/result.json"))
+          print("NUAAFA_REAL_ARCHIVE_RECORDS " + json.dumps(dict(count=len(cases), limit=16)))
+          for record in cases[:16]:
+              emit(record)
+              metadata = json.loads(record.read_text())
+              elapsed = (datetime.fromisoformat(metadata["finished_at"]) - datetime.fromisoformat(metadata["started_at"])).total_seconds()
+              print("NUAAFA_CASE_ENVELOPE " + json.dumps(dict(case=metadata["case"],
+                    elapsed_seconds=elapsed, scope="recorded_run_including_cleanup", timed_out=metadata["timed_out"])))
+              for name in ("stdout.log", "stderr.log", "shared-postconditions.json"):
+                  emit(record.parent / name)
+          emit(root / "runtime-validation.json")
+          for sidecar in sorted(root.glob("*.sha256"))[:4]:
+              emit(sidecar)
+          print("NUAAFA_DIAGNOSTIC_OUTPUT " + json.dumps(dict(byte_budget=2 * 1024 ** 2, remaining_bytes=remaining)))
+          PY
       - name: Record independent candidate digest in authenticated run summary
         if: github.event_name == 'workflow_dispatch' && inputs.prebuilt_artifact
         env:
