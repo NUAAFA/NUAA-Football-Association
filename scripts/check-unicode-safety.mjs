@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { lstatSync, readFileSync } from "node:fs";
 
 const baseRevision = process.env.UNICODE_BASE ?? "origin/main";
 const gitBinary = process.env.GIT_BINARY ?? "git";
@@ -40,6 +41,13 @@ const binaryExtensions = new Set([
 
 const decoder = new TextDecoder("utf-8", { fatal: true });
 const findings = [];
+// Only this reviewed archive is binary; any replacement needs a new review.
+const verifiedBinaryFiles = new Map([
+  [
+    "vendor/next-default-root-glob/next-default-root-glob-1.0.0.tgz",
+    "8a6127cb43588a0069625c5df5a1e1662dc642f59dc669127c324e64d41a6a19",
+  ],
+]);
 
 function formatCodePoint(codePoint) {
   return `U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}`;
@@ -55,6 +63,17 @@ function record(file, line, column, codePoint, category) {
 }
 
 for (const file of files) {
+  const expectedDigest = verifiedBinaryFiles.get(file);
+  if (expectedDigest) {
+    if (!lstatSync(file).isFile()) {
+      record(file, 0, 0, "INVALID_BINARY_FILE_TYPE", "unverified archive");
+    } else if (
+      createHash("sha256").update(readFileSync(file)).digest("hex") !== expectedDigest
+    ) {
+      record(file, 0, 0, "BINARY_SHA256_MISMATCH", "unverified archive");
+    }
+    continue;
+  }
   if (hasExtension(file, binaryExtensions)) {
     continue;
   }
