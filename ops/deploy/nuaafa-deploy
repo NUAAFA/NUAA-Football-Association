@@ -329,11 +329,14 @@ recover_activation() {
   # Any uncertain migration state must stay stopped for explicit operator recovery.
   case "$activation_phase" in
     PREPARED|SERVICE_STOPPING|SERVICE_STOPPED|MIGRATED|SWITCHING|SWITCHED)
-      if validate_recovery_release "$activation_previous" &&
+      if validate_recovery_release "$activation_previous" && verify_recovery_startup "$activation_previous" &&
          run_student_id_preflight && atomic_switch_current "$activation_previous" && restart_service && wait_for_health; then
-        record_activation_phase ROLLED_BACK || return $?
-        echo "Previous release link AND service health verified; database migrations remain forward-only." >&2
-        return 0
+        if record_activation_phase ROLLED_BACK; then
+          echo "Previous release link AND service health verified; database migrations remain forward-only." >&2
+          return 0
+        fi
+        # Healthy old runtime without a durable recovery journal is not a
+        # completed rollback. Fall through to stopped/manual recovery below.
       fi
       ;;
     HEALTHY|ROLLED_BACK) return 0 ;;
@@ -956,7 +959,12 @@ verify_prebuilt_platform() {
 }
 
 verify_prebuilt_release() {
-  local release="$1" commit="$2" receipt checksum="${3:-$artifact_sha256}" ref="${4:-$allowed_ref}"
+  local release="$1" commit="$2" receipt checksum="${3:-$artifact_sha256}" ref="${4:-$allowed_ref}" purpose="${5:-candidate}"
+  case "$purpose" in
+    candidate) ;;
+    recovery) ;;
+    *) die "invalid prebuilt verification purpose"; return 1 ;;
+  esac
   receipt="$(prebuilt_receipt "$commit")"
   verify_root_metadata "$receipt" || return $?
   validate_release_directory "$release" "$commit" || return $?
@@ -964,7 +972,9 @@ verify_prebuilt_release() {
   # A trimmed runtime intentionally omits tracked docs/ops/configuration. Its
   # contract is the commit-derived source set and the complete receipt inventory;
   # full-checkout cleanliness remains mandatory on every legacy path.
-  run_prebuilt_helper verify --release "$release" --receipt "$receipt" --sha256 "$checksum" --commit "$commit" --allowed-ref "$ref" --git-user "$deploy_user" --shared "$shared" || return $?
+  local verification_args=(verify --release "$release" --receipt "$receipt" --sha256 "$checksum" --commit "$commit" --allowed-ref "$ref" --git-user "$deploy_user" --shared "$shared")
+  if [ "$purpose" = recovery ]; then verification_args+=(--recovery); fi
+  run_prebuilt_helper "${verification_args[@]}" || return $?
   verify_build_artifact "$release" || return $?
 }
 
@@ -978,8 +988,14 @@ validate_recovery_release() (
     identity="$(run_prebuilt_helper receipt-identity --receipt "$receipt")" || return $?
     checksum="$(printf '%s\n' "$identity" | sed -n '1p')"
     ref="$(printf '%s\n' "$identity" | sed -n '2p')"
-    verify_prebuilt_release "$release" "$commit" "$checksum" "$ref" || return $?
+    verify_prebuilt_release "$release" "$commit" "$checksum" "$ref" recovery || return $?
   else
+    if [ "$operation_mode" = prebuilt ]; then
+      die "prebuilt recovery requires a sealed release with its own verified receipt; legacy transition is not automatic"
+      return 1
+    fi
+    # The separate legacy full-deploy mode retains its original service
+    # contract. It cannot be used as a prebuilt transition or bypass this gate.
     operation_mode=full
     validate_release_directory "$release" "$commit" || return $?
     validate_origin "$release" || return $?
@@ -989,6 +1005,16 @@ validate_recovery_release() (
   verify_shared_links "$release" || return $?
   run_prebuilt_helper shared-links --release "$release" --shared "$shared" --git-user "$deploy_user" || return $?
 )
+
+verify_recovery_startup() {
+  [ "$operation_mode" = prebuilt ] || return 0
+  # Execute only the root-controlled wrapper's read-only contract check as the
+  # actual app UID. No candidate startup, environment load or service mutation.
+  run_as_deploy_user env -i "$prebuilt_start" --check-release "$1" || {
+    die "previous release cannot satisfy the actual startup contract"
+    return 1
+  }
+}
 
 import_artifact() (
   # A subshell gives failed imports an unconditional cleanup, even with errexit.
@@ -1075,8 +1101,9 @@ activate_prebuilt() (
   validate_current_link || return $?
   previous="$current_release"
   [ -n "$previous" ] || { die "prebuilt activation requires an existing verified recovery release"; return 1; }
-  validate_recovery_release "$previous" || return $?
   verify_service_contract || return $?
+  validate_recovery_release "$previous" || return $?
+  verify_recovery_startup "$previous" || return $?
   if [ "$previous" = "$release" ]; then
     wait_for_health || { die "current candidate is unhealthy"; return 1; }
     echo "Already activated and healthy: $target_commit"

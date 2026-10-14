@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
-import { access, cp, mkdir, mkdtemp, readFile, rm, stat, symlink, utimes, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, mkdtemp, readFile, realpath, rm, stat, symlink, utimes, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -288,8 +288,10 @@ async function main() {
     await rejects(() => readAndVerifyCombinedBackup(corruptBackup), "Corrupted backup checksum was accepted.");
     const legacyBackupBridge = await exerciseLegacyBackupBridge(root);
 
-    const existingDatabase = path.join(root, "existing-restore.sqlite");
-    const existingUploads = path.join(root, "existing-restore-uploads");
+    const restoreTestsRoot = path.join(root, "restore-tests");
+    await mkdir(restoreTestsRoot);
+    const existingDatabase = path.join(restoreTestsRoot, "existing-restore.sqlite");
+    const existingUploads = path.join(restoreTestsRoot, "existing-restore-uploads");
     await writeFile(existingDatabase, "DO_NOT_OVERWRITE");
     await mkdir(existingUploads);
     await rejects(
@@ -297,7 +299,7 @@ async function main() {
         backupDirectory: validBackups[2],
         databasePath: existingDatabase,
         uploadRoot: existingUploads,
-        allowedTargetRoot: root,
+        allowedTargetRoot: restoreTestsRoot,
       }),
       "Restore overwrote an existing destination.",
     );
@@ -344,9 +346,9 @@ async function main() {
     await rejects(() => access(sourceOverlapDatabase), "Source-overlap restore target was written before rejection.");
     await rejects(() => access(sourceOverlapUploads), "Source-overlap upload target was written before rejection.");
 
-    const restoreSymlinkReal = path.join(root, "restore-symlink-real");
-    const restoreSymlinkTarget = path.join(root, "restore-symlink-target");
-    const restoreSymlinkDatabase = path.join(root, "restore-symlink-database.sqlite");
+    const restoreSymlinkReal = path.join(restoreTestsRoot, "restore-symlink-real");
+    const restoreSymlinkTarget = path.join(restoreTestsRoot, "restore-symlink-target");
+    const restoreSymlinkDatabase = path.join(restoreTestsRoot, "restore-symlink-database.sqlite");
     await mkdir(restoreSymlinkReal);
     await symlink(restoreSymlinkReal, restoreSymlinkTarget, process.platform === "win32" ? "junction" : "dir");
     await rejects(
@@ -354,20 +356,20 @@ async function main() {
         backupDirectory: validBackups[2],
         databasePath: restoreSymlinkDatabase,
         uploadRoot: restoreSymlinkTarget,
-        allowedTargetRoot: root,
+        allowedTargetRoot: restoreTestsRoot,
       }),
       "Restore accepted an existing symlink destination.",
     );
     await rejects(() => access(restoreSymlinkDatabase), "Restore wrote its database before rejecting a symlink destination.");
 
-    const corruptStagedDatabase = path.join(root, "corrupt-staged-restore.sqlite");
-    const corruptStagedUploads = path.join(root, "corrupt-staged-restore-uploads");
+    const corruptStagedDatabase = path.join(restoreTestsRoot, "corrupt-staged-restore.sqlite");
+    const corruptStagedUploads = path.join(restoreTestsRoot, "corrupt-staged-restore-uploads");
     await rejects(
       () => restoreCombinedBackup({
         backupDirectory: validBackups[2],
         databasePath: corruptStagedDatabase,
         uploadRoot: corruptStagedUploads,
-        allowedTargetRoot: root,
+        allowedTargetRoot: restoreTestsRoot,
         onPhase: async (phase, staging) => {
           if (phase !== "uploads-copy-complete") return;
           const stagedUpload = path.join(staging.uploadRoot, ...validKey.split("/"));
@@ -539,7 +541,7 @@ async function entry() {
     return;
   }
   const databasePath = path.resolve("prisma", `r1-3c-ops-${randomUUID()}.db`);
-  const root = await mkdtemp(path.join(os.tmpdir(), "nuaafa-r1-3c-ops-"));
+  const root = await realpath(await mkdtemp(path.join(os.tmpdir(), "nuaafa-r1-3c-ops-")));
   const prismaRoot = `${path.resolve("prisma")}${path.sep}`;
   if (!databasePath.startsWith(prismaRoot)) throw new Error("R1-3C ops database escaped the workspace prisma directory.");
   const code = await new Promise<number>((resolve, reject) => {

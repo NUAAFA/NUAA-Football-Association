@@ -31,13 +31,17 @@ def trusted(path, owners=TRUSTED_UIDS):
 
 
 def main():
+    # Same checks for activation/recovery preflight and actual startup. Preflight
+    # never executes Node, loads application configuration or switches current.
+    check_only = len(sys.argv) == 3 and sys.argv[1] == "--check-release"
+    require(len(sys.argv) == 1 or check_only, "invalid startup contract arguments")
     require(os.geteuid() == pwd.getpwnam(APP_USER).pw_uid, "startup application identity differs")
     current, releases, shared = Path(CURRENT), Path(RELEASES), Path(SHARED)
     trusted(current.parent); trusted(releases); trusted(shared)
     require(current.is_symlink(), "startup current must be a direct release link")
-    release = Path(os.readlink(current))
+    release = Path(sys.argv[2]) if check_only else Path(os.readlink(current))
     require(release.parent == releases and re.fullmatch(r"[0-9a-f]{40}", release.name) and
-            current.resolve(strict=True) == release, "startup current target differs")
+            (check_only or current.resolve(strict=True) == release), "startup current target differs")
     trusted(release)
     require({p.name for p in release.iterdir() if p.name.startswith(".env")} == {".env.production"}, "unexpected startup environment source")
     for name in (".env.production", "prisma/dev.db"):
@@ -62,6 +66,8 @@ def main():
     node = Path(NODE).resolve(strict=True)
     trusted(node)
     require(subprocess.check_output([str(node), "--version"], env={}, timeout=10).strip() == b"v22.23.2", "startup Node version differs")
+    if check_only:
+        return
     os.chdir(release)
     os.execve(str(node), ["node", str(cli), "start", "--hostname", "127.0.0.1", "--port", PORT],
               {"PATH": "/usr/bin:/bin", "NODE_ENV": "production", "NEXT_TELEMETRY_DISABLED": "1"})

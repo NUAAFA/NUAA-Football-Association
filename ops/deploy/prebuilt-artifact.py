@@ -27,6 +27,7 @@ VERSIONS = {"node": "22.23.2", "next": "16.3.8", "prisma": "7.9.1"}
 SOURCE_ROOTS = {"src", "scripts", "prisma", "public"}
 SOURCE_FILES = {".gitignore", "package.json", "package-lock.json", "next.config.ts", "prisma.config.ts", "tsconfig.json"}
 REQUIRED = SOURCE_FILES | {
+    "src/lib/restore-target.py",
     "prisma/schema.prisma", "src/generated/prisma-v29/index.js",
     "node_modules/next/package.json", "node_modules/next/dist/bin/next",
     "node_modules/prisma/package.json", "node_modules/prisma/build/index.js",
@@ -34,6 +35,10 @@ REQUIRED = SOURCE_FILES | {
     ".next/BUILD_ID", ".next/required-server-files.json", ".next/routes-manifest.json",
     ".next/prerender-manifest.json", ".next/server/app/api/health/route.js",
 }
+# Historical sealed receipts retain their exact commit-derived source set.
+# Only the trusted previous-release verification path uses this base inventory;
+# pack/extract/materialize and ordinary candidate verification remain strict.
+RECOVERY_REQUIRED = REQUIRED - {"src/lib/restore-target.py"}
 MAX_FILES = 100000
 MAX_BYTES = 3 * 1024 ** 3
 MAX_FILE = 512 * 1024 ** 2
@@ -575,8 +580,9 @@ def pack(root, output, commit):
         raise
 
 
-def validate_entries(entries):
-    require(isinstance(entries, dict) and REQUIRED <= entries.keys() and len(entries) <= MAX_FILES, "missing required file or too many entries")
+def validate_entries(entries, *, recovery=False):
+    required = RECOVERY_REQUIRED if recovery else REQUIRED
+    require(isinstance(entries, dict) and required <= entries.keys() and len(entries) <= MAX_FILES, "missing required file or too many entries")
     total = 0
     for name, entry in entries.items():
         safe_path(name)
@@ -599,12 +605,12 @@ def validate_entries(entries):
     require(total <= MAX_BYTES, "artifact exceeds unpacked size limit")
 
 
-def validate_manifest(m, commit):
+def validate_manifest(m, commit, *, recovery=False):
     require(set(m) == {"format", "repository", "commit", "runtime", "versions", "platform", "lock_sha256", "sources", "native_files", "release_allowed", "files"}, "invalid manifest shape")
     require(type(m["format"]) is int and m["format"] == FORMAT and m["repository"] == REPOSITORY and m["commit"] == commit and
             m["runtime"] == "next-start" and m["versions"] == VERSIONS and m["release_allowed"] is False, "manifest identity mismatch or release claim")
     validate_platform(m["platform"])
-    validate_entries(m["files"])
+    validate_entries(m["files"], recovery=recovery)
     require(m["lock_sha256"] == m["files"]["package-lock.json"]["sha256"], "lockfile digest mismatch")
     require(isinstance(m["sources"], list) and len(set(m["sources"])) == len(m["sources"]) and
             all(p in m["files"] for p in m["sources"]), "invalid source inventory")
@@ -744,8 +750,8 @@ def verify_source_blobs(root, m, commit):
 
 
 @measured("final_tree_verification")
-def verify_tree(root, m, commit):
-    validate_manifest(m, commit)
+def verify_tree(root, m, commit, *, recovery=False):
+    validate_manifest(m, commit, recovery=recovery)
     validate_installed(root, load_json((root / "package-lock.json").read_bytes()))
     require(git(root, "rev-parse", "HEAD").decode().strip() == commit, "trusted checkout SHA mismatch")
     require(source_paths(root) == sorted(m["sources"]), "trusted source inventory mismatch")
@@ -1047,6 +1053,7 @@ def main():
     p.add_argument("--sha256", required=True)
     p.add_argument("--commit", required=True)
     p.add_argument("--allowed-ref", required=True)
+    p.add_argument("--recovery", action="store_true", help="Verify an existing previous sealed receipt against its own exact source history")
     p = sub.add_parser("receipt-identity")
     p.add_argument("--receipt", type=Path, required=True)
     p = sub.add_parser("shared-links")
@@ -1110,7 +1117,10 @@ def main():
         exact_sha(receipt["remote_head"])
         git(args.release, "cat-file", "-e", receipt["remote_head"] + "^{commit}")
         git(args.release, "merge-base", "--is-ancestor", args.commit, receipt["remote_head"])
-        verify_tree(args.release, receipt["manifest"], args.commit)
+        # Mode is selected by the root-controlled deployer call site, never by
+        # a manifest version/claim. Exact Git source inventory/blob verification
+        # still rejects omission of a helper tracked by this release's commit.
+        verify_tree(args.release, receipt["manifest"], args.commit, recovery=args.recovery)
     elif args.mode == "approve":
         trusted_file(args.approval)
         approval = load_json(args.approval.read_bytes())

@@ -93,10 +93,34 @@ class StartupTests(unittest.TestCase):
 
     def tearDown(self): self.temp.cleanup()
 
-    def launch(self):
-        command = [sys.executable, "-I", str(self.wrapper)]
+    def launch(self, *arguments):
+        command = [sys.executable, "-I", str(self.wrapper), *arguments]
         if os.getuid() == 0: command = [self.runuser, "-u", self.user, "--", *command]
         return subprocess.run(command, cwd="/", env={"PATH": "/usr/bin:/bin", "NODE_OPTIONS": "--require=/must-not-load", "DATABASE_URL": "file:/must-not-open", "PYTHONPATH": "/must-not-import", "NODE_ENV": "development"}, capture_output=True, text=True, timeout=20)
+
+    def test_check_release_is_read_only_and_does_not_execute_entry(self):
+        before = (os.readlink(self.current), (self.shared / "prisma/dev.db").read_bytes(),
+                  (self.shared / ".env.production").read_bytes())
+        result = self.launch("--check-release", str(self.release))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "")  # Synthetic Next entry would print exec metadata.
+        self.assertEqual(before, (os.readlink(self.current), (self.shared / "prisma/dev.db").read_bytes(),
+                                  (self.shared / ".env.production").read_bytes()))
+
+    def test_check_release_uses_same_version_and_metadata_guards(self):
+        self.version.write_text("v22.23.3")
+        result = self.launch("--check-release", str(self.release))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("startup Node version differs", result.stderr)
+        self.assertEqual(result.stdout, "")
+
+    @unittest.skipUnless(sys.platform == "linux" and os.getuid() == 0, "real Linux root/app UID required")
+    def test_check_release_rejects_application_owned_legacy(self):
+        os.chown(self.release, self.account.pw_uid, self.account.pw_gid)
+        result = self.launch("--check-release", str(self.release))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("startup metadata is not root controlled", result.stderr)
+        self.assertEqual(result.stdout, "")
 
     def test_clean_exec_environment_cwd_and_identity(self):
         result = self.launch()

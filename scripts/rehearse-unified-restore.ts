@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -25,6 +25,11 @@ function childExited(child: ChildProcess) {
 }
 
 async function run(command: string, args: string[], env: NodeJS.ProcessEnv) {
+  diagnostic("migration_process_start", {
+    command, args, cwd: process.cwd(), syntheticDatabaseUrl: env.DATABASE_URL,
+    environment: Object.fromEntries(["NODE_ENV", "NODE_OPTIONS", "RUST_LOG", "JITI_FS_CACHE", "PATH", "TMPDIR"]
+      .map((key) => [key, env[key] ?? null])),
+  });
   const code = await new Promise<number>((resolve, reject) => {
     const child = spawn(command, args, { cwd: process.cwd(), env, stdio: "inherit" });
     child.once("error", reject);
@@ -321,11 +326,16 @@ async function entry() {
     await main();
     return;
   }
-  const root = await mkdtemp(path.join(os.tmpdir(), "nuaafa-r1-3c-restore-"));
+  const root = await realpath(await mkdtemp(path.join(os.tmpdir(), "nuaafa-r1-3c-restore-")));
   const sourceDatabase = path.resolve("prisma", `r1-3c-restore-${randomUUID()}.db`);
   const prismaRoot = `${path.resolve("prisma")}${path.sep}`;
   if (!sourceDatabase.startsWith(prismaRoot)) throw new Error("R1-3C restore database escaped the workspace prisma directory.");
   const code = await new Promise<number>((resolve, reject) => {
+    diagnostic("restore_worker_start", {
+      command: process.execPath,
+      args: [path.resolve("node_modules/tsx/dist/cli.mjs"), path.resolve("scripts/rehearse-unified-restore.ts")],
+      cwd: process.cwd(), syntheticDatabasePath: sourceDatabase,
+    });
     const child = spawn(process.execPath, [path.resolve("node_modules/tsx/dist/cli.mjs"), path.resolve("scripts/rehearse-unified-restore.ts")], {
       cwd: process.cwd(),
       env: {

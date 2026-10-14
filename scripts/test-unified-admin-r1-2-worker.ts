@@ -1,4 +1,4 @@
-import { cp, mkdir, readFile, readdir, rm, utimes, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, realpath, rm, utimes, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { createClient } from "@libsql/client";
@@ -40,10 +40,11 @@ function contentInput(slug: string, options: { pinned?: boolean; featured?: bool
 }
 
 async function main() {
-  const root = process.env.R1_2_TEST_ROOT;
+  const suppliedRoot = process.env.R1_2_TEST_ROOT;
   const databasePath = process.env.R1_2_TEST_DATABASE_PATH;
   const uploadRoot = process.env.NUAAFA_UPLOAD_DIR;
-  if (!root || !databasePath || !uploadRoot) throw new Error("R1-2 isolated paths are required.");
+  if (!suppliedRoot || !databasePath || !uploadRoot) throw new Error("R1-2 isolated paths are required.");
+  const root = await realpath(suppliedRoot);
   const url = `file:${databasePath.replaceAll("\\", "/")}`;
   process.env.DATABASE_URL = url;
   process.env.REFEREE_ADMIN_SESSION_SECRET = "r1-2-test-session-secret-2026-08-23";
@@ -216,13 +217,13 @@ async function main() {
     await writeFile(restoredDatabasePath, "destroy-me");
     await writeFile(path.join(restoredUploadRoot, "destroy-me.txt"), "destroy-me");
     await rejects(
-      () => backup.restoreCombinedBackup({ backupDirectory: backupRoot, databasePath: restoredDatabasePath, uploadRoot: restoredUploadRoot, allowedTargetRoot: root }),
+      () => backup.restoreCombinedBackup({ backupDirectory: backupRoot, databasePath: restoredDatabasePath, uploadRoot: restoredUploadRoot, allowedTargetRoot: path.join(root, "restored") }),
       "Combined restore overwrote an existing destination.",
     );
     assert((await readFile(restoredDatabasePath, "utf8")) === "destroy-me", "Restore modified an existing destination before rejection.");
     await rm(restoredDatabasePath, { force: true });
     await rm(restoredUploadRoot, { recursive: true, force: true });
-    const restored = await backup.restoreCombinedBackup({ backupDirectory: backupRoot, databasePath: restoredDatabasePath, uploadRoot: restoredUploadRoot, allowedTargetRoot: root });
+    const restored = await backup.restoreCombinedBackup({ backupDirectory: backupRoot, databasePath: restoredDatabasePath, uploadRoot: restoredUploadRoot, allowedTargetRoot: path.join(root, "restored") });
     assert(restored.integrityCheck === "ok" && restored.foreignKeyViolations === 0 && restored.mediaAssetCount === backupManifest.uploads.mediaAssetCount, "Combined backup restore rehearsal failed.");
     const restoredClient = createClient({ url: `file:${restoredDatabasePath.replaceAll("\\", "/")}` });
     const health = await restoredClient.execute("SELECT COUNT(*) AS count FROM ContentPost");

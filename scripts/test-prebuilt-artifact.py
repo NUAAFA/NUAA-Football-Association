@@ -449,11 +449,15 @@ class ArtifactTests(unittest.TestCase):
         run("git", "-C", str(cls.source), "add", ".")
         run("git", "-C", str(cls.source), "commit", "-m", "synthetic old release")
         cls.old = run("git", "-C", str(cls.source), "rev-parse", "HEAD")
+        # The historical commits genuinely predate this source member.
+        helper_source = cls.source / "src/lib/restore-target.py"
+        helper_source.parent.mkdir(parents=True, exist_ok=True)
+        helper_source.write_text("synthetic-runtime\n")
         (cls.source / "src/synthetic.ts").write_text("synthetic candidate\n")
         run("git", "-C", str(cls.source), "add", ".")
         run("git", "-C", str(cls.source), "commit", "-m", "synthetic candidate")
         cls.commit = run("git", "-C", str(cls.source), "rev-parse", "HEAD")
-        for name in A.REQUIRED - A.SOURCE_FILES - {"prisma/schema.prisma", "node_modules/.bin/tsx", "node_modules/.bin/prisma"}:
+        for name in A.REQUIRED - A.SOURCE_FILES - {"src/lib/restore-target.py", "prisma/schema.prisma", "node_modules/.bin/tsx", "node_modules/.bin/prisma"}:
             p = cls.source / name
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text("synthetic-runtime\n")
@@ -481,9 +485,16 @@ class ArtifactTests(unittest.TestCase):
         for directory in ("node_modules", ".next", "src/generated/prisma-v29"):
             shutil.copytree(cls.source / directory, old_source / directory, symlinks=True)
         cls.old_archive = cls.root / "old-valid.tar.gz"
-        with patch.object(A, "platform_info", return_value=PLATFORM), contextlib.redirect_stdout(io.StringIO()):
+        # Bootstrap the prior certified fixture with its historical inventory.
+        # CURRENT verification is not patched during validate_recovery_release.
+        cls.historical_helper = cls.root / "historical-prebuilt-artifact.py"
+        historical_source = (REPO / "ops/deploy/prebuilt-artifact.py").read_text()
+        assert historical_source.count('    "src/lib/restore-target.py",\n') == 1
+        cls.historical_helper.write_text(historical_source.replace('    "src/lib/restore-target.py",\n', '', 1))
+        with patch.object(A, "REQUIRED", A.RECOVERY_REQUIRED), patch.object(A, "platform_info", return_value=PLATFORM), contextlib.redirect_stdout(io.StringIO()):
             A.pack(old_source, cls.old_archive, cls.old)
         cls.old_checksum = A.file_digest(cls.old_archive)
+        assert not (old_source / "src/lib/restore-target.py").exists()
 
     @classmethod
     def tearDownClass(cls):
@@ -822,6 +833,7 @@ require_root() { :; }; prepare_process() { umask 077; }; acquire_lock() { :; }
 run_as_deploy_user() { "$@"; }; set_link_owner() { :; }; set_file_owner() { :; }
 set_release_tree_owner() { :; }; verify_release_owner() { :; }; verify_root_metadata() { :; }
 verify_prebuilt_platform() { :; }; verify_service_contract() { :; }
+verify_recovery_startup() { :; }  # State-machine simulation, NOT real wrapper/UID proof.
 atomic_replace_path() { "$student_id_preflight_node" -e 'require("fs").renameSync(process.argv[1],process.argv[2])' "$1" "$2"; }
 run_prebuilt_helper() {
   # Same-user simulation: only root metadata and Linux runuser are substituted.
@@ -1034,8 +1046,8 @@ test ! -e "$CASE/events"
 
     def test_trimmed_previous_recovery_uses_its_own_receipt(self):
         approval = dict(format=1, commit=self.commit, artifact_sha256=self.checksum, allowed_ref="refs/heads/main", security_gate="PASS", linux_artifact_validation="PASS", human_review="APPROVED")
-        extra = 'rm -rf "$release_root/$OLD"\nmain --import-artifact ' + str(self.old_archive) + ' --artifact-sha256 ' + self.old_checksum + ' "$OLD"\n'
-        extra += 'ensure_shared_links "$release_root/$OLD"\nmkdir "$prebuilt_approvals"\ncat >"$prebuilt_approvals/$COMMIT.json" <<\'JSON\'\n' + json.dumps(approval) + '\nJSON\n'
+        extra = self.sealed_previous_setup()
+        extra += 'mkdir "$prebuilt_approvals"\ncat >"$prebuilt_approvals/$COMMIT.json" <<\'JSON\'\n' + json.dumps(approval) + '\nJSON\n'
         extra += r'''
 wait_for_health() { echo health >> "$CASE/events"; test "$(readlink "$current_link")" = "$release_root/$OLD"; }
 expect_fail --activate-prebuilt --artifact-sha256 "$DIGEST" "$COMMIT"
@@ -1094,7 +1106,7 @@ cmp "$CASE/events" "$CASE/events-B"
                            ("source", "source-missing", "build", "shared-link", "shared-mode", "migration", "origin", "healthy")):
             with self.subTest(mode=mode, kind=kind):
                 extra = (self.legacy_setup() if mode == "full" else
-                         'mkdir "$prebuilt_approvals"\ncat >"$prebuilt_approvals/$COMMIT.json" <<\'JSON\'\n' + json.dumps(approval) + '\nJSON\n')
+                         self.sealed_previous_setup() + 'mkdir "$prebuilt_approvals"\ncat >"$prebuilt_approvals/$COMMIT.json" <<\'JSON\'\n' + json.dumps(approval) + '\nJSON\n')
                 changes = {
                     "source": 'printf tamper >> "$release_root/$OLD/src/synthetic.ts"',
                     "source-missing": 'rm "$release_root/$OLD/src/synthetic.ts"',
@@ -1184,6 +1196,76 @@ test ! -e "$CASE/events"
 ''')
         self.assertEqual((case / "current").resolve().name, self.old)
 
+    def sealed_previous_setup(self):
+        return ('rm -rf "$release_root/$OLD"\nfixture_current_helper="$prebuilt_helper"\nprebuilt_helper=' + str(self.historical_helper) +
+                '\nmain --import-artifact ' + str(self.old_archive) + ' --artifact-sha256 ' + self.old_checksum +
+                ' "$OLD"\nprebuilt_helper="$fixture_current_helper"\nensure_shared_links "$release_root/$OLD"\n')
+
+    def test_historical_sealed_own_chain_and_candidate_helper_requirement(self):
+        self.deploy_case("historical-sealed-own-chain", self.sealed_previous_setup() + r'''
+operation_mode=prebuilt
+test ! -e "$release_root/$OLD/src/lib/restore-target.py"
+validate_recovery_release "$release_root/$OLD"
+test "$(readlink "$current_link")" = "$release_root/$OLD"
+test ! -e "$CASE/events"
+test ! -e "$activation_state"
+''')
+        with self.assertRaisesRegex(ValueError, "missing required file"):
+            A.read_archive(self.old_archive, self.old_checksum, self.old)
+        self.reject_mutation(lambda m, d: None if m.name == "src/lib/restore-target.py" else (m, d))
+        forged = copy.deepcopy(self.manifest)
+        forged["format"] = 0
+        with self.assertRaisesRegex(ValueError, "manifest identity"):
+            A.validate_manifest(forged, self.commit)
+
+    def test_historical_recovery_receipt_and_current_source_omission_rejected(self):
+        for kind in ("receipt-commit", "receipt-digest", "receipt-ref", "current-source-omission"):
+            extra = self.sealed_previous_setup()
+            if kind == "current-source-omission":
+                extra += r'''
+old_receipt="$prebuilt_state/$COMMIT.json"
+rm "$release_root/$COMMIT/src/lib/restore-target.py"
+'''
+            else:
+                extra += 'old_receipt="$prebuilt_state/$OLD.json"\n'
+            extra += '"$prebuilt_python" - "$old_receipt" ' + kind + r''' <<'PY'
+import json,sys
+from pathlib import Path
+p=Path(sys.argv[1]);r=json.loads(p.read_text())
+if sys.argv[2]=='receipt-commit':r['commit']='f'*40
+elif sys.argv[2]=='receipt-digest':r['sha256']='not-a-sha'
+elif sys.argv[2]=='receipt-ref':r['allowed_ref']='unsafe-ref'
+else:
+ r['manifest']['sources'].remove('src/lib/restore-target.py')
+ del r['manifest']['files']['src/lib/restore-target.py']
+p.write_text(json.dumps(r))
+PY
+operation_mode=prebuilt
+set +e
+validate_recovery_release "$release_root/''' + ("$COMMIT" if kind == "current-source-omission" else "$OLD") + r'''"
+status=$?
+set -e
+test "$status" -ne 0
+test "$(readlink "$current_link")" = "$release_root/$OLD"
+test ! -e "$CASE/events"
+test ! -e "$activation_state"
+'''
+            self.deploy_case("historical-recovery-reject-" + kind, extra)
+
+    def test_prebuilt_legacy_and_startup_incompatibility_rejected_before_mutation(self):
+        for kind in ("legacy", "startup"):
+            approval = dict(format=1, commit=self.commit, artifact_sha256=self.checksum,
+                            allowed_ref="refs/heads/main", security_gate="PASS",
+                            linux_artifact_validation="PASS", human_review="APPROVED")
+            extra = self.sealed_previous_setup() if kind == "startup" else ""
+            extra += 'mkdir "$prebuilt_approvals"\ncat >"$prebuilt_approvals/$COMMIT.json" <<\'JSON\'\n' + json.dumps(approval) + '\nJSON\n'
+            if kind == "startup":
+                extra += 'verify_recovery_startup() { return 7; }\n'
+            extra += ('expect_fail --activate-prebuilt --artifact-sha256 "$DIGEST" "$COMMIT"\n'
+                      'test "$(readlink "$current_link")" = "$release_root/$OLD"\n'
+                      'test ! -e "$CASE/events"\ntest ! -e "$activation_state"\n')
+            self.deploy_case("recovery-preflight-" + kind, extra)
+
     def test_deployer_approved_activation_and_rollback(self):
         for kind in ("success", "restart", "health", "identity", "approval-fail"):
             with self.subTest(kind=kind):
@@ -1203,6 +1285,7 @@ test ! -e "$CASE/events"
                 else:
                     extra += 'expect_fail --activate-prebuilt --artifact-sha256 "$DIGEST" "$COMMIT"\ntest "$(readlink "$current_link")" = "$release_root/$OLD"\n'
                 extra += restore
+                extra = self.sealed_previous_setup() + extra
                 case = self.deploy_case("activation-" + kind, extra, changed_fixture=kind == "identity")
                 if kind in ("identity", "approval-fail"):
                     self.assertFalse((case / "events").exists())
@@ -1214,16 +1297,19 @@ test ! -e "$CASE/events"
                     self.assertEqual(events[3:5], ["restart", "health"] if kind == "success" else (["restart", "restart"] if kind == "restart" else ["restart", "health"]))
 
     def test_recovery_final_state_and_failure_matrix(self):
-        for kind in ("new-restart", "new-health", "old-restart", "old-health", "old-link", "migration", "backup", "stop", "interrupt", "ordinary-error"):
+        for kind in ("new-restart", "new-health", "old-restart", "old-health", "old-link", "migration", "backup", "stop", "interrupt", "ordinary-error", "rollback-journal"):
             with self.subTest(kind=kind):
                 approval = dict(format=1, commit=self.commit, artifact_sha256=self.checksum, allowed_ref="refs/heads/main", security_gate="PASS", linux_artifact_validation="PASS", human_review="APPROVED")
                 extra = 'mkdir "$prebuilt_approvals"\ncat >"$prebuilt_approvals/$COMMIT.json" <<\'JSON\'\n' + json.dumps(approval) + '\nJSON\n'
                 if kind in ("new-restart", "old-restart"):
                     extra += 'restart_service() { echo restart >>"$CASE/events"; '
                     extra += 'test "$(basename "$(readlink "$current_link")")" = "$OLD"; }\n' if kind == "new-restart" else 'return 1; }\n'
-                if kind in ("new-health", "old-health", "old-link"):
+                if kind in ("new-health", "old-health", "old-link", "rollback-journal"):
                     extra += 'wait_for_health() { echo health >>"$CASE/events"; '
-                    extra += 'test "$(basename "$(readlink "$current_link")")" = "$OLD"; }\n' if kind in ("new-health", "old-link") else 'return 1; }\n'
+                    extra += 'test "$(basename "$(readlink "$current_link")")" = "$OLD"; }\n' if kind in ("new-health", "old-link", "rollback-journal") else 'return 1; }\n'
+                if kind == "rollback-journal":
+                    extra += 'eval "$(declare -f record_activation_phase | sed \'1s/record_activation_phase/original_record_activation_phase/\')"\n'
+                    extra += 'record_activation_phase() { [ "$1" != ROLLED_BACK ] || return 7; original_record_activation_phase "$1"; }\n'
                 if kind == "old-link":
                     extra += 'atomic_replace_path() { if [ "$2" = "$current_link" ] && [ "$(readlink "$1")" = "$release_root/$OLD" ]; then return 7; fi; "$student_id_preflight_node" -e \'require("fs").renameSync(process.argv[1],process.argv[2])\' "$1" "$2"; }\n'
                 if kind == "migration": extra += 'run_migration() { echo migrate >>"$CASE/events"; return 7; }\n'
@@ -1239,7 +1325,7 @@ test ! -e "$CASE/events"
                     extra += 'test "$(readlink "$current_link")" = "$release_root/$OLD"\n'
                 if kind not in ("backup", "new-restart", "new-health", "stop"):
                     extra += 'expect_fail --activate-prebuilt --artifact-sha256 "$DIGEST" "$COMMIT"\n'
-                case = self.deploy_case("recovery-final-" + kind, extra)
+                case = self.deploy_case("recovery-final-" + kind, self.sealed_previous_setup() + extra)
                 events = (case / "events").read_text().splitlines()
                 self.assertLessEqual(events.count("migrate"), 1)
                 if kind in ("new-restart", "new-health", "stop"):
