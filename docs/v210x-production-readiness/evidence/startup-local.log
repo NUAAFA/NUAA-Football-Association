@@ -1,0 +1,17 @@
+test_absolute_runuser_survives_minimal_path (__main__.CommandResolutionTests) ... fixture metadata: {"command": "runuser", "executable": true, "resolved": "/usr/sbin/runuser"}
+ok
+test_missing_unsafe_and_nonexecutable_runuser_are_rejected (__main__.CommandResolutionTests) ... ok
+test_root_launch_uses_absolute_command_and_poisoned_minimal_environment (__main__.CommandResolutionTests) ... ok
+test_check_release_is_read_only_and_does_not_execute_entry (__main__.StartupTests) ... ok
+test_check_release_rejects_application_owned_legacy (__main__.StartupTests) ... skipped 'real Linux root/app UID required'
+test_check_release_uses_same_version_and_metadata_guards (__main__.StartupTests) ... ok
+test_clean_exec_environment_cwd_and_identity (__main__.StartupTests) ... ok
+test_extra_environment_file_refused_before_exec (__main__.StartupTests) ... ok
+test_shared_configuration_target_and_mode_refused (__main__.StartupTests) ... ok
+test_wrong_application_identity_refused (__main__.StartupTests) ... ok
+test_wrong_node_version_refused_before_start (__main__.StartupTests) ... ok
+
+----------------------------------------------------------------------
+Ran 11 tests in 3.794s
+
+OK (skipped=1)

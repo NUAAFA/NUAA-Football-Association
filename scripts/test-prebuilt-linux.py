@@ -408,7 +408,7 @@ class LinuxPermissions(unittest.TestCase):
             os.chown(envfile, 0, self.account.pw_gid)
             database = case / "shared/prisma/dev.db"
             with sqlite3.connect(database) as db:
-                db.executescript("CREATE TABLE Referee (status TEXT, studentId TEXT); INSERT INTO Referee VALUES ('ACTIVE','SYNTHETIC001'); CREATE TABLE _prisma_migrations (migration_name TEXT, checksum TEXT, started_at INTEGER, finished_at TEXT, rolled_back_at TEXT);")
+                F.initialize_legacy_database(db, F.ArtifactTests.source)
                 for i, (migration_name, digest) in enumerate(A.migration_inventory(F.ArtifactTests.source).items()):
                     db.execute("INSERT INTO _prisma_migrations VALUES (?,?,?,'synthetic',NULL)", (migration_name, digest, i))
             database.chmod(0o600); os.chown(database, self.account.pw_uid, self.account.pw_gid)

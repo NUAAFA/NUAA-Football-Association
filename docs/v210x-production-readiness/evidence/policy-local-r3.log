@@ -1,0 +1,21 @@
+test_actual_database_changes_or_private_new_schema_block_old (__main__.Readiness) ... ok
+test_exact17_forward18_and_repeat (__main__.Readiness) ... ok
+test_incomplete_failed_rolled_altered_reordered_unknown_history (__main__.Readiness) ... ok
+test_old_sql_new_sql_schema_unknown_or_missing_rejected (__main__.Readiness) ... ok
+test_partial_and_unknown_structure_rejected (__main__.Readiness) ... ok
+test_real_bash_failure_matrix (__main__.Readiness) ... ok
+test_real_prisma_through_deployer_and_preserved_logs (__main__.Readiness) ... FAIL
+
+======================================================================
+FAIL: test_real_prisma_through_deployer_and_preserved_logs (__main__.Readiness)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-production-readiness.py", line 84, in test_real_prisma_through_deployer_and_preserved_logs
+    r=subprocess.run(['/bin/bash','-c',script],env=env,capture_output=True,text=True,timeout=60);self.assertEqual(r.returncode,0,r.stdout+r.stderr);A.migration_ready(self.new,self.old,database,True)
+AssertionError: 1 != 0 : mktemp: mkstemp failed on /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-readiness-fictional-6xyrhf9p/real-prisma/activation.json.migration.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.XXXXXXXX.log: File exists
+
+
+----------------------------------------------------------------------
+Ran 7 tests in 3.370s
+
+FAILED (failures=1)

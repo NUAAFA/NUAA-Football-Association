@@ -1,0 +1,6 @@
+{
+  "helper": "704bf0af original unchanged helper",
+  "candidate": "62d42eaaf1d37b164696565c90f871ff4c502680",
+  "observed": "expected exactly 17 immutable migrations",
+  "status": "REPRODUCED"
+}

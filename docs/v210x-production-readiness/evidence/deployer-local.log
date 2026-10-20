@@ -1,0 +1,181 @@
+
+> nuaa-football-association@0.1.0 test:deployer
+> node scripts/test-deployer.mjs
+
+[deployer-test] canonical deployer bash -n
+[deployer-test] isolated harness bash -n
+[deployer-test] isolated A-V deployer matrix
+To /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/remote.git
+ * [new branch]      main -> main
+To /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/remote.git
+   bddf28f..b150a05  main -> main
+(node:57964) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/stage-success/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+(node:58163) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/invalid-sha/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+(node:58178) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/unreachable/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+(node:58217) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/unsafe-release-link/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+(node:58240) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/traversal/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+(node:58255) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/dirty-release/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/dirty-release/releases/b150a058ff2e35df54a55b4699104e1d69d0d2eb'...
+done.
+HEAD is now at b150a05 reviewed release
+(node:58293) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/unsafe-env-entry/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+(node:58455) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/unsafe-db-entry/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+(node:58619) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/activate/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+(node:58851) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/missing-stage/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/missing-stage/releases/b150a058ff2e35df54a55b4699104e1d69d0d2eb'...
+done.
+HEAD is now at b150a05 reviewed release
+(node:58893) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/unsafe-current/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+(node:59068) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/unsafe-temp-current/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+(node:59282) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/repeat-activation/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+(node:59565) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/stage-dry-run/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+(node:59604) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/activate-dry-run/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+(node:59791) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/full-dry-run/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+(node:59832) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/full-deploy/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+(node:60061) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/student-id-blocked-full/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+(node:60066) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:60147) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/student-id-blocked-activate/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+(node:60267) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:60340) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/student-id-unverifiable/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+(node:60423) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/student-id-guard-missing/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+(node:60503) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/student-id-report-empty/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+(node:60588) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/student-id-report-incomplete/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+(node:60673) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/student-id-report-inconsistent/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+(node:60758) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/restart-failure/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+(node:60980) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/health-failure/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+(node:61202) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz/cli-rejection/releases/bddf28f8976743e379192b11ba4a1033161f1b45'...
+done.
+HEAD is now at bddf28f old release
+{
+  "stageOnlyExactAllowedSha": true,
+  "stageOnlyCurrentUnchanged": true,
+  "stageOnlyServiceUntouched": true,
+  "stageOnlyMigrationNotInvoked": true,
+  "stageOnlyEnvironmentUnchanged": true,
+  "invalidShaRejected": true,
+  "unreachableCommitRejected": true,
+  "unsafeReleaseSymlinkRejected": true,
+  "releaseTraversalRejected": true,
+  "validStageReused": true,
+  "dirtyConflictingReleaseRejected": true,
+  "unexpectedEnvironmentEntryRejected": true,
+  "unexpectedDatabaseEntryRejected": true,
+  "activateStagedSucceeded": true,
+  "activateOnlySwitchedCurrent": true,
+  "activateDidNotBuildMigrateOrRestart": true,
+  "missingUnbuiltReleaseRejected": true,
+  "unsafeCurrentRejected": true,
+  "unsafeTemporaryCurrentRejected": true,
+  "repeatedActivationSafe": true,
+  "dryRunDeploymentStateUnchanged": true,
+  "fullDeployRegressionPassed": true,
+  "isolatedRoot": "/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/tmp.SXYD0GIOyz"
+}
