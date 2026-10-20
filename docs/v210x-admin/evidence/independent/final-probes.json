@@ -1,0 +1,69 @@
+[
+  {
+    "case": "private post-match public competition leak",
+    "directPrintBlocked": true,
+    "historyBlocked": true,
+    "competitionExposesPositions": false,
+    "source": null
+  },
+  {
+    "case": "visible post-match with missing historical venue remains printable and historical",
+    "passed": true
+  },
+  {
+    "case": "visible post-match source",
+    "source": "POST_MATCH_ENTRY",
+    "directPrintAllowed": true
+  },
+  {
+    "case": "unknown source fails closed",
+    "passed": true
+  },
+  {
+    "case": "CAS race 0",
+    "statuses": [
+      200,
+      409
+    ]
+  },
+  {
+    "case": "CAS race 1",
+    "statuses": [
+      200,
+      409
+    ]
+  },
+  {
+    "case": "CAS race 2",
+    "statuses": [
+      200,
+      409
+    ]
+  },
+  {
+    "case": "CAS race 3",
+    "statuses": [
+      200,
+      409
+    ]
+  },
+  {
+    "case": "CAS race 4",
+    "statuses": [
+      200,
+      409
+    ]
+  },
+  {
+    "case": "late version foreign-key failure rolls back appointment and positions",
+    "passed": true
+  },
+  {
+    "case": "stale result version rejects with no writes",
+    "passed": true
+  },
+  {
+    "case": "full Match row and prior version rows unchanged",
+    "passed": true
+  }
+]

@@ -1,0 +1,40 @@
+
+> nuaa-football-association@0.1.0 test:unified-admin-migration
+> tsx scripts/test-unified-admin-migration.ts
+
+{
+  "legacyMigrations": [
+    "20260722013757_init_referee_center",
+    "20260723124500_add_referee_sessions",
+    "20260730090000_referee_operations_v24",
+    "20260819120000_referee_admin_r1",
+    "20260820120000_referee_business_model_fix2",
+    "20260820160000_referee_acceptance_fix3"
+  ],
+  "appliedMigration": "20260823091228_unified_admin_r1_foundation",
+  "protectedRowCountsPreserved": {
+    "Competition": 1,
+    "Team": 2,
+    "Match": 1,
+    "Referee": 1,
+    "RefereeAppointment": 1,
+    "AppointmentVersion": 1,
+    "AdminAccount": 2,
+    "AdminSession": 1
+  },
+  "roleBackfill": [
+    {
+      "adminAccountId": "migration-referee-admin",
+      "role": "REFEREE_ADMIN"
+    },
+    {
+      "adminAccountId": "migration-super",
+      "role": "SUPER_ADMIN"
+    }
+  ],
+  "idempotentBackfill": true,
+  "adminSessionPreserved": true,
+  "integrityCheck": "ok",
+  "foreignKeyViolations": 0,
+  "schemaObjectCount": 6
+}

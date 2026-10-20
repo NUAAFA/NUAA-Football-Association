@@ -1,0 +1,1 @@
+PASS HTTP: auth/RBAC/CSRF/cross-competition, precheck zero writes, atomic mixed block, explicit safe collection, duplicate no second audit, tentative schedule persists without kickoff

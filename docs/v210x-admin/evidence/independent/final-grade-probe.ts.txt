@@ -1,0 +1,37 @@
+import assert from "node:assert/strict";
+import {writeFile} from "node:fs/promises";
+process.env.DATABASE_URL="file:/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-v210x-independent-final-6e7fi5n_/audit.db";
+process.env.NUAAFA_ISOLATED_SECURITY_TEST="1";
+async function main(){
+ const {prisma}=await import("/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/src/lib/prisma.ts");
+ const {setRefereeGrade}=await import("/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/src/lib/referee-grade-service.ts");
+ const {getAdminRefereeList}=await import("/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/src/lib/admin-referee-query.ts");
+ const {issueTestAdminServiceAuthorization:grant,testUnifiedAdminActor:actor}=await import("/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/security-r4a-test-capabilities.ts");
+ const results=[];
+ try{
+  const unit=await prisma.affiliationUnit.create({data:{name:"Independent synthetic Shuyuan",type:"SHUYUAN"}});
+  const target="v210x-ref-990";
+  await prisma.referee.update({where:{id:target},data:{currentAffiliationUnitId:unit.id}});
+  await prisma.refereeAffiliation.create({data:{refereeId:target,unitId:unit.id}});
+  const before=await prisma.referee.findUniqueOrThrow({where:{id:target}});
+  const links=await prisma.refereeAffiliation.findMany({where:{refereeId:target},orderBy:{id:"asc"}});
+  const admin=await prisma.adminAccount.findUniqueOrThrow({where:{username:"v210x-super"}});
+  const auth=grant("referees:write",actor({id:admin.id}));
+  const after=await setRefereeGrade(target,{mode:"AUTO_STUDENT_ID",grade:"",reason:"Independent synthetic verification",expectedUpdatedAt:before.updatedAt.toISOString()},auth);
+  for(const key of Object.keys(before).filter(k=>!["gradeMode","enrollmentYear","gradeReason","updatedAt"].includes(k))) assert.deepEqual(after[key],before[key]);
+  assert.deepEqual(await prisma.refereeAffiliation.findMany({where:{refereeId:target},orderBy:{id:"asc"}}),links);
+  for(const [date,label] of [["2028-08-31T15:59:59Z","大二"],["2028-08-31T16:00:00Z","大三"]]){
+   const list=await getAdminRefereeList({q:"V0990",grade:label},new Date(date));
+   assert.equal(list.total,1);assert.equal(list.referees[0].effectiveGrade.grade,label);
+  }
+  assert.deepEqual(await prisma.referee.findUniqueOrThrow({where:{id:target}}),after);
+  assert.deepEqual(await prisma.refereeAffiliation.findMany({where:{refereeId:target},orderBy:{id:"asc"}}),links);
+  results.push({case:"AUTO mode and Beijing 大二 to 大三 query preserve nonempty organization and all unrelated profile columns",passed:true});
+  const initial=await prisma.referee.findUniqueOrThrow({where:{id:target}});
+  await assert.rejects(()=>setRefereeGrade(target,{mode:"MANUAL",grade:"大四",reason:"Synthetic legacy attempt",expectedUpdatedAt:initial.updatedAt.toISOString()},grant("referees:write",actor({id:null,isLegacy:true}))),e=>e.status===403);
+  assert.deepEqual(await prisma.referee.findUniqueOrThrow({where:{id:target}}),initial);
+  results.push({case:"legacy actor without durable ID cannot perform new grade mode mutation",passed:true});
+  console.log(JSON.stringify(results,null,2));await writeFile("/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-v210x-independent-final-6e7fi5n_/grade-results.json",JSON.stringify(results,null,2));
+ }finally{await prisma.$disconnect();}
+}
+main().catch(e=>{console.error(e);process.exitCode=1;});

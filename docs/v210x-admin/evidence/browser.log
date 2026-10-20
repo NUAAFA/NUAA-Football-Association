@@ -1,0 +1,23 @@
+
+> nuaa-football-association@0.1.0 test:v210x-browser
+> node --import tsx scripts/test-v210x-browser.mjs
+
+PASS roster 1000 / 20 per page / five columns / URL history
+PASS logical round A+B / group / quick / refresh / back-forward
+PASS competition switch clears dependent structure / explicit empty state
+PASS keyboard navigation and accessible filter labels
+PASS grade AUTO / MANUAL / nonstandard ID refuses AUTO
+PASS Beijing midnight and visibility resume trigger dynamic refresh
+PASS london browser create/edit Beijing 15:00 -> UTC07:00
+PASS london schedule/availability/strict bad date API
+PASS london browser import preview/commit/display Beijing 15:00
+PASS london actual officials backfill/correction UI and private public surfaces
+PASS china browser create/edit Beijing 15:00 -> UTC07:00
+PASS china schedule/availability/strict bad date API
+PASS china browser import preview/commit/display Beijing 15:00
+PASS china actual officials backfill/correction UI and private public surfaces
+PASS utc browser create/edit Beijing 15:00 -> UTC07:00
+PASS utc schedule/availability/strict bad date API
+PASS utc browser import preview/commit/display Beijing 15:00
+PASS utc actual officials backfill/correction UI and private public surfaces
+PASS HTTP 401/403/CSRF/409 and input validation

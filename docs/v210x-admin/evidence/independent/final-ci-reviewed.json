@@ -1,0 +1,206 @@
+{
+  "observedAt": "2026-10-20T13:42:21.885Z",
+  "sourceCommit": "73da7dd7aa60b3eb027fbaf3e124f8e6bc070515",
+  "actualCheckoutCommit": "5c05c358e93a122e51787238219ebea53ea2cd36",
+  "sourceToCheckoutComparison": {
+    "provider": "GitHub compare_commits",
+    "files": [],
+    "base": "73da7dd7aa60b3eb027fbaf3e124f8e6bc070515",
+    "head": "5c05c358e93a122e51787238219ebea53ea2cd36"
+  },
+  "pr": {
+    "url": "https://github.com/NUAAFA/NUAA-Football-Association/pull/11",
+    "state": "open",
+    "draft": true,
+    "merged": false,
+    "head_sha": "73da7dd7aa60b3eb027fbaf3e124f8e6bc070515",
+    "base_sha": "0761f3753fde9fcab124001964bb9310c2921a8c",
+    "base": "main"
+  },
+  "workflow_runs": [
+    {
+      "id": 39423814132,
+      "name": "V2.10.x isolated admin validation",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 2,
+      "jobs_url": "https://api.github.com/repos/NUAAFA/NUAA-Football-Association/actions/runs/39423814132/jobs",
+      "logs_url": "https://api.github.com/repos/NUAAFA/NUAA-Football-Association/actions/runs/39423814132/logs",
+      "workflow_id": 390526063
+    }
+  ],
+  "jobs": [
+    {
+      "id": 118631168160,
+      "name": "security",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 39423814132,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Run npm ci --no-audit --no-fund",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Run npm audit",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        },
+        {
+          "name": "Run npm audit --omit=dev",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6
+        },
+        {
+          "name": "Post Run actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11
+        },
+        {
+          "name": "Post Run actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13
+        }
+      ]
+    },
+    {
+      "id": 118631168676,
+      "name": "application",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 39423814132,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Isolated database and locked installation",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Generate, migrate and build",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        },
+        {
+          "name": "Beijing time and business matrix in three Node timezones",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6
+        },
+        {
+          "name": "Existing application and real HTTP regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7
+        },
+        {
+          "name": "Install pinned browser test runtime in runner temp",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8
+        },
+        {
+          "name": "Browser timezone, privacy, workflow and responsive acceptance",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9
+        },
+        {
+          "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10
+        },
+        {
+          "name": "Post Run actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19
+        },
+        {
+          "name": "Post Run actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 20
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 21
+        }
+      ]
+    }
+  ],
+  "artifact": {
+    "id": 12264344585,
+    "name": "v210x-isolated-evidence-5c05c358e93a122e51787238219ebea53ea2cd36-39423814132",
+    "size_in_bytes": 9212661,
+    "url": "https://api.github.com/repos/NUAAFA/NUAA-Football-Association/actions/artifacts/12264344585",
+    "archive_download_url": "https://api.github.com/repos/NUAAFA/NUAA-Football-Association/actions/artifacts/12264344585/zip",
+    "expired": false,
+    "created_at": "2026-10-20T12:43:36Z",
+    "expires_at": "2026-10-25T12:43:35Z",
+    "updated_at": "2026-10-20T12:43:36Z",
+    "digest": "sha256:fc254b27dedd8d8ac212393987c958d0bb45d03eb52f5c2212d8e64c7bc4e5c2",
+    "workflow_run": {
+      "id": 39423814132,
+      "repository_id": 1303777063,
+      "head_repository_id": 1303777063,
+      "head_branch": "codex/v2.10x-admin-optimization",
+      "head_sha": "73da7dd7aa60b3eb027fbaf3e124f8e6bc070515"
+    }
+  },
+  "scope": "CI validation evidence only; not authenticated production release archive"
+}

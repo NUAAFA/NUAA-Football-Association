@@ -1,0 +1,41 @@
+
+> nuaa-football-association@0.1.0 test:referee-r1-3a:migration
+> tsx scripts/test-referee-r1-3a-migration.ts
+
+{
+  "preR13AMigrations": [
+    "20260722013757_init_referee_center",
+    "20260723124500_add_referee_sessions",
+    "20260730090000_referee_operations_v24",
+    "20260819120000_referee_admin_r1",
+    "20260820120000_referee_business_model_fix2",
+    "20260820160000_referee_acceptance_fix3",
+    "20260823091228_unified_admin_r1_foundation",
+    "20260823160000_referee_admission_application_intake"
+  ],
+  "appliedMigration": "20260824120000_referee_admission_eligibility",
+  "trainingStatusMapping": {
+    "NOT_STARTED": "PENDING_ASSESSMENT",
+    "IN_PROGRESS": "IN_TRAINING",
+    "COMPLETED": "QUALIFIED"
+  },
+  "assignmentEligibilityMapping": {
+    "ACTIVE": "ELIGIBLE",
+    "INACTIVE": "NOT_ELIGIBLE",
+    "ARCHIVED": "NOT_ELIGIBLE",
+    "PENDING_ACTIVATION": "NOT_ELIGIBLE"
+  },
+  "protectedRowCountsPreserved": {
+    "Referee": 6,
+    "RefereePositionCapability": 1,
+    "RefereeAvailability": 1,
+    "RefereeApplication": 1,
+    "RefereeAppointment": 1,
+    "AppointmentPosition": 1,
+    "RefereeAdmissionApplication": 1,
+    "AuditLog": 1
+  },
+  "protectedIdsPreserved": true,
+  "integrityCheck": "ok",
+  "foreignKeyViolations": 0
+}

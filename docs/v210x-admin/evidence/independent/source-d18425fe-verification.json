@@ -1,0 +1,418 @@
+{
+  "checkedAt": "2026-10-20T12:31:13.398859+00:00",
+  "head": "d18425fea7416a805a3965556df989102feb6551",
+  "baseline": "704bf0af9e9b7f538cfbf6d3a76ec5f4148190e8",
+  "fileCount": 58,
+  "changedSetMatches": true,
+  "allChecksMatch": true,
+  "executorAggregateSha256": "f9e55cd2a9b2aeb88c929071729cf341ffcbde8dfa0ab303d924e1970407242d",
+  "manifestSha256": "b91cdbf576ff5b5084749c812913026d172395a391ec70e627d812d3568c3cc4",
+  "files": [
+    {
+      "path": ".github/workflows/v210x-admin-validation.yml",
+      "manifest": "e4f627dc9ab5c70a2c3f370e9f761f4b387e463f88a03598b67938b744dc25eb",
+      "worktree": "e4f627dc9ab5c70a2c3f370e9f761f4b387e463f88a03598b67938b744dc25eb",
+      "commit": "e4f627dc9ab5c70a2c3f370e9f761f4b387e463f88a03598b67938b744dc25eb",
+      "match": true
+    },
+    {
+      "path": "package.json",
+      "manifest": "c65369d53e0d176ea1dcefb0ddfa1d23819f97f045858d869dbcea6b69822f22",
+      "worktree": "c65369d53e0d176ea1dcefb0ddfa1d23819f97f045858d869dbcea6b69822f22",
+      "commit": "c65369d53e0d176ea1dcefb0ddfa1d23819f97f045858d869dbcea6b69822f22",
+      "match": true
+    },
+    {
+      "path": "prisma/migrations/20261020120000_admin_history_grade/migration.sql",
+      "manifest": "c8b30b58016a3b8a4725bdfca205d021dbe6151e2dd339795d4713ca9e6fd1ee",
+      "worktree": "c8b30b58016a3b8a4725bdfca205d021dbe6151e2dd339795d4713ca9e6fd1ee",
+      "commit": "c8b30b58016a3b8a4725bdfca205d021dbe6151e2dd339795d4713ca9e6fd1ee",
+      "match": true
+    },
+    {
+      "path": "prisma/schema.prisma",
+      "manifest": "01d07a18e616190eb3b6676d09d7b1de72283d6ce1ed85c796a0aef232987cfa",
+      "worktree": "01d07a18e616190eb3b6676d09d7b1de72283d6ce1ed85c796a0aef232987cfa",
+      "commit": "01d07a18e616190eb3b6676d09d7b1de72283d6ce1ed85c796a0aef232987cfa",
+      "match": true
+    },
+    {
+      "path": "scripts/test-referee-fix3-worker.ts",
+      "manifest": "4c93dd5069bf3fc65d496d669e9de06fc64d6095133e9a2304d07dc3028488de",
+      "worktree": "4c93dd5069bf3fc65d496d669e9de06fc64d6095133e9a2304d07dc3028488de",
+      "commit": "4c93dd5069bf3fc65d496d669e9de06fc64d6095133e9a2304d07dc3028488de",
+      "match": true
+    },
+    {
+      "path": "scripts/test-referee-r1-worker.ts",
+      "manifest": "1c5c20a203de42ee92440ea6f9c5f1b93a3dd083c8d8d106dc5a716df2f99fec",
+      "worktree": "1c5c20a203de42ee92440ea6f9c5f1b93a3dd083c8d8d106dc5a716df2f99fec",
+      "commit": "1c5c20a203de42ee92440ea6f9c5f1b93a3dd083c8d8d106dc5a716df2f99fec",
+      "match": true
+    },
+    {
+      "path": "scripts/test-student-id-release-preflight.mjs",
+      "manifest": "d36dbcaaf44efb29411e5ffa134c11d3b6d0ea0c9b0dc7491fc601710da43620",
+      "worktree": "d36dbcaaf44efb29411e5ffa134c11d3b6d0ea0c9b0dc7491fc601710da43620",
+      "commit": "d36dbcaaf44efb29411e5ffa134c11d3b6d0ea0c9b0dc7491fc601710da43620",
+      "match": true
+    },
+    {
+      "path": "scripts/test-v210x-admin.ts",
+      "manifest": "8d4403f9a0113cb076ec55ef9d33c153f7d7970a4b4792bae7b906c9d581b439",
+      "worktree": "8d4403f9a0113cb076ec55ef9d33c153f7d7970a4b4792bae7b906c9d581b439",
+      "commit": "8d4403f9a0113cb076ec55ef9d33c153f7d7970a4b4792bae7b906c9d581b439",
+      "match": true
+    },
+    {
+      "path": "scripts/test-v210x-browser.mjs",
+      "manifest": "7134cac6a1f320788e4b8e1d760d312c185257b46949c63a1293f9f6626423e2",
+      "worktree": "7134cac6a1f320788e4b8e1d760d312c185257b46949c63a1293f9f6626423e2",
+      "commit": "7134cac6a1f320788e4b8e1d760d312c185257b46949c63a1293f9f6626423e2",
+      "match": true
+    },
+    {
+      "path": "scripts/test-v210x-http-regressions.mjs",
+      "manifest": "34e6829a40927128e6304aa4d92069045e08f22ee66b7ae6f578850d7f170fd6",
+      "worktree": "34e6829a40927128e6304aa4d92069045e08f22ee66b7ae6f578850d7f170fd6",
+      "commit": "34e6829a40927128e6304aa4d92069045e08f22ee66b7ae6f578850d7f170fd6",
+      "match": true
+    },
+    {
+      "path": "scripts/test-v210x-migration.py",
+      "manifest": "e3bdb28c9c560e3a4e58ce5028221976ecc9c23d886b65d99beb92163841d60f",
+      "worktree": "e3bdb28c9c560e3a4e58ce5028221976ecc9c23d886b65d99beb92163841d60f",
+      "commit": "e3bdb28c9c560e3a4e58ce5028221976ecc9c23d886b65d99beb92163841d60f",
+      "match": true
+    },
+    {
+      "path": "scripts/test-v210x-regressions.mjs",
+      "manifest": "e42da04b562284896fa24cb96cc78f1014889f4ed3e1685ac30558424d08393e",
+      "worktree": "e42da04b562284896fa24cb96cc78f1014889f4ed3e1685ac30558424d08393e",
+      "commit": "e42da04b562284896fa24cb96cc78f1014889f4ed3e1685ac30558424d08393e",
+      "match": true
+    },
+    {
+      "path": "src/app/admin/(dashboard)/matches/[id]/page.tsx",
+      "manifest": "9861fc0b1279191e4ba0b9edfe4bdc9f924058266e0621337acf6aa144d66bac",
+      "worktree": "9861fc0b1279191e4ba0b9edfe4bdc9f924058266e0621337acf6aa144d66bac",
+      "commit": "9861fc0b1279191e4ba0b9edfe4bdc9f924058266e0621337acf6aa144d66bac",
+      "match": true
+    },
+    {
+      "path": "src/app/api/referees/admin/accounts/[id]/grade/route.ts",
+      "manifest": "2e6c4a453794126e81b127ea12931acf7214f8f336f36d3d9f699b6c0e97b142",
+      "worktree": "2e6c4a453794126e81b127ea12931acf7214f8f336f36d3d9f699b6c0e97b142",
+      "commit": "2e6c4a453794126e81b127ea12931acf7214f8f336f36d3d9f699b6c0e97b142",
+      "match": true
+    },
+    {
+      "path": "src/app/api/referees/admin/accounts/[id]/route.ts",
+      "manifest": "0be5e52fba11afbb1e96cd4a9d6b75bfdaa818cb113e4abf4bc82a4b6d801386",
+      "worktree": "0be5e52fba11afbb1e96cd4a9d6b75bfdaa818cb113e4abf4bc82a4b6d801386",
+      "commit": "0be5e52fba11afbb1e96cd4a9d6b75bfdaa818cb113e4abf4bc82a4b6d801386",
+      "match": true
+    },
+    {
+      "path": "src/app/api/referees/admin/appointments/[matchId]/completed-officials/route.ts",
+      "manifest": "0ba46fbdeb502cdfe4c85e6ed86965db370793828ee3d3c1b2365a8e910101b5",
+      "worktree": "0ba46fbdeb502cdfe4c85e6ed86965db370793828ee3d3c1b2365a8e910101b5",
+      "commit": "0ba46fbdeb502cdfe4c85e6ed86965db370793828ee3d3c1b2365a8e910101b5",
+      "match": true
+    },
+    {
+      "path": "src/app/api/referees/admin/exports/[kind]/route.ts",
+      "manifest": "9ed1888736a33964b4054385a2778b04ca3c973cb1b27d4304d65bd971f4440c",
+      "worktree": "9ed1888736a33964b4054385a2778b04ca3c973cb1b27d4304d65bd971f4440c",
+      "commit": "9ed1888736a33964b4054385a2778b04ca3c973cb1b27d4304d65bd971f4440c",
+      "match": true
+    },
+    {
+      "path": "src/app/referees/admin/(dashboard)/availability/page.tsx",
+      "manifest": "d1e685f3a0d2bd1be04090aa7f2fa416b41769fe4780110b4cccaadeac3d9148",
+      "worktree": "d1e685f3a0d2bd1be04090aa7f2fa416b41769fe4780110b4cccaadeac3d9148",
+      "commit": "d1e685f3a0d2bd1be04090aa7f2fa416b41769fe4780110b4cccaadeac3d9148",
+      "match": true
+    },
+    {
+      "path": "src/app/referees/admin/(dashboard)/matches/[id]/page.tsx",
+      "manifest": "de36588a2324fc0fa02a43f72d3afc15c6941b624a9a7fb9947fcb9b5f4ca3e1",
+      "worktree": "de36588a2324fc0fa02a43f72d3afc15c6941b624a9a7fb9947fcb9b5f4ca3e1",
+      "commit": "de36588a2324fc0fa02a43f72d3afc15c6941b624a9a7fb9947fcb9b5f4ca3e1",
+      "match": true
+    },
+    {
+      "path": "src/app/referees/admin/(dashboard)/referees/[id]/page.tsx",
+      "manifest": "6b990cbbf978ed053063e494d655e9d362d16e37c0be120ad374d5f7c48827c9",
+      "worktree": "6b990cbbf978ed053063e494d655e9d362d16e37c0be120ad374d5f7c48827c9",
+      "commit": "6b990cbbf978ed053063e494d655e9d362d16e37c0be120ad374d5f7c48827c9",
+      "match": true
+    },
+    {
+      "path": "src/app/referees/admin/(dashboard)/referees/page.tsx",
+      "manifest": "22326d3f55fcb17953c8196a7cb997558394fb6f0d028965569840a5d0404cbd",
+      "worktree": "22326d3f55fcb17953c8196a7cb997558394fb6f0d028965569840a5d0404cbd",
+      "commit": "22326d3f55fcb17953c8196a7cb997558394fb6f0d028965569840a5d0404cbd",
+      "match": true
+    },
+    {
+      "path": "src/app/referees/assignments/[id]/print/page.tsx",
+      "manifest": "3bf8e8e42a9020aba055bc499c0b8dce208368d24f8301314bb9feb091a7b49c",
+      "worktree": "3bf8e8e42a9020aba055bc499c0b8dce208368d24f8301314bb9feb091a7b49c",
+      "commit": "3bf8e8e42a9020aba055bc499c0b8dce208368d24f8301314bb9feb091a7b49c",
+      "match": true
+    },
+    {
+      "path": "src/app/referees/assignments/page.tsx",
+      "manifest": "dacee2199c2444ec8c0ea6bda0ebdcf3f2d2f630ec21f56b69ccfe8ad62634d7",
+      "worktree": "dacee2199c2444ec8c0ea6bda0ebdcf3f2d2f630ec21f56b69ccfe8ad62634d7",
+      "commit": "dacee2199c2444ec8c0ea6bda0ebdcf3f2d2f630ec21f56b69ccfe8ad62634d7",
+      "match": true
+    },
+    {
+      "path": "src/app/referees/history/page.tsx",
+      "manifest": "6bfb5c1744c2ff028d0ca1fbb7ded4332b4e4ec63cfec3b9537d81da37fba5f3",
+      "worktree": "6bfb5c1744c2ff028d0ca1fbb7ded4332b4e4ec63cfec3b9537d81da37fba5f3",
+      "commit": "6bfb5c1744c2ff028d0ca1fbb7ded4332b4e4ec63cfec3b9537d81da37fba5f3",
+      "match": true
+    },
+    {
+      "path": "src/app/referees/workspace/account/page.tsx",
+      "manifest": "77b1b083a053792f8b265f635e74791fe4a972991c60c61634c8fb67b765bd36",
+      "worktree": "77b1b083a053792f8b265f635e74791fe4a972991c60c61634c8fb67b765bd36",
+      "commit": "77b1b083a053792f8b265f635e74791fe4a972991c60c61634c8fb67b765bd36",
+      "match": true
+    },
+    {
+      "path": "src/app/referees/workspace/page.tsx",
+      "manifest": "8e786877bdb3a26241d98eb37d34995640c482e6bfc8f43ecf8f434c3a6ea09e",
+      "worktree": "8e786877bdb3a26241d98eb37d34995640c482e6bfc8f43ecf8f434c3a6ea09e",
+      "commit": "8e786877bdb3a26241d98eb37d34995640c482e6bfc8f43ecf8f434c3a6ea09e",
+      "match": true
+    },
+    {
+      "path": "src/components/admin/match-scheduling-form.tsx",
+      "manifest": "e18b77d192f3b70f1982090c677ee1d0e2c462a86a2ee80cddca796898c2ffa1",
+      "worktree": "e18b77d192f3b70f1982090c677ee1d0e2c462a86a2ee80cddca796898c2ffa1",
+      "commit": "e18b77d192f3b70f1982090c677ee1d0e2c462a86a2ee80cddca796898c2ffa1",
+      "match": true
+    },
+    {
+      "path": "src/components/competitions/core-competition-preview-page.tsx",
+      "manifest": "52cb8997a9f5837f16ed5b216fa681f13160ec4889ae8226a44c290fc138a989",
+      "worktree": "52cb8997a9f5837f16ed5b216fa681f13160ec4889ae8226a44c290fc138a989",
+      "commit": "52cb8997a9f5837f16ed5b216fa681f13160ec4889ae8226a44c290fc138a989",
+      "match": true
+    },
+    {
+      "path": "src/components/referees/admin/admin-completed-officials.tsx",
+      "manifest": "836b4487a343386783ed1b999538ddbf92e89092ae6a6db4b2cd983fcf0e3493",
+      "worktree": "836b4487a343386783ed1b999538ddbf92e89092ae6a6db4b2cd983fcf0e3493",
+      "commit": "836b4487a343386783ed1b999538ddbf92e89092ae6a6db4b2cd983fcf0e3493",
+      "match": true
+    },
+    {
+      "path": "src/components/referees/admin/admin-data-managers.tsx",
+      "manifest": "bb465fd4ed48d3423c7041d42573193078691cb8b880ee8d32a521309be51d48",
+      "worktree": "bb465fd4ed48d3423c7041d42573193078691cb8b880ee8d32a521309be51d48",
+      "commit": "bb465fd4ed48d3423c7041d42573193078691cb8b880ee8d32a521309be51d48",
+      "match": true
+    },
+    {
+      "path": "src/components/referees/admin/admin-grade-control.tsx",
+      "manifest": "096dcde42b11b0fbe212dccc8dc30d5e64d52f583884dce798ebe294ff78a614",
+      "worktree": "096dcde42b11b0fbe212dccc8dc30d5e64d52f583884dce798ebe294ff78a614",
+      "commit": "096dcde42b11b0fbe212dccc8dc30d5e64d52f583884dce798ebe294ff78a614",
+      "match": true
+    },
+    {
+      "path": "src/components/referees/admin/admin-match-form.tsx",
+      "manifest": "e14df1ea6e43b9b585f399db3846649aa30cbcbceffe84afdf0b60bcb9783f4e",
+      "worktree": "e14df1ea6e43b9b585f399db3846649aa30cbcbceffe84afdf0b60bcb9783f4e",
+      "commit": "e14df1ea6e43b9b585f399db3846649aa30cbcbceffe84afdf0b60bcb9783f4e",
+      "match": true
+    },
+    {
+      "path": "src/components/referees/admin/admin-matches-page.tsx",
+      "manifest": "7f095fb1309dbe6148588e78c344a5a437c2f806d8a2cb4996d3d3ff9fdc7bce",
+      "worktree": "7f095fb1309dbe6148588e78c344a5a437c2f806d8a2cb4996d3d3ff9fdc7bce",
+      "commit": "7f095fb1309dbe6148588e78c344a5a437c2f806d8a2cb4996d3d3ff9fdc7bce",
+      "match": true
+    },
+    {
+      "path": "src/components/referees/admin/admin-pagination.tsx",
+      "manifest": "447a7772d53485a0805cd265553272a487b765523537250c3cc9925738c3737e",
+      "worktree": "447a7772d53485a0805cd265553272a487b765523537250c3cc9925738c3737e",
+      "commit": "447a7772d53485a0805cd265553272a487b765523537250c3cc9925738c3737e",
+      "match": true
+    },
+    {
+      "path": "src/components/referees/admin/admin-presenters.ts",
+      "manifest": "af5891d4ea5230253b51956fbab32ae83015b8b2e24ca22c7c0207d3511fa60a",
+      "worktree": "af5891d4ea5230253b51956fbab32ae83015b8b2e24ca22c7c0207d3511fa60a",
+      "commit": "af5891d4ea5230253b51956fbab32ae83015b8b2e24ca22c7c0207d3511fa60a",
+      "match": true
+    },
+    {
+      "path": "src/components/referees/admin/admin-referee-forms.tsx",
+      "manifest": "d4d642b364572ac91a1eca46a2308be979f0af902317bb3e105e196e619a04c5",
+      "worktree": "d4d642b364572ac91a1eca46a2308be979f0af902317bb3e105e196e619a04c5",
+      "commit": "d4d642b364572ac91a1eca46a2308be979f0af902317bb3e105e196e619a04c5",
+      "match": true
+    },
+    {
+      "path": "src/components/referees/admin/beijing-day-refresh.tsx",
+      "manifest": "0b41c197a329b021f519b16e400f2549e538c446a17f7900c5565e7349e1d477",
+      "worktree": "0b41c197a329b021f519b16e400f2549e538c446a17f7900c5565e7349e1d477",
+      "commit": "0b41c197a329b021f519b16e400f2549e538c446a17f7900c5565e7349e1d477",
+      "match": true
+    },
+    {
+      "path": "src/components/referees/mvp/public-appointment-list.tsx",
+      "manifest": "a4bc6babe1b1c11006e40e565cdd74a8a82de9cc82c16da8b1251b73e61792d6",
+      "worktree": "a4bc6babe1b1c11006e40e565cdd74a8a82de9cc82c16da8b1251b73e61792d6",
+      "commit": "a4bc6babe1b1c11006e40e565cdd74a8a82de9cc82c16da8b1251b73e61792d6",
+      "match": true
+    },
+    {
+      "path": "src/components/referees/mvp/referee-workspace-r1.tsx",
+      "manifest": "8f86b99fc2fddd438fd1b5e60669623825aa47ee85617f358a3955c7d995971f",
+      "worktree": "8f86b99fc2fddd438fd1b5e60669623825aa47ee85617f358a3955c7d995971f",
+      "commit": "8f86b99fc2fddd438fd1b5e60669623825aa47ee85617f358a3955c7d995971f",
+      "match": true
+    },
+    {
+      "path": "src/lib/admin-availability-page.ts",
+      "manifest": "f87ea0700bb9a0aa9b17a3f07bdd00bd2a7c77efacbed1a19bf000c0b3a377a0",
+      "worktree": "f87ea0700bb9a0aa9b17a3f07bdd00bd2a7c77efacbed1a19bf000c0b3a377a0",
+      "commit": "f87ea0700bb9a0aa9b17a3f07bdd00bd2a7c77efacbed1a19bf000c0b3a377a0",
+      "match": true
+    },
+    {
+      "path": "src/lib/admin-match-query.ts",
+      "manifest": "9e90d028712cbe6e538ee12188064526a36ba887cc99f038825e5cce476fc531",
+      "worktree": "9e90d028712cbe6e538ee12188064526a36ba887cc99f038825e5cce476fc531",
+      "commit": "9e90d028712cbe6e538ee12188064526a36ba887cc99f038825e5cce476fc531",
+      "match": true
+    },
+    {
+      "path": "src/lib/admin-referee-query.ts",
+      "manifest": "6ef95c4b5f6eb7e4f7609c028e9690e8eee57a17c8371028fac889354e6ac2f4",
+      "worktree": "6ef95c4b5f6eb7e4f7609c028e9690e8eee57a17c8371028fac889354e6ac2f4",
+      "commit": "6ef95c4b5f6eb7e4f7609c028e9690e8eee57a17c8371028fac889354e6ac2f4",
+      "match": true
+    },
+    {
+      "path": "src/lib/beijing-datetime.ts",
+      "manifest": "d73b9bd26ab3fff86b388d83d865d68e63cb5e26e20ae45a025a8a2497561246",
+      "worktree": "d73b9bd26ab3fff86b388d83d865d68e63cb5e26e20ae45a025a8a2497561246",
+      "commit": "d73b9bd26ab3fff86b388d83d865d68e63cb5e26e20ae45a025a8a2497561246",
+      "match": true
+    },
+    {
+      "path": "src/lib/competition-import-service.ts",
+      "manifest": "062b5b3225f30bd2a24c4a2d125614d3855a6b624662dc38236ce003d8841394",
+      "worktree": "062b5b3225f30bd2a24c4a2d125614d3855a6b624662dc38236ce003d8841394",
+      "commit": "062b5b3225f30bd2a24c4a2d125614d3855a6b624662dc38236ce003d8841394",
+      "match": true
+    },
+    {
+      "path": "src/lib/completed-officials-service.ts",
+      "manifest": "32a5657cb5719f4bed8d692efe0411f6b7c5ff5c8df6db209861caeb141e2c85",
+      "worktree": "32a5657cb5719f4bed8d692efe0411f6b7c5ff5c8df6db209861caeb141e2c85",
+      "commit": "32a5657cb5719f4bed8d692efe0411f6b7c5ff5c8df6db209861caeb141e2c85",
+      "match": true
+    },
+    {
+      "path": "src/lib/public-competition-service.ts",
+      "manifest": "0fc9fd2bd78f6faf1ed6dd4c58f263d73672f9bedeeda4ff0f3c9d1657e4e3d1",
+      "worktree": "0fc9fd2bd78f6faf1ed6dd4c58f263d73672f9bedeeda4ff0f3c9d1657e4e3d1",
+      "commit": "0fc9fd2bd78f6faf1ed6dd4c58f263d73672f9bedeeda4ff0f3c9d1657e4e3d1",
+      "match": true
+    },
+    {
+      "path": "src/lib/referee-availability-calendar.ts",
+      "manifest": "b32e673dc6a9b499e51fab113d48565a12881ac3e6bde2d89b061e90bd6fc1ab",
+      "worktree": "b32e673dc6a9b499e51fab113d48565a12881ac3e6bde2d89b061e90bd6fc1ab",
+      "commit": "b32e673dc6a9b499e51fab113d48565a12881ac3e6bde2d89b061e90bd6fc1ab",
+      "match": true
+    },
+    {
+      "path": "src/lib/referee-conflicts.ts",
+      "manifest": "58266df1013ec098997f657fd37977fa44bb1ef7fa0655c8fa16d4b2242611ed",
+      "worktree": "58266df1013ec098997f657fd37977fa44bb1ef7fa0655c8fa16d4b2242611ed",
+      "commit": "58266df1013ec098997f657fd37977fa44bb1ef7fa0655c8fa16d4b2242611ed",
+      "match": true
+    },
+    {
+      "path": "src/lib/referee-dto.ts",
+      "manifest": "3f34537872566331d661a3d8e2e1e411bcf753c03e16ae4b26c2dc2be33cb4ae",
+      "worktree": "3f34537872566331d661a3d8e2e1e411bcf753c03e16ae4b26c2dc2be33cb4ae",
+      "commit": "3f34537872566331d661a3d8e2e1e411bcf753c03e16ae4b26c2dc2be33cb4ae",
+      "match": true
+    },
+    {
+      "path": "src/lib/referee-grade-service.ts",
+      "manifest": "fe0f98ee9e263fff6f7014732432ef917bfdd6bd41691e9ad2de69d0692b7d49",
+      "worktree": "fe0f98ee9e263fff6f7014732432ef917bfdd6bd41691e9ad2de69d0692b7d49",
+      "commit": "fe0f98ee9e263fff6f7014732432ef917bfdd6bd41691e9ad2de69d0692b7d49",
+      "match": true
+    },
+    {
+      "path": "src/lib/referee-grade.ts",
+      "manifest": "8052a3280b08c8fb4ab6b19ee5234bfa136f7d2e9b181911d076b99c6ac7e40f",
+      "worktree": "8052a3280b08c8fb4ab6b19ee5234bfa136f7d2e9b181911d076b99c6ac7e40f",
+      "commit": "8052a3280b08c8fb4ab6b19ee5234bfa136f7d2e9b181911d076b99c6ac7e40f",
+      "match": true
+    },
+    {
+      "path": "src/lib/referee-presenters.ts",
+      "manifest": "f63f1f9ebbe2b504068343b3fc6cf6f905ee6d2c351303d8b7d4344e09d36704",
+      "worktree": "f63f1f9ebbe2b504068343b3fc6cf6f905ee6d2c351303d8b7d4344e09d36704",
+      "commit": "f63f1f9ebbe2b504068343b3fc6cf6f905ee6d2c351303d8b7d4344e09d36704",
+      "match": true
+    },
+    {
+      "path": "src/lib/referee-public.ts",
+      "manifest": "788175ea2ce76dd4b431e6413c59fd70cb21370bf3f5144f9837ab6abe7d9eed",
+      "worktree": "788175ea2ce76dd4b431e6413c59fd70cb21370bf3f5144f9837ab6abe7d9eed",
+      "commit": "788175ea2ce76dd4b431e6413c59fd70cb21370bf3f5144f9837ab6abe7d9eed",
+      "match": true
+    },
+    {
+      "path": "src/lib/referee-record-publicity.ts",
+      "manifest": "4da8af1ea2be97a4a1b673022d3b0bcbcb25368d63064558ef56ca02eb2027b5",
+      "worktree": "4da8af1ea2be97a4a1b673022d3b0bcbcb25368d63064558ef56ca02eb2027b5",
+      "commit": "4da8af1ea2be97a4a1b673022d3b0bcbcb25368d63064558ef56ca02eb2027b5",
+      "match": true
+    },
+    {
+      "path": "src/lib/referee-service.ts",
+      "manifest": "f2db9e194e4b215c98dd5ca778a488808dc3c6bb08d5fa478726851a0e59022e",
+      "worktree": "f2db9e194e4b215c98dd5ca778a488808dc3c6bb08d5fa478726851a0e59022e",
+      "commit": "f2db9e194e4b215c98dd5ca778a488808dc3c6bb08d5fa478726851a0e59022e",
+      "match": true
+    },
+    {
+      "path": "src/lib/referee-validation.ts",
+      "manifest": "00b6188a1d9c4cd38fa9b2c66eaff3544c46038d4130071bfcef56540266d42d",
+      "worktree": "00b6188a1d9c4cd38fa9b2c66eaff3544c46038d4130071bfcef56540266d42d",
+      "commit": "00b6188a1d9c4cd38fa9b2c66eaff3544c46038d4130071bfcef56540266d42d",
+      "match": true
+    },
+    {
+      "path": "src/styles/referee-admin.css",
+      "manifest": "895dcf354d64f9ba9de003144938e2fcc6b79c27e31bb9b3d9976009238d5bb3",
+      "worktree": "895dcf354d64f9ba9de003144938e2fcc6b79c27e31bb9b3d9976009238d5bb3",
+      "commit": "895dcf354d64f9ba9de003144938e2fcc6b79c27e31bb9b3d9976009238d5bb3",
+      "match": true
+    },
+    {
+      "path": "src/types/competition-center.ts",
+      "manifest": "f5ccac1397e62260cb8b9752a05979a8fa58e7f1e2c98605b572aa60f6632e1d",
+      "worktree": "f5ccac1397e62260cb8b9752a05979a8fa58e7f1e2c98605b572aa60f6632e1d",
+      "commit": "f5ccac1397e62260cb8b9752a05979a8fa58e7f1e2c98605b572aa60f6632e1d",
+      "match": true
+    }
+  ]
+}

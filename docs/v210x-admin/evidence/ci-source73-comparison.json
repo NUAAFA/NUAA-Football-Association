@@ -1,0 +1,49 @@
+{
+  "head": "73da7dd7aa60b3eb027fbaf3e124f8e6bc070515",
+  "checkedOutTestMerge": "5c05c358e93a122e51787238219ebea53ea2cd36",
+  "comparison": {
+    "repository_full_name": "NUAAFA/NUAA-Football-Association",
+    "base": "73da7dd7aa60b3eb027fbaf3e124f8e6bc070515",
+    "head": "5c05c358e93a122e51787238219ebea53ea2cd36",
+    "status": "ahead",
+    "ahead_by": 2,
+    "behind_by": 0,
+    "total_commits": 2,
+    "too_large": null,
+    "base_commit": {
+      "sha": "73da7dd7aa60b3eb027fbaf3e124f8e6bc070515",
+      "url": "https://api.github.com/repos/NUAAFA/NUAA-Football-Association/commits/73da7dd7aa60b3eb027fbaf3e124f8e6bc070515",
+      "html_url": "https://github.com/NUAAFA/NUAA-Football-Association/commit/73da7dd7aa60b3eb027fbaf3e124f8e6bc070515"
+    },
+    "merge_base_commit": {
+      "sha": "73da7dd7aa60b3eb027fbaf3e124f8e6bc070515",
+      "url": "https://api.github.com/repos/NUAAFA/NUAA-Football-Association/commits/73da7dd7aa60b3eb027fbaf3e124f8e6bc070515",
+      "html_url": "https://github.com/NUAAFA/NUAA-Football-Association/commit/73da7dd7aa60b3eb027fbaf3e124f8e6bc070515"
+    },
+    "files": []
+  },
+  "acceptanceArtifacts": {
+    "artifacts": [
+      {
+        "id": 12264344585,
+        "name": "v210x-isolated-evidence-5c05c358e93a122e51787238219ebea53ea2cd36-39423814132",
+        "size_in_bytes": 9212661,
+        "url": "https://api.github.com/repos/NUAAFA/NUAA-Football-Association/actions/artifacts/12264344585",
+        "archive_download_url": "https://api.github.com/repos/NUAAFA/NUAA-Football-Association/actions/artifacts/12264344585/zip",
+        "expired": false,
+        "created_at": "2026-10-20T12:43:36Z",
+        "expires_at": "2026-10-25T12:43:35Z",
+        "updated_at": "2026-10-20T12:43:36Z",
+        "digest": "sha256:fc254b27dedd8d8ac212393987c958d0bb45d03eb52f5c2212d8e64c7bc4e5c2",
+        "workflow_run": {
+          "id": 39423814132,
+          "repository_id": 1303777063,
+          "head_repository_id": 1303777063,
+          "head_branch": "codex/v2.10x-admin-optimization",
+          "head_sha": "73da7dd7aa60b3eb027fbaf3e124f8e6bc070515"
+        }
+      }
+    ]
+  },
+  "scope": "Acceptance evidence only, not authenticated production release archive."
+}

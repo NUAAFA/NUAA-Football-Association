@@ -1,0 +1,19 @@
+
+> nuaa-football-association@0.1.0 test:admin-operations-r2:migration
+> tsx scripts/test-admin-operations-r2-migration-runner.ts
+
+{
+  "existingRowsPreserved": {
+    "Referee": 3,
+    "RefereeAvailability": 1
+  },
+  "additiveColumns": {
+    "competitionFormat": true,
+    "reasonCode": true,
+    "explanation": true
+  },
+  "publicCodeSequenceNextValue": 16,
+  "legacyAvailabilityDefaultsToBoth": true,
+  "integrityCheck": "ok",
+  "foreignKeyViolations": 0
+}

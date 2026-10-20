@@ -1,0 +1,16 @@
+{
+  "status": "PASS",
+  "historical_migrations_unchanged": 17,
+  "candidate_migrations": 18,
+  "baseline_tables_preserved": 39,
+  "old_cells_and_admin_credentials": "EXACT_EQUAL",
+  "repeat_deploy": "PASS",
+  "failure_atomicity": "PASS",
+  "real_prisma_failure_and_clone_recovery": "PASS",
+  "isolated_restore": "PASS",
+  "integrity_and_foreign_keys": "PASS",
+  "navigation_index_plan": [
+    "SEARCH Match USING COVERING INDEX Match_structure_navigation_idx (competitionId=? AND stageId=? AND roundId=?)",
+    "USE TEMP B-TREE FOR ORDER BY"
+  ]
+}

@@ -1,0 +1,27 @@
+
+> nuaa-football-association@0.1.0 test:referee-fix3
+> tsx scripts/test-referee-fix3.ts
+
+{
+  "authoritativeCollegeNames": true,
+  "excludedCollegesAbsent": true,
+  "fourShuyuanRelations": true,
+  "allConfirmedPrefixes": true,
+  "lowercasePrefixInference": true,
+  "allGradesPersist": true,
+  "graduateRemainsActive": true,
+  "singleCurrentAffiliation": true,
+  "affiliationHistoryPreserved": true,
+  "aiToZhiyuanConflict": true,
+  "physicsToZhiweiConflict": true,
+  "formatScopedCapabilityBatch": true,
+  "individualCapabilityOverride": true,
+  "capabilityFormStateNotPersistedBeforeSave": true,
+  "capabilityStatePersistsAfterSave": true,
+  "compactProfileUi": true,
+  "publicSwitchAndBio": true,
+  "publicPreviewBoundary": true,
+  "accountSecurityTab": true,
+  "passwordMessageScoped": true,
+  "saveBar": true
+}

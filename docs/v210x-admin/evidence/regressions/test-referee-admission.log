@@ -1,0 +1,5 @@
+
+> nuaa-football-association@0.1.0 test:referee-admission
+> tsx scripts/test-referee-admission.ts
+
+Referee admission application validation and error-boundary tests passed.

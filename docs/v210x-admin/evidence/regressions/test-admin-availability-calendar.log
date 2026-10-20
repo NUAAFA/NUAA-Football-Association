@@ -1,0 +1,6 @@
+
+> nuaa-football-association@0.1.0 test:admin-availability-calendar
+> tsx scripts/test-admin-availability-calendar.ts
+
+PASS: complete month, Beijing all-day across 3 timezones and UK DST, continuous coverage/gaps, cross-day boundaries, referee isolation and safe DTO
+ISOLATED_FIXTURE=/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-availability-calendar-ZxbwxL

@@ -1,0 +1,239 @@
+{
+  "baseline": "704bf0af9e9b7f538cfbf6d3a76ec5f4148190e8",
+  "sourceCommit": "73da7dd7aa60b3eb027fbaf3e124f8e6bc070515",
+  "aggregateSha256": "8bbf569b4393a58134af148cdd583eaeb20891df2037843b5134741b51aff299",
+  "files": [
+    {
+      "path": ".github/workflows/v210x-admin-validation.yml",
+      "sha256": "6e55ad3f925bb33bf94a10dc3731a74046c9c6e89e3ebb784d18e6c479555245"
+    },
+    {
+      "path": "package.json",
+      "sha256": "c65369d53e0d176ea1dcefb0ddfa1d23819f97f045858d869dbcea6b69822f22"
+    },
+    {
+      "path": "prisma/migrations/20261020120000_admin_history_grade/migration.sql",
+      "sha256": "c8b30b58016a3b8a4725bdfca205d021dbe6151e2dd339795d4713ca9e6fd1ee"
+    },
+    {
+      "path": "prisma/schema.prisma",
+      "sha256": "01d07a18e616190eb3b6676d09d7b1de72283d6ce1ed85c796a0aef232987cfa"
+    },
+    {
+      "path": "scripts/test-referee-fix3-worker.ts",
+      "sha256": "4c93dd5069bf3fc65d496d669e9de06fc64d6095133e9a2304d07dc3028488de"
+    },
+    {
+      "path": "scripts/test-referee-r1-worker.ts",
+      "sha256": "1c5c20a203de42ee92440ea6f9c5f1b93a3dd083c8d8d106dc5a716df2f99fec"
+    },
+    {
+      "path": "scripts/test-student-id-release-preflight.mjs",
+      "sha256": "d36dbcaaf44efb29411e5ffa134c11d3b6d0ea0c9b0dc7491fc601710da43620"
+    },
+    {
+      "path": "scripts/test-v210x-admin.ts",
+      "sha256": "c69b446b32afe8a9bbccc38b055e33b089af846813542ef4bd5ff222a31be97a"
+    },
+    {
+      "path": "scripts/test-v210x-browser.mjs",
+      "sha256": "752fb095568572ed1f7b44ea95b2be95418a2ed6f811755fbe271ee3be4d59ea"
+    },
+    {
+      "path": "scripts/test-v210x-http-regressions.mjs",
+      "sha256": "34e6829a40927128e6304aa4d92069045e08f22ee66b7ae6f578850d7f170fd6"
+    },
+    {
+      "path": "scripts/test-v210x-migration.py",
+      "sha256": "e3bdb28c9c560e3a4e58ce5028221976ecc9c23d886b65d99beb92163841d60f"
+    },
+    {
+      "path": "scripts/test-v210x-regressions.mjs",
+      "sha256": "e42da04b562284896fa24cb96cc78f1014889f4ed3e1685ac30558424d08393e"
+    },
+    {
+      "path": "src/app/admin/(dashboard)/matches/[id]/page.tsx",
+      "sha256": "9861fc0b1279191e4ba0b9edfe4bdc9f924058266e0621337acf6aa144d66bac"
+    },
+    {
+      "path": "src/app/api/referees/admin/accounts/[id]/grade/route.ts",
+      "sha256": "2e6c4a453794126e81b127ea12931acf7214f8f336f36d3d9f699b6c0e97b142"
+    },
+    {
+      "path": "src/app/api/referees/admin/accounts/[id]/route.ts",
+      "sha256": "0be5e52fba11afbb1e96cd4a9d6b75bfdaa818cb113e4abf4bc82a4b6d801386"
+    },
+    {
+      "path": "src/app/api/referees/admin/appointments/[matchId]/completed-officials/route.ts",
+      "sha256": "0ba46fbdeb502cdfe4c85e6ed86965db370793828ee3d3c1b2365a8e910101b5"
+    },
+    {
+      "path": "src/app/api/referees/admin/exports/[kind]/route.ts",
+      "sha256": "9ed1888736a33964b4054385a2778b04ca3c973cb1b27d4304d65bd971f4440c"
+    },
+    {
+      "path": "src/app/referees/admin/(dashboard)/availability/page.tsx",
+      "sha256": "d1e685f3a0d2bd1be04090aa7f2fa416b41769fe4780110b4cccaadeac3d9148"
+    },
+    {
+      "path": "src/app/referees/admin/(dashboard)/matches/[id]/page.tsx",
+      "sha256": "de36588a2324fc0fa02a43f72d3afc15c6941b624a9a7fb9947fcb9b5f4ca3e1"
+    },
+    {
+      "path": "src/app/referees/admin/(dashboard)/referees/[id]/page.tsx",
+      "sha256": "6b990cbbf978ed053063e494d655e9d362d16e37c0be120ad374d5f7c48827c9"
+    },
+    {
+      "path": "src/app/referees/admin/(dashboard)/referees/page.tsx",
+      "sha256": "22326d3f55fcb17953c8196a7cb997558394fb6f0d028965569840a5d0404cbd"
+    },
+    {
+      "path": "src/app/referees/assignments/[id]/print/page.tsx",
+      "sha256": "3bf8e8e42a9020aba055bc499c0b8dce208368d24f8301314bb9feb091a7b49c"
+    },
+    {
+      "path": "src/app/referees/assignments/page.tsx",
+      "sha256": "dacee2199c2444ec8c0ea6bda0ebdcf3f2d2f630ec21f56b69ccfe8ad62634d7"
+    },
+    {
+      "path": "src/app/referees/history/page.tsx",
+      "sha256": "6bfb5c1744c2ff028d0ca1fbb7ded4332b4e4ec63cfec3b9537d81da37fba5f3"
+    },
+    {
+      "path": "src/app/referees/workspace/account/page.tsx",
+      "sha256": "77b1b083a053792f8b265f635e74791fe4a972991c60c61634c8fb67b765bd36"
+    },
+    {
+      "path": "src/app/referees/workspace/page.tsx",
+      "sha256": "8e786877bdb3a26241d98eb37d34995640c482e6bfc8f43ecf8f434c3a6ea09e"
+    },
+    {
+      "path": "src/components/admin/match-scheduling-form.tsx",
+      "sha256": "e18b77d192f3b70f1982090c677ee1d0e2c462a86a2ee80cddca796898c2ffa1"
+    },
+    {
+      "path": "src/components/competitions/core-competition-preview-page.tsx",
+      "sha256": "f0abf386819e4eb501e994fe73842a3e63f033b667b2349dee917ed2f2ffaeea"
+    },
+    {
+      "path": "src/components/referees/admin/admin-completed-officials.tsx",
+      "sha256": "836b4487a343386783ed1b999538ddbf92e89092ae6a6db4b2cd983fcf0e3493"
+    },
+    {
+      "path": "src/components/referees/admin/admin-data-managers.tsx",
+      "sha256": "bb465fd4ed48d3423c7041d42573193078691cb8b880ee8d32a521309be51d48"
+    },
+    {
+      "path": "src/components/referees/admin/admin-grade-control.tsx",
+      "sha256": "096dcde42b11b0fbe212dccc8dc30d5e64d52f583884dce798ebe294ff78a614"
+    },
+    {
+      "path": "src/components/referees/admin/admin-match-form.tsx",
+      "sha256": "a7f3c738a20e671c5d17cf686a5f7fc761349eddb8237a234efbbb735126452f"
+    },
+    {
+      "path": "src/components/referees/admin/admin-matches-page.tsx",
+      "sha256": "7f095fb1309dbe6148588e78c344a5a437c2f806d8a2cb4996d3d3ff9fdc7bce"
+    },
+    {
+      "path": "src/components/referees/admin/admin-pagination.tsx",
+      "sha256": "447a7772d53485a0805cd265553272a487b765523537250c3cc9925738c3737e"
+    },
+    {
+      "path": "src/components/referees/admin/admin-presenters.ts",
+      "sha256": "af5891d4ea5230253b51956fbab32ae83015b8b2e24ca22c7c0207d3511fa60a"
+    },
+    {
+      "path": "src/components/referees/admin/admin-referee-forms.tsx",
+      "sha256": "d4d642b364572ac91a1eca46a2308be979f0af902317bb3e105e196e619a04c5"
+    },
+    {
+      "path": "src/components/referees/admin/beijing-day-refresh.tsx",
+      "sha256": "0b41c197a329b021f519b16e400f2549e538c446a17f7900c5565e7349e1d477"
+    },
+    {
+      "path": "src/components/referees/mvp/public-appointment-list.tsx",
+      "sha256": "a4bc6babe1b1c11006e40e565cdd74a8a82de9cc82c16da8b1251b73e61792d6"
+    },
+    {
+      "path": "src/components/referees/mvp/referee-workspace-r1.tsx",
+      "sha256": "8f86b99fc2fddd438fd1b5e60669623825aa47ee85617f358a3955c7d995971f"
+    },
+    {
+      "path": "src/lib/admin-availability-page.ts",
+      "sha256": "f87ea0700bb9a0aa9b17a3f07bdd00bd2a7c77efacbed1a19bf000c0b3a377a0"
+    },
+    {
+      "path": "src/lib/admin-match-query.ts",
+      "sha256": "c9a0ea0086854de4cd91c0b4bd0de09a39900e1c3eaf5f8d831cd9570fdab291"
+    },
+    {
+      "path": "src/lib/admin-referee-query.ts",
+      "sha256": "6ef95c4b5f6eb7e4f7609c028e9690e8eee57a17c8371028fac889354e6ac2f4"
+    },
+    {
+      "path": "src/lib/beijing-datetime.ts",
+      "sha256": "d73b9bd26ab3fff86b388d83d865d68e63cb5e26e20ae45a025a8a2497561246"
+    },
+    {
+      "path": "src/lib/competition-import-service.ts",
+      "sha256": "062b5b3225f30bd2a24c4a2d125614d3855a6b624662dc38236ce003d8841394"
+    },
+    {
+      "path": "src/lib/completed-officials-service.ts",
+      "sha256": "32a5657cb5719f4bed8d692efe0411f6b7c5ff5c8df6db209861caeb141e2c85"
+    },
+    {
+      "path": "src/lib/public-competition-service.ts",
+      "sha256": "0fc9fd2bd78f6faf1ed6dd4c58f263d73672f9bedeeda4ff0f3c9d1657e4e3d1"
+    },
+    {
+      "path": "src/lib/referee-availability-calendar.ts",
+      "sha256": "b32e673dc6a9b499e51fab113d48565a12881ac3e6bde2d89b061e90bd6fc1ab"
+    },
+    {
+      "path": "src/lib/referee-conflicts.ts",
+      "sha256": "58266df1013ec098997f657fd37977fa44bb1ef7fa0655c8fa16d4b2242611ed"
+    },
+    {
+      "path": "src/lib/referee-dto.ts",
+      "sha256": "3f34537872566331d661a3d8e2e1e411bcf753c03e16ae4b26c2dc2be33cb4ae"
+    },
+    {
+      "path": "src/lib/referee-grade-service.ts",
+      "sha256": "fe0f98ee9e263fff6f7014732432ef917bfdd6bd41691e9ad2de69d0692b7d49"
+    },
+    {
+      "path": "src/lib/referee-grade.ts",
+      "sha256": "8052a3280b08c8fb4ab6b19ee5234bfa136f7d2e9b181911d076b99c6ac7e40f"
+    },
+    {
+      "path": "src/lib/referee-presenters.ts",
+      "sha256": "f63f1f9ebbe2b504068343b3fc6cf6f905ee6d2c351303d8b7d4344e09d36704"
+    },
+    {
+      "path": "src/lib/referee-public.ts",
+      "sha256": "788175ea2ce76dd4b431e6413c59fd70cb21370bf3f5144f9837ab6abe7d9eed"
+    },
+    {
+      "path": "src/lib/referee-record-publicity.ts",
+      "sha256": "4da8af1ea2be97a4a1b673022d3b0bcbcb25368d63064558ef56ca02eb2027b5"
+    },
+    {
+      "path": "src/lib/referee-service.ts",
+      "sha256": "f2db9e194e4b215c98dd5ca778a488808dc3c6bb08d5fa478726851a0e59022e"
+    },
+    {
+      "path": "src/lib/referee-validation.ts",
+      "sha256": "00b6188a1d9c4cd38fa9b2c66eaff3544c46038d4130071bfcef56540266d42d"
+    },
+    {
+      "path": "src/styles/referee-admin.css",
+      "sha256": "895dcf354d64f9ba9de003144938e2fcc6b79c27e31bb9b3d9976009238d5bb3"
+    },
+    {
+      "path": "src/types/competition-center.ts",
+      "sha256": "f5ccac1397e62260cb8b9752a05979a8fa58e7f1e2c98605b572aa60f6632e1d"
+    }
+  ]
+}

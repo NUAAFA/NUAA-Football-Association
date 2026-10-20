@@ -1,0 +1,29 @@
+{
+  "observedAt": "2026-10-20T12:41:16.757527+00:00",
+  "provider": "GitHub connector structuredContent independently read",
+  "pr": {
+    "number": 11,
+    "url": "https://github.com/NUAAFA/NUAA-Football-Association/pull/11",
+    "state": "open",
+    "draft": true,
+    "merged": false,
+    "headSha": "73da7dd7aa60b3eb027fbaf3e124f8e6bc070515",
+    "base": "main",
+    "baseSha": "0761f3753fde9fcab124001964bb9310c2921a8c"
+  },
+  "ci": {
+    "runId": 39423814132,
+    "status": "in_progress",
+    "security": {
+      "jobId": 118631168160,
+      "conclusion": "success"
+    },
+    "application": {
+      "jobId": 118631168676,
+      "status": "in_progress",
+      "currentStep": "Generate, migrate and build",
+      "conclusion": null
+    }
+  },
+  "baseTreeVerifiedLocally": "fb24d93bf55de73784154afd79d59c7d360349a4"
+}

@@ -1,0 +1,236 @@
+[
+  {
+    "command": "npm run test:referee-flow",
+    "code": 0,
+    "start": "2026-10-20T12:26:33.692Z",
+    "finish": "2026-10-20T12:26:38.497Z"
+  },
+  {
+    "command": "npm run test:referee-admission",
+    "code": 0,
+    "start": "2026-10-20T12:26:38.497Z",
+    "finish": "2026-10-20T12:26:39.174Z"
+  },
+  {
+    "command": "npm run test:referee-r1",
+    "code": 0,
+    "start": "2026-10-20T12:26:39.174Z",
+    "finish": "2026-10-20T12:26:40.083Z"
+  },
+  {
+    "command": "npm run test:referee-r1-3a",
+    "code": 0,
+    "start": "2026-10-20T12:26:40.083Z",
+    "finish": "2026-10-20T12:26:41.174Z"
+  },
+  {
+    "command": "npm run test:referee-r1-3a:migration",
+    "code": 0,
+    "start": "2026-10-20T12:26:41.174Z",
+    "finish": "2026-10-20T12:26:41.506Z"
+  },
+  {
+    "command": "npm run test:referee-r1-3a:migration:fresh",
+    "code": 0,
+    "start": "2026-10-20T12:26:41.506Z",
+    "finish": "2026-10-20T12:26:42.561Z"
+  },
+  {
+    "command": "npm run test:referee-fix2",
+    "code": 0,
+    "start": "2026-10-20T12:26:42.561Z",
+    "finish": "2026-10-20T12:26:43.522Z"
+  },
+  {
+    "command": "npm run test:referee-fix3",
+    "code": 0,
+    "start": "2026-10-20T12:26:43.522Z",
+    "finish": "2026-10-20T12:26:44.366Z"
+  },
+  {
+    "command": "npm run test:referee-fix5",
+    "code": 0,
+    "start": "2026-10-20T12:26:44.366Z",
+    "finish": "2026-10-20T12:26:45.116Z"
+  },
+  {
+    "command": "npm run test:referee-match-deletion",
+    "code": 0,
+    "start": "2026-10-20T12:26:45.116Z",
+    "finish": "2026-10-20T12:26:45.791Z"
+  },
+  {
+    "command": "npm run test:unified-admin-r1",
+    "code": 0,
+    "start": "2026-10-20T12:26:45.791Z",
+    "finish": "2026-10-20T12:26:46.467Z"
+  },
+  {
+    "command": "npm run test:unified-admin-r1-2",
+    "code": 0,
+    "start": "2026-10-20T12:26:46.467Z",
+    "finish": "2026-10-20T12:26:47.491Z"
+  },
+  {
+    "command": "npm run test:unified-admin-rbac",
+    "code": 0,
+    "start": "2026-10-20T12:26:47.491Z",
+    "finish": "2026-10-20T12:26:48.380Z"
+  },
+  {
+    "command": "npm run test:unified-admin-blockers:http",
+    "code": 0,
+    "start": "2026-10-20T12:26:48.380Z",
+    "finish": "2026-10-20T12:26:50.451Z"
+  },
+  {
+    "command": "npm run test:unified-admin-migration",
+    "code": 0,
+    "start": "2026-10-20T12:26:50.451Z",
+    "finish": "2026-10-20T12:26:50.728Z"
+  },
+  {
+    "command": "npm run test:competition-import",
+    "code": 0,
+    "start": "2026-10-20T12:26:50.729Z",
+    "finish": "2026-10-20T12:26:51.375Z"
+  },
+  {
+    "command": "npm run test:competition-import:http",
+    "code": 0,
+    "start": "2026-10-20T12:26:51.375Z",
+    "finish": "2026-10-20T12:26:52.778Z"
+  },
+  {
+    "command": "npm run test:ops-r3-1-2",
+    "code": 0,
+    "start": "2026-10-20T12:26:52.778Z",
+    "finish": "2026-10-20T12:26:53.790Z"
+  },
+  {
+    "command": "npm run test:ops-r3-1-3",
+    "code": 0,
+    "start": "2026-10-20T12:26:53.790Z",
+    "finish": "2026-10-20T12:26:54.700Z"
+  },
+  {
+    "command": "npm run test:admin-operations-r2",
+    "code": 0,
+    "start": "2026-10-20T12:26:54.701Z",
+    "finish": "2026-10-20T12:26:55.511Z"
+  },
+  {
+    "command": "npm run test:admin-operations-r2.1",
+    "code": 0,
+    "start": "2026-10-20T12:26:55.511Z",
+    "finish": "2026-10-20T12:26:56.156Z"
+  },
+  {
+    "command": "npm run test:admin-availability-calendar",
+    "code": 0,
+    "start": "2026-10-20T12:26:56.156Z",
+    "finish": "2026-10-20T12:26:57.106Z"
+  },
+  {
+    "command": "npm run test:admin-operations-r2:migration",
+    "code": 0,
+    "start": "2026-10-20T12:26:57.106Z",
+    "finish": "2026-10-20T12:26:57.445Z"
+  },
+  {
+    "command": "npm run test:team-directory-r1",
+    "code": 0,
+    "start": "2026-10-20T12:26:57.445Z",
+    "finish": "2026-10-20T12:26:59.280Z"
+  },
+  {
+    "command": "npm run test:team-directory-r1-1",
+    "code": 0,
+    "start": "2026-10-20T12:26:59.280Z",
+    "finish": "2026-10-20T12:27:00.454Z"
+  },
+  {
+    "command": "npm run test:public-competition-dynamic",
+    "code": 0,
+    "start": "2026-10-20T12:27:00.454Z",
+    "finish": "2026-10-20T12:27:02.594Z"
+  },
+  {
+    "command": "npm run test:public-competition-dynamic:http",
+    "code": 0,
+    "start": "2026-10-20T12:27:02.594Z",
+    "finish": "2026-10-20T12:27:04.368Z"
+  },
+  {
+    "command": "npm run test:security-csv",
+    "code": 0,
+    "start": "2026-10-20T12:27:04.368Z",
+    "finish": "2026-10-20T12:27:04.519Z"
+  },
+  {
+    "command": "npm run test:security-admission",
+    "code": 0,
+    "start": "2026-10-20T12:27:04.519Z",
+    "finish": "2026-10-20T12:27:05.132Z"
+  },
+  {
+    "command": "npm run test:security-appointments",
+    "code": 0,
+    "start": "2026-10-20T12:27:05.133Z",
+    "finish": "2026-10-20T12:27:05.826Z"
+  },
+  {
+    "command": "npm run test:security-api-errors",
+    "code": 0,
+    "start": "2026-10-20T12:27:05.827Z",
+    "finish": "2026-10-20T12:27:06.005Z"
+  },
+  {
+    "command": "npm run test:security-http",
+    "code": 0,
+    "start": "2026-10-20T12:27:06.005Z",
+    "finish": "2026-10-20T12:27:11.952Z"
+  },
+  {
+    "command": "npm run test:security-runtime-r2",
+    "code": 0,
+    "start": "2026-10-20T12:27:11.952Z",
+    "finish": "2026-10-20T12:27:12.668Z"
+  },
+  {
+    "command": "npm run test:security-dependencies",
+    "code": 0,
+    "start": "2026-10-20T12:27:12.668Z",
+    "finish": "2026-10-20T12:27:15.026Z"
+  },
+  {
+    "command": "npm run test:student-id-release-preflight",
+    "code": 0,
+    "start": "2026-10-20T12:27:15.026Z",
+    "finish": "2026-10-20T12:27:17.781Z"
+  },
+  {
+    "command": "npm run test:production-hardening",
+    "code": 0,
+    "start": "2026-10-20T12:27:17.782Z",
+    "finish": "2026-10-20T12:27:19.023Z"
+  },
+  {
+    "command": "npm run check:unicode",
+    "code": 0,
+    "start": "2026-10-20T12:27:19.023Z",
+    "finish": "2026-10-20T12:27:19.160Z"
+  },
+  {
+    "command": "npm run lint",
+    "code": 0,
+    "start": "2026-10-20T12:27:19.160Z",
+    "finish": "2026-10-20T12:27:25.798Z"
+  },
+  {
+    "command": "npm run typecheck",
+    "code": 0,
+    "start": "2026-10-20T12:27:25.799Z",
+    "finish": "2026-10-20T12:27:28.811Z"
+  }
+]

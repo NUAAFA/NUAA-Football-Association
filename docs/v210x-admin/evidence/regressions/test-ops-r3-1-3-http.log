@@ -1,0 +1,25 @@
+
+> nuaa-football-association@0.1.0 test:ops-r3-1-3:http
+> tsx scripts/test-ops-r3-1-3-http.ts
+
+AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+  assert(root && path.basename(root).startsWith('nuaafa-ops-r313-'))
+
+    at main (/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-ops-r3-1-3-http.ts:5:40)
+    at assert (/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-ops-r3-1-3-http.ts:22:1)
+    at Object.<anonymous> (/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-ops-r3-1-3-http.ts:22:57)
+    at Module._compile (node:internal/modules/cjs/loader:1781:14)
+    at Object.transformer (/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/node_modules/tsx/dist/register-BoI6-WNn.cjs:9:3252)
+    at Module.load (node:internal/modules/cjs/loader:1505:32)
+    at Function._load (node:internal/modules/cjs/loader:1309:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+    at loadCJSModuleWithModuleLoad (node:internal/modules/esm/translators:335:3)
+    at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:235:7) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: undefined,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}

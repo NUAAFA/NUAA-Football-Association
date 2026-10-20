@@ -1,0 +1,9 @@
+
+> nuaa-football-association@0.1.0 test:v210x-admin
+> tsx scripts/test-v210x-admin.ts
+
+PASS E/F strict calendars, explicit offsets, import, BST/GMT, Beijing academic boundary; TZ=Europe/London
+PASS B/C 600 matches, 300 per logical round, A/B distinct IDs, server pagination/count, stage switch, legacy, Beijing natural day, separate real competitions
+PASS A/F 1000 profiles, 50 pages, grade/source/enrollment filters, opt-in preview, legacy grade preserved, affiliation/account/credentials unchanged, audit and stale update
+PASS D completed backfill/correction, CAS/race/duplicate, full Match immutability, audit/version, partial slots, inactive historical facts, role separation, statistics and public privacy
+ISOLATED_FIXTURE=/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-v210x-bJtrkQ

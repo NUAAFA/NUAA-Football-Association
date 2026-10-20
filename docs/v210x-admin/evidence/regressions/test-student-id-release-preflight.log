@@ -1,0 +1,7 @@
+
+> nuaa-football-association@0.1.0 test:student-id-release-preflight
+> node --import tsx scripts/test-student-id-release-preflight.mjs
+
+(node:15872) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: 17-migration fixtures; corrected semantics parity; no database/WAL changes; read-only write rejection; count-only output; blockers, missing/schema/type/path/bound/timeout failures block release.

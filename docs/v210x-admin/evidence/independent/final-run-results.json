@@ -1,0 +1,32 @@
+{
+  "recordedAt": "2026-10-20T12:32:45.058192+00:00",
+  "codeCommit": "d18425fea7416a805a3965556df989102feb6551",
+  "node": "v24.21.0",
+  "status": "PASS",
+  "checks": [
+    {
+      "command": "TZ=UTC npm run test:v210x-admin",
+      "exitCode": 0,
+      "log": "final-admin-utc.log",
+      "sha256": "d3d5bf1998c8e694743b73223613be11e6bb35cd66d67fa2b3b22bc1827380c1"
+    },
+    {
+      "command": "python3 scripts/test-v210x-migration.py",
+      "exitCode": 0,
+      "log": "final-migration.log",
+      "sha256": "9ae943e146e3a3e9fcbf9e31007b1ae174e367049191745adedb7f49fba08b8b"
+    },
+    {
+      "command": "TZ=UTC node --import tsx <independentRoot>/probe.ts",
+      "exitCode": 0,
+      "log": "final-probes.log",
+      "sha256": "c5128f0e77ba55485636855d929ff9ac0793af23ff473ae25aa3ae5f61a1d817"
+    },
+    {
+      "command": "TZ=Europe/London node --import tsx <independentRoot>/grade-probe.ts",
+      "exitCode": 0,
+      "log": "final-grade-probes.log",
+      "sha256": "58b93729053ebac8f1648822cb1b1bf17e4d81a78f64f57071a8a03d15f20e93"
+    }
+  ]
+}

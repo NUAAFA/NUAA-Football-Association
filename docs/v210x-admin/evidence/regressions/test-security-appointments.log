@@ -1,0 +1,14 @@
+
+> nuaa-football-association@0.1.0 test:security-appointments
+> tsx scripts/test-security-appointments.ts
+
+{
+  "matrixCases": 30,
+  "allowedCount": 10,
+  "rejectedCount": 20,
+  "illegalMutationChecks": 20,
+  "completedAndCancelledTerminal": true,
+  "replaceAWithB": true,
+  "removeAAddC": true,
+  "terminalApplicationStatusesPreserved": true
+}

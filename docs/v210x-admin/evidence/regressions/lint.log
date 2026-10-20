@@ -1,0 +1,10 @@
+
+> nuaa-football-association@0.1.0 lint
+> eslint
+
+
+/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/src/lib/combined-backup.ts
+  11:3  warning  'rm' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 1 problem (0 errors, 1 warning)
+
