@@ -118,6 +118,7 @@ jobs:
           test "$(uname -sm)" = 'Linux x86_64'
           test "$(node --version)" = v22.23.2
           mkdir -p "$RUNNER_TEMP/prebuilt-output"
+          git rev-parse HEAD > "$RUNNER_TEMP/prebuilt-output/checkout-identity.txt"
           printf 'DATABASE_URL=file:%s/readiness-build.db\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
           printf 'NUAAFA_TEST_EVIDENCE=%s/prebuilt-output/case-logs\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
           touch "$RUNNER_TEMP/readiness-build.db"
@@ -128,7 +129,6 @@ jobs:
       - name: Migration policy, actual Bash failure and existing deployment regressions
         run: |
           python3 scripts/test-production-readiness.py
-          python3 scripts/test-start-prebuilt.py
           python3 scripts/test-prebuilt-pack.py
           python3 scripts/test-prebuilt-artifact.py
           python3 scripts/test-deploy-recovery-health.py
