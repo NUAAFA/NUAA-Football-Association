@@ -1,0 +1,281 @@
+NUAAFA V2.10 — Import / Journal Closure
+Date: 2026-10-11 (Europe/London)
+Developer self-check: PASS WITH NOTES, within the executed macOS/synthetic scope
+Independent review of this revision: PENDING
+Linux: NOT RUN
+Production Release: NO-GO
+
+A. Scope and preserved baseline
+
+本轮以用户的人类请求为授权边界；任务书及独立复审是修复输入，不能扩大
+生产、发布或基础设施权限。已完整读取任务书及最新独立复审“审查 NUAAFA
+V2.10 发布代码”。复审正文保存在本轮 evidence/independent-review.md。
+原复审结论为 Code Review BLOCKED、Production NO-GO，发现 0 P0 / 1 P1 / 1 P2。
+本报告是开发者修复交付，不能替代新的独立复审或批准。
+
+Integration worktree:
+  /Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA
+Branch: integration/v2.10-ui-release
+HEAD: 15df2a09f4e2ca9f809284e9c10516496e8884bc
+Original UI worktree:
+  /Users/xianghanwang/Documents/Codex/NUAAFA
+UI HEAD: 83630cb1296405757a2591a444dca150f2a990fa
+
+开始时 16 个未提交文件的哈希与上一轮 delivery-files.json 全部一致。
+先逐一复制为本轮 initial/ 快照，再增量修改。未 reset、checkout 覆盖或清理
+已有成果；原 16 个文件全部保留。最终共 19 个未提交文件：在原有文件中
+增量修改 9 个，新增本报告、test-start-prebuilt.py、test-tiptap-browser.mjs。
+原有两份报告、安全处置文档、package.json、package-lock.json、RC 检查与
+combined-backup.ts 这 7 个文件保持开始时字节不变。
+
+本轮未修改业务/UI 源码、Prisma schema 或 17 条迁移；本地分支和 tag 不变，
+index 没有暂存修改，main 不变，原 UI 工作树仍 clean。当前改动不属于上述
+HEAD，不能用 HEAD 或目录名表示已提交的可发布候选。
+本轮未重新查询远程；本地 remote-tracking refs 只作为记录，不表述为远程新鲜性。
+
+B. Evidence location and execution boundary
+
+Evidence directory (below abbreviated as evidence/):
+  /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-import-journal-ei6trl01
+Previous evidence retained without modification:
+  /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u
+
+checks.jsonl 记录每次命令、cwd、退出码、秒数、平台及 UID；每次命令另存独立
+日志，失败日志没有被成功重跑覆盖。initial/ 保存原 16 文件。
+final-integrity.json、delivery-files.json、closure-delta.patch 分别记录最终
+完整性、19 文件 SHA-256 和相对本轮初始快照的增量补丁。
+
+Actually executed platform: macOS 27.0.1 / darwin arm64
+UID: 501 (xianghanwang), no root escalation / no second user
+Node: 22.23.2, Python: system Python 3.9, Chrome: 154.0.8037.98
+
+导入控制流测试执行真实 nuaafa-deploy main，而非仅调用 materialize/verify helper。
+Git clone/fetch/checkout/origin/HEAD/source blob 校验、源码集合与完整 manifest
+校验、SQLite migration-ready、真实 state/check-state、journal 原子写入及
+完整部署序列均执行实际实现。macOS 夹具适配 root 元数据/身份、GNU stat、
+平台、服务契约及原子 rename；备份/迁移/服务动作记录为合成 events。
+这些适配没有整体替换 Git/source/manifest 验证或 state/check-state。
+合成 approval 仅存在于隔离夹具，不是项目或生产安全例外。
+
+档案内 ELF、lock、包元数据及 Linux 平台字段属于合成输入，不能证明实际
+Linux native/platform/权限通过。没有任何生产共享数据、私钥或服务被读取。
+
+C. P1 — trimmed runtime vs full Git index
+
+修复前已新增含 tracked README.md、AGENTS.md、docs、ops、.github 等打包排除
+文件的夹具。实际 pack → main --import-artifact 在裁剪目录调用 clean Git
+status，因合法 tracked deletions 失败；before-p1.log 记录真实拒绝。
+
+修复后的验证契约：
+  1. 完整临时 checkout：可信 origin，fresh allowed-ref fetch，可达性，准确
+     commit，严格 clean worktree。首次和重复导入都执行，不写入封存 runtime。
+  2. materialize 后裁剪 runtime：准确 HEAD/origin，receipt 所绑定 remote_head
+     的 commit ancestry，完整 commit-derived source set 与 Git blob 字节，
+     manifest 全文件/目录/native inventory，禁止额外路径及 .env*，封存权限。
+  3. receipt 位于 runtime 外部并绑定 commit/digest/ref/remote_head/manifest。
+     未从候选输入生成批准。冲突或 orphan receipt 仍 fail closed。
+  4. legacy 完整 checkout：原严格 validate_git_state 保留，没有忽略 tracked
+     修改，也没有把全局 Git status 检查改为恒成功。
+
+已覆盖实际入口：首次导入、同一 archive 重复导入、dry-run、归档损坏及
+清理；源码修改/遗漏、排除文件额外出现、额外 env、wrong origin/HEAD、ref
+不可达及无效 receipt 均拒绝。自洽重算 manifest 并删除非 REQUIRED 源文件
+src/synthetic.ts，仍被可信 commit 的完整 source set 检查拒绝。
+继承 Git 配置污染的正向测试原本也通过；没有将其虚报为本轮新增缺陷。
+
+各调用点：
+  full checkout preparation      validate_git_state + origin/ref
+  prebuilt staging/import       trusted commit source set + receipt inventory
+  repeat import                 fresh full checkout + existing runtime verify
+  activation                    runtime verify + fresh reachability/approvals
+  old prebuilt recovery         old receipt/digest/ref + source/runtime verify
+  old legacy recovery           strict clean checkout + origin/build/shared links
+  backup commit identity        exact Git HEAD; actual packaged tools also executed
+
+真实完整项目 Linux archive 的 pack → import twice → wrapper runtime 测试已经
+改为工作流无条件步骤，但本轮没有获授权 Linux，执行结果为 NOT RUN。
+未提交的项目树不能作为正式 clean-commit 归档；本轮没有生成正式发布产物。
+
+D. P2 — link-only activation vs journal
+
+修复前先执行真实 full A → HEALTHY/A → stage B → activate-staged B 序列。
+旧代码切换 current 到 B，但 journal 留在 A；回归要求拒绝而失败，记录于
+before-p2-node22.log。state/check-state 没有替换为测试恒成功函数。
+
+修复选择切换前拒绝冲突目标：在既有 journal 下，link-only 只能保留 journal
+确认的当前版本；改变目标必须走完整激活。没有伪造 HEALTHY，没有新增未知
+journal phase，也没有删除历史 journal。
+Already current 保持 journal/events 不变，并明确说明没有重新验证服务健康。
+
+实际入口覆盖：
+  full A → stage B → link-only B 拒绝，current/journal/events 不变
+  same A no-op；随后 full B → HEALTHY/B → stage B → same B no-op
+  PREPARED、MIGRATING、MANUAL_REQUIRED、terminal/current mismatch 均拒绝
+  absent-journal 的原获批准 legacy link-only 路径保留，不生成 journal
+
+Linux 源码测试同步包含上述真实 journal/check-state 序列，但 Linux NOT RUN。
+原 test-deployer.sh 的 broad legacy mocks 保留；关键 journal 证明来自新增
+实际逻辑测试，不能用旧矩阵替代。
+
+E. Same archive / same source before-after comparison
+
+同一夹具一次生成后，分别使用 initial/ 中的旧部署器/helper 和本轮实现，
+执行相同 main 入口及序列。完整夹具与两个原始 archive 保存在 evidence/。
+same-archive-comparison.json / same-archive-entry/ 保留两组完整输出。
+
+Synthetic commit: 4ba6263f415c1eb92fa9557088182874ee622b9e
+Synthetic old A:  8ae053126a051b9c912bf4db6acbbc9ec2e7838c
+Synthetic prior:  0086e2f0543c3b910c114b5f4744ed92dc0190b4
+Archive: same-archive.tar.gz
+SHA-256: a4a16c0011ddd8fc038f743443a66a4f53065795dabc84f12199c503fbd3413a
+Old archive SHA-256:
+  f7aa1e14969dd0f8d156230fd13022ea46631199f64bb3ef61fcd793556b48d8
+
+P1 before main exit 1 (clean-worktree conflict); after first + repeat exit 0.
+P2 before sequence exit 90 (test observed unsafe success); after sequence exit 0
+(different target correctly refused, later full lifecycle and same-target no-op work).
+Exit 90 is the harness's unexpected-success sentinel, not deployment success.
+These are synthetic source SHAs/digests, not project candidate or Linux evidence.
+
+F. Recovery readiness before stop and same-chain corrections
+
+full_deploy 和 activate_prebuilt 在 backup/stop/migrate 前调用同一实际旧版
+恢复校验，检查 origin/HEAD/source、build、共享链接目标及文件/父目录权限；
+既有 schema/migration/DB history compatibility 检查继续保留。
+旧源码修改/缺失、BUILD_ID 缺失、env 错链或 0666、migration 内容改变、origin
+错误均在上述 side effects 前拒绝。两条入口各覆盖 7 个负例和 1 个健康正例。
+早期回归 p1-fixed-precheck-before.log 保留原逻辑允许损坏旧版进入激活的失败。
+
+同一恢复调用链还修正：旧版为裁剪导入产物时，不再以新候选 digest/ref 或
+完整 Git status 判定它；使用旧版自己的受信 receipt 身份。当前链接验证和
+原子恢复切换也按目标 receipt/marker 使用 prebuilt owner contract。
+回归用不同 archive/digest 导入 A、导入 B、使 B 健康失败，实际恢复校验 A、
+恢复 current、记录 ROLLED_BACK；随后真实 check-state 与重复导入仍通过。
+
+恢复阶段再次校验旧版；只有旧版切换/重启/健康全部成功才记录 ROLLED_BACK。
+原 MIGRATING 失败及恢复失败矩阵继续通过：迁移不确定不会自动重启旧代码，
+恢复失败进入 MANUAL_REQUIRED 并尝试停服。没有自动反向迁移或数据库回滚。
+合成事件不证明真实 systemd、真实生产旧版本兼容性或现场恢复已通过。
+
+G. Actual start-prebuilt entry
+
+新增 test-start-prebuilt.py 通过 Python -I 执行实际 wrapper 的副本，仅改变
+固定隔离路径、Node/account/port 与 macOS trusted UID 常量；不替换 wrapper
+函数或 exec。它覆盖应用身份、清空继承环境、准确 cwd/argv、额外 .env*、
+共享配置错误目标/权限、错误 Node 版本。修复前负例实际失败，修复后 5 方法通过。
+单元探针的 Node 是记录 exec 的合成程序；下述 runtime 才执行真实 Next。
+
+实际 runtime 命令：
+  node scripts/test-prebuilt-runtime.mjs \
+    --runtime=evidence/runtime-tree/releases/15df2a09f4e2ca9f809284e9c10516496e8884bc \
+    --startup-fixture=evidence/runtime-tree/shared \
+    --wrapper=evidence/runtime-tree/start-prebuilt
+实际路径均为绝对路径，完整命令见 checks.jsonl。
+
+该 runtime 是仓库外 macOS 副本及既有构建/生成文件，不是正式 clean-commit
+候选；与原工作树无共享 env/DB/uploads。wrapper 从 cwd=/ 以 UID 501 启动，
+故意注入 NODE_OPTIONS、错误 DATABASE_URL 和 development 环境，实际 Next
+通过配置链接启动、健康查询成功。包装器源哈希及常量适配见 wrapper-adaptation.json。
+实际 Sharp、生成 Prisma client/native libSQL、17 条合成迁移、健康/页面/
+静态/公开文件、backup/verify/isolated restore 均通过。另执行实际部署器
+run_prebuilt_backup，运行目录不同，未替换备份或校验工具。
+
+Wrapper source now verifies UID/canonical current/trusted parents/build/CLI,
+Next 16.3.8, Node 22.23.2, exact env/DB links and metadata; rejects extra env.
+读取的配置是本轮合成配置；没有读取生产配置。Linux /proc cwd/UID 验证已
+编入测试，但未执行；/srv/nuaafa、/usr/bin/node 固定现场路径及 systemd NOT RUN。
+
+H. Tiptap targeted real-browser interaction
+
+实际使用 Tiptap 3.30.5、Chrome 154.0.8037.98、Node 22.23.2、隔离合成数据库
+和上传目录。通过管理 UI 登录、标题 H2/粗体/安全链接/媒体库图片编辑，检查
+序列化 JSON，保存草稿、重新打开并验证格式/链接/图片，预览保存版并解码
+优化图片，确认草稿公开 URL 404，随后 UI 发布并检查公开正文 HTML/图片/
+链接 rel。浏览器会话请求非法 javascript 链接、data 图片、script node，实际
+HTTP 校验返回 400 且已发布正文保持不变。没有浏览器 pageerror。
+
+所有浏览器 URL 均 interception 到 loopback 合成服务器：生产样式 origin
+仅用于本地 CSRF/cookie 契约，未发出生产连接；其他 origin 被中止。
+截图 editor-before-save、editor-reopened、editor-draft-preview、editor-public-render
+及 JSON 结果位于 evidence/editor-third/。开发者已查看 reopened/public 截图；
+黑色图片是既有合成 fixture，不代表正式媒体数据。独立 Human Review PENDING。
+未发现需要修改业务编辑器的确定性升级回归，因此本轮只补交互测试。
+
+I. Executed results, retained failures, Linux readiness
+
+PASS (actual macOS execution only):
+  closure-final: 34 prebuilt test methods, exit 0, 82.79 s
+  wrapper-final: 5 actual-wrapper probe methods, exit 0, 0.85 s
+  legacy-after: preserved deployer matrix, exit 0, 10.40 s
+  same-archive-before-after: same source/archive comparison, exit 0, 6.98 s
+  actual-wrapper-runtime: actual Next/native/backup chain, exit 0, 3.64 s
+  editor-browser-third: real Chrome targeted interactions, exit 0, 4.23 s
+  static-checks: Bash/Python/Node syntax, targeted ESLint, workflow parse,
+                 mandatory actual-import step and diff whitespace, exit 0
+
+历史失败原样保留，不能将其重写为 PASS：
+  before-p1 / before-p2-node22: original P1/P2 reproduced
+  p1-fixed-precheck-before: original old-release readiness defect reproduced
+  before-wrapper: missing rejection controls reproduced; positive path assertion
+                  also had a harness path-normalization mismatch
+  before-p2: first harness used wrong Node/macOS stat; not valid P2 reproduction
+  closure-first: shared-links CLI adapter argument mismatch, corrected harness
+  editor-browser-first: localhost CSRF/cookie origin harness mismatch
+  editor-browser-second: optimized-image URL assertion/route cleanup mismatch
+  corrected closure-second / expanded-entry / browser-third retained separately
+
+linux-not-run.log: actual test-prebuilt-linux.py invocation exited 2 with
+  NOT RUN: disposable Linux root required
+这个拒绝结果不是 Linux 测试通过。没有授权 Linux，不使用 macOS、合成 ELF、
+源码就绪或 Ubuntu 工作流配置冒充 Linux PASS。
+
+Future Linux test source (NOT RUN) now covers real root/app ownership, complete
+main import twice, receipt/source/permission rejection, real journal sequences,
+pre-stop old-release failure, actual wrapper UID/environment metadata and real
+archive/native/HTTP/backup relocation. Only build/service/DB side effects in
+synthetic lifecycle tests are replaced; actual archive runtime has no native mocks.
+工作流的 pack → main import twice → wrapper runtime 不再被 upload input 跳过；
+只有摘要 summary/upload 是 default-off。保留 pinned Actions、Bash pipefail、
+独立 audit gate、短保留期、无自动批准/部署步骤。未触发任何 Actions。
+
+J. Remaining blockers and stop boundary
+
+1. 本 revision 的真实 Linux root/app、真实完整项目 archive/ELF/native、固定
+   现场启动路径及 systemd 验证 NOT RUN；尚未生成经过这些门禁的正式候选。
+2. 新独立 Code Review / Human Review PENDING；开发者自审不构成发布批准。
+3. 当前 lock 未修改；此前 audit 为 production 0 Critical / 4 High / 0 Moderate，
+   full 0 / 9 / 0。本轮未重跑 audit，不表述为当前新审计。braces、deepmerge-ts、
+   mysql2 三根因仍未获处置批准，RC/security gate 未削弱，Production NO-GO。
+4. 生产平台、服务/权限/旧业务兼容性、真实备份与恢复条件均 NOT VERIFIED。
+5. Git dirty delivery 尚未提交；本轮禁止且未执行 add/commit/push、PR/Tag/
+   Release/Actions、main/UI 改动、生产访问、真实迁移/部署/服务重启、设施新增。
+
+修复及获授权验证完成后停止，等待独立复审；不自动进入提交/Linux/生产阶段。
+
+K. Final SHA-256
+
+完整 19 文件及本报告自身 SHA-256 见 evidence/delivery-files.json；完整性断言
+见 final-integrity.json。以下为本轮代码/测试/README 的最终 SHA-256：
+
+.github/workflows/v2-10-linux-validation.yml
+  d585282ab3bd25dae54129aba026525d1d612682a1c7692203e73556e6295b45
+ops/deploy/nuaafa-deploy
+  f466d5c5a6a2fa26a759363f075609b280dff0651ecfc64618563a9caf6b7878
+ops/deploy/prebuilt-artifact.py
+  c9d9c3c2cf77b098f1abd912e3e4c3c8f21d4cb680e40274674ac7433060ea4b
+ops/deploy/start-prebuilt
+  5fca9863ce3460afb0d88b2327002d8466d6fc4ee7b7ce41d395c1ae30a59860
+scripts/test-prebuilt-artifact.py
+  4c6a73ab04c21113c312e1c186a19759508efa31160a3dffac54ad946227e73f
+scripts/test-prebuilt-linux.py
+  0d6458b55a3c648e02ed8c3224d00632d010f37b194ef8dcc17e472ce387fc54
+scripts/test-prebuilt-runtime.mjs
+  83a20efa69391094bcad12cebbddfca1c64b24b1c4b527895ca7eb7fd46e04d1
+scripts/test-start-prebuilt.py
+  6d0d7222ee636d105ee3881cc6f0c320c5b63d1854f5539b7c8dd2400467474f
+scripts/test-tiptap-browser.mjs
+  e85be306b1797457e370805bb0d7923d09e151a43722d709bea44090eb0eaa65
+scripts/test-deployer.sh
+  3f7b4e42124524f5a4c9f7e6b6f2c1c292c42af44762ed0b3ace8e7aa6a037c4
+ops/deploy/README.md
+  67af41a15bbeb588bbc80c97b81667d9bedf7d13984c0a0cdafffde3dd2ba3fe

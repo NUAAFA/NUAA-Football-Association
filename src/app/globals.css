@@ -1,27 +1,113 @@
 @import "tailwindcss";
 
 :root {
-  --nuaa-blue: #1c1f88;
-  --space-blue: #091735;
-  --space-blue-soft: #102653;
-  --aviation-blue: #2457b2;
-  --aviation-blue-dark: #18418c;
-  --sky-blue: #4b9fea;
-  --glacier: #eaf3ff;
-  --paper: #f8fafd;
-  --surface: #ffffff;
-  --ink: #182236;
-  --muted: #5f6d85;
-  --line: #d6e3f3;
-  --warning: #b45309;
-  --danger: #b42318;
-  --success: #147d78;
+  color-scheme: light;
+
+  /* V2.10 canonical color system. */
+  --color-brand-nuaa: #1c1f88;
+  --color-brand-deep: #091735;
+  --color-brand-deep-soft: #102653;
+  --color-brand-action: #2457b2;
+  --color-brand-action-hover: #18418c;
+  --color-brand-sky: #4b9fea;
+  --color-brand-sky-soft: #a8d8ff;
+  --color-surface-canvas: #f8fafd;
+  --color-surface-subtle: #f1f6fc;
+  --color-surface-tinted: #eaf3ff;
+  --color-surface-raised: #ffffff;
+  --color-text-strong: #182236;
+  --color-text-body: #34445c;
+  --color-text-muted: #5f6d85;
+  --color-text-on-dark: #ffffff;
+  --color-text-on-dark-muted: rgba(255, 255, 255, 0.72);
+  --color-border-subtle: #d6e3f3;
+  --color-border-strong: #b9cfe7;
+  --color-info: #2457b2;
+  --color-info-surface: #edf5ff;
+  --color-success: #147d78;
+  --color-success-surface: #e8f7f4;
+  --color-warning: #9a5a0a;
+  --color-warning-surface: #fff6e7;
+  --color-danger: #b42318;
+  --color-danger-surface: #fff0ef;
+
+  /* Reliable local-first typography; no external font request. */
+  --font-family-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+  --font-size-caption: 0.75rem;
+  --font-size-meta: 0.875rem;
+  --font-size-action: 0.9375rem;
+  --font-size-body-mobile: 0.9375rem;
+  --font-size-body: 1rem;
+  --font-size-body-large: 1.125rem;
+  --font-size-card-title: clamp(1.125rem, 1.4vw, 1.375rem);
+  --font-size-section-title: clamp(2rem, 3.6vw, 3.25rem);
+  --font-size-page-title: clamp(2.5rem, 5.6vw, 4.5rem);
+  --font-size-hero-title: clamp(2.75rem, 6.4vw, 5.25rem);
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-heavy: 800;
+  --line-height-tight: 1.12;
+  --line-height-heading: 1.25;
+  --line-height-body: 1.7;
+  --line-height-reading: 1.85;
+  --letter-spacing-label: 0.1em;
+  --letter-spacing-heading: -0.035em;
+
+  /* Limited spacing, radius, elevation, and motion scales. */
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-5: 1.5rem;
+  --spacing-6: 2rem;
+  --spacing-7: 3rem;
+  --spacing-8: 4rem;
+  --spacing-9: 6rem;
+  --radius-control: 0.625rem;
+  --radius-card: 1rem;
+  --radius-panel: 1.5rem;
+  --radius-pill: 999px;
+  --shadow-card-rest: 0 12px 32px rgba(19, 49, 91, 0.08);
+  --shadow-card-hover: 0 18px 44px rgba(19, 49, 91, 0.13);
+  --shadow-overlay: 0 24px 70px rgba(3, 19, 51, 0.24);
+  --motion-duration-fast: 160ms;
+  --motion-duration-base: 200ms;
+  --motion-duration-slow: 240ms;
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --motion-ease-emphasized: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* Layout contracts. Max-width differences are intentional; gutters are shared. */
+  --container-wide: 77.5rem;
+  --container-content: 73.75rem;
+  --container-reading: 48.75rem;
+  --page-gutter-total: 4rem;
+  --section-space-block: 5rem;
   --header-height: 80px;
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 22px;
-  --shadow-card: 0 18px 50px rgba(24, 58, 111, 0.09);
-  --shadow-float: 0 28px 80px rgba(3, 19, 51, 0.2);
+  --focus-ring: #2d78c4;
+
+  /* Compatibility aliases retained for every existing selector. */
+  --nuaa-blue: var(--color-brand-nuaa);
+  --space-blue: var(--color-brand-deep);
+  --space-blue-soft: var(--color-brand-deep-soft);
+  --aviation-blue: var(--color-brand-action);
+  --aviation-blue-dark: var(--color-brand-action-hover);
+  --sky-blue: var(--color-brand-sky);
+  --glacier: var(--color-surface-tinted);
+  --paper: var(--color-surface-canvas);
+  --surface: var(--color-surface-raised);
+  --ink: var(--color-text-strong);
+  --muted: var(--color-text-muted);
+  --line: var(--color-border-subtle);
+  --warning: var(--color-warning);
+  --danger: var(--color-danger);
+  --success: var(--color-success);
+  --radius-sm: var(--radius-control);
+  --radius-md: var(--radius-card);
+  --radius-lg: var(--radius-panel);
+  --shadow-card: var(--shadow-card-rest);
+  --shadow-float: var(--shadow-overlay);
 }
 
 @theme inline {
@@ -35,7 +121,7 @@
   --color-ink: var(--ink);
   --color-muted: var(--muted);
   --color-line: var(--line);
-  --font-sans: Inter, Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-sans: var(--font-family-sans);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -45,8 +131,9 @@ body {
   overflow-x: hidden;
   background: var(--paper);
   color: var(--ink);
-  font-family: Inter, Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
-  line-height: 1.5;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -60,9 +147,9 @@ table { font-variant-numeric: tabular-nums; }
 ::selection { background: var(--aviation-blue); color: white; }
 
 :focus-visible {
-  outline: 3px solid #82c7ff;
-  outline-offset: 4px;
-  border-radius: 4px;
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+  border-radius: var(--spacing-1);
 }
 
 .skip-link {
@@ -81,8 +168,8 @@ table { font-variant-numeric: tabular-nums; }
 }
 .skip-link:focus { transform: translateY(0); }
 
-.page-shell { width: min(1240px, calc(100% - 64px)); margin-inline: auto; }
-.section { position: relative; padding: 104px 0; }
+.page-shell { width: min(var(--container-wide), calc(100% - var(--page-gutter-total))); margin-inline: auto; }
+.section { position: relative; padding: var(--section-space-block) 0; }
 .section-ice { background: var(--glacier); }
 .section-space { overflow: hidden; background: var(--space-blue); color: white; }
 .section-grid::before {
@@ -179,14 +266,18 @@ table { font-variant-numeric: tabular-nums; }
 }
 
 @media (max-width: 1100px) {
-  .page-shell { width: min(100% - 40px, 1240px); }
-  .section { padding: 84px 0; }
+  :root {
+    --page-gutter-total: 2.5rem;
+    --section-space-block: 4.5rem;
+  }
 }
 
 @media (max-width: 720px) {
-  :root { --header-height: 70px; }
-  .page-shell { width: calc(100% - 32px); }
-  .section { padding: 66px 0; }
+  :root {
+    --header-height: 70px;
+    --page-gutter-total: 2rem;
+    --section-space-block: 3.5rem;
+  }
   .section-heading { display: block; margin-bottom: 34px; }
   .section-heading h2 { font-size: clamp(32px, 10vw, 42px); }
   .section-heading-aside { margin-top: 18px; }

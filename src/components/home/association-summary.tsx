@@ -1,37 +1,52 @@
 import Link from "next/link";
 
+import styles from "@/components/home/home-page.module.css";
+import { Card } from "@/components/ui/foundation-primitives";
 import { associationIdentity, associationScope, associationStats } from "@/data/association";
 
 const associationLinks = [
-  { label: "组织架构", href: "/association" },
-  { label: "赛事体系", href: "/competitions" },
-  { label: "裁判中心", href: "/referees" },
+  { eyebrow: "ABOUT", label: "认识协会", description: "了解组织沿革、职责与现任团队。", href: "/association" },
+  { eyebrow: "REFEREE", label: "走近裁判", description: "查看裁判招募、规则资源与公开信息。", href: "/referees" },
+  { eyebrow: "PARTICIPATE", label: "参与足球", description: "获取参赛、活动与加入协会的入口。", href: "/participation" },
 ] as const;
 
 export function AssociationSummary() {
   return (
-    <div className="home-association-summary">
-      <div className="page-shell association-summary-grid">
-        <div className="association-summary-copy" data-home-reveal data-home-delay="0">
-          <p>ABOUT THE ASSOCIATION / 关于协会</p>
+    <section className={`${styles.section} ${styles.association}`} id="home-about" aria-labelledby="home-association-title">
+      <div className={`page-shell ${styles.associationShell}`}>
+        <div className={styles.associationIntro}>
+          <p className={styles.sectionEyebrow}>THE ASSOCIATION / 关于我们</p>
           <h2 id="home-association-title">扎根天目湖，服务校园足球</h2>
-          <span>{associationScope.summary} 协会以赛事组织、裁判发展、规则传播与校园影像连接每一位参与者。</span>
-          <Link className="button button-secondary" href="/association">了解协会 <b aria-hidden="true">→</b></Link>
+          <p>{associationScope.summary} 协会以赛事组织、裁判发展、规则传播与校园影像连接每一位参与者。</p>
+          <div className={styles.associationIdentity}>
+            <span>{associationIdentity.establishedLabel}</span>
+            <small>{associationIdentity.englishName}</small>
+          </div>
         </div>
-        <dl className="association-summary-stats" data-home-reveal data-home-delay="1">
-          {associationStats.slice(0, 3).map((stat) => <div key={stat.id}><dt>{stat.value}</dt><dd>{stat.label}</dd><small>{stat.note}</small></div>)}
+        <dl className={styles.associationStats}>
+          {associationStats.slice(0, 3).map((stat) => (
+            <div key={stat.id}>
+              <dt>{stat.value}</dt>
+              <dd>
+                {stat.label}
+                <small>{stat.note}</small>
+              </dd>
+            </div>
+          ))}
         </dl>
-        <nav className="association-summary-links" aria-label="协会信息入口" data-home-reveal data-home-delay="2">
-          {associationLinks.map((item, index) => (
-            <Link href={item.href} key={item.href}>
-              <small>0{index + 1}</small>
-              <strong>{item.label}</strong>
-              <span aria-hidden="true">→</span>
-            </Link>
+        <nav className={styles.associationLinks} aria-label="协会延伸入口">
+          {associationLinks.map((item) => (
+            <Card className={styles.associationLinkCard} interactive key={item.href}>
+              <Link href={item.href}>
+                <small>{item.eyebrow}</small>
+                <strong>{item.label}</strong>
+                <span>{item.description}</span>
+                <b aria-hidden="true">→</b>
+              </Link>
+            </Card>
           ))}
         </nav>
-        <div className="association-summary-id"><span>{associationIdentity.establishedLabel}</span><small>{associationIdentity.englishName}</small></div>
       </div>
-    </div>
+    </section>
   );
 }

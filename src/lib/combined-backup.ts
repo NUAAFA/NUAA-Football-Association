@@ -1,17 +1,20 @@
 import { createHash, randomUUID } from "node:crypto";
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import {
   copyFile,
   lstat,
   mkdir,
   readFile,
   readdir,
+  realpath,
   rename,
   rm,
   stat,
   writeFile,
 } from "node:fs/promises";
 import path from "node:path";
+import { createInterface } from "node:readline";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import { createClient } from "@libsql/client";
@@ -118,7 +121,7 @@ export type CombinedBackupPhase =
   | "manifest-complete"
   | "completion-publish";
 
-export type CombinedRestorePhase = "uploads-copy-complete";
+export type CombinedRestorePhase = "uploads-copy-complete" | "database-published";
 
 const storageKeyPattern = /^[0-9]{4}\/[0-9]{2}\/[0-9a-f-]+\.(?:jpg|jpeg|png|webp|pdf)$/;
 const sha256Pattern = /^[0-9a-f]{64}$/i;
@@ -201,7 +204,17 @@ async function migrationNames() {
 }
 
 async function applicationSha() {
-  return (await execFileAsync("git", ["rev-parse", "HEAD"], { cwd: process.cwd() })).stdout.trim();
+  const cwd = await realpath(process.cwd());
+  let trustedRootTree = true;
+  for (let parent = cwd; ; parent = path.dirname(parent)) {
+    const metadata = await lstat(parent);
+    if (metadata.uid !== 0 || (metadata.mode & 0o022) !== 0 || metadata.isSymbolicLink()) trustedRootTree = false;
+    if (parent === path.dirname(parent)) break;
+  }
+  const args = ["--no-replace-objects", "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false"];
+  if (trustedRootTree) args.push("-c", `safe.directory=${cwd}`);
+  args.push("rev-parse", "HEAD");
+  return (await execFileAsync("git", args, { cwd })).stdout.trim();
 }
 
 async function ensureEmptyDirectory(target: string) {
@@ -744,21 +757,12 @@ function assertRestoreTarget(target: string, allowedRoot: string) {
   return resolved;
 }
 
-async function targetMustNotExist(target: string, label: string) {
-  try {
-    await lstat(target);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
-    throw error;
-  }
-  throw new Error(`${label} already exists; restore requires a fresh explicit destination.`);
-}
-
 export async function restoreCombinedBackup(input: {
   backupDirectory: string;
   databasePath: string;
   uploadRoot: string;
   allowedTargetRoot: string;
+  signal?: AbortSignal;
   onPhase?: (
     phase: CombinedRestorePhase,
     staging: { uploadRoot: string },
@@ -773,69 +777,93 @@ export async function restoreCombinedBackup(input: {
     databasePath.startsWith(`${uploadRoot}${path.sep}`) ||
     uploadRoot.startsWith(`${databasePath}${path.sep}`) ||
     databasePath.startsWith(`${root}${path.sep}`) ||
-    uploadRoot.startsWith(`${root}${path.sep}`)
+    uploadRoot.startsWith(`${root}${path.sep}`) ||
+    root === allowedTargetRoot || allowedTargetRoot.startsWith(`${root}${path.sep}`) ||
+    root.startsWith(`${databasePath}${path.sep}`) || root.startsWith(`${uploadRoot}${path.sep}`)
   ) {
     throw new Error("Restore targets overlap each other or the source backup.");
   }
-  await targetMustNotExist(databasePath, "Restore database destination");
-  await targetMustNotExist(uploadRoot, "Restore upload destination");
-
-  await mkdir(allowedTargetRoot, { recursive: true });
-  const stagingRoot = path.join(allowedTargetRoot, `.restore-${randomUUID()}`);
-  const stagedDatabase = path.join(stagingRoot, databaseFilename);
-  const stagedUploads = path.join(stagingRoot, "uploads");
-  await mkdir(stagedUploads, { recursive: true });
+  input.signal?.throwIfAborted();
+  // Node does not expose descriptor-relative rename with RENAME_NOREPLACE.
+  // The stdlib Python helper holds directory descriptors throughout staging
+  // and uses the actual OS no-replace API, with no unsafe rename fallback.
+  const helper = typeof __dirname === "string"
+    ? path.join(__dirname, "restore-target.py")
+    : fileURLToPath(new URL("./restore-target.py", import.meta.url));
+  const child = spawn("/usr/bin/python3", ["-I", helper], {
+    env: { PATH: "/usr/bin:/bin", NODE_ENV: "production" },
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+  const exited = new Promise<number>((resolve, reject) => {
+    child.once("error", reject);
+    child.once("close", (code) => resolve(code ?? 1));
+  });
+  // Consume a spawn error immediately even if the stdout iterator also fails.
+  void exited.catch(() => undefined);
+  let stderr = "";
+  child.stderr.on("data", (bytes: Buffer) => {
+    if (stderr.length < 16_384) stderr += bytes.toString();
+  });
+  child.stdin.on("error", () => undefined); // Child rejection can close its pipe.
+  const abort = () => child.kill("SIGTERM");
+  input.signal?.addEventListener("abort", abort, { once: true });
+  let completed: { operation: string } | undefined;
+  let failure: string | undefined;
   try {
-    await copyFile(path.join(root, manifest.database.filename), stagedDatabase);
-    for (const file of manifest.uploads.files) {
-      const target = path.join(stagedUploads, ...file.storageKey.split("/"));
-      await mkdir(path.dirname(target), { recursive: true });
-      await copyFile(path.join(root, "uploads", ...file.storageKey.split("/")), target);
-    }
-    await input.onPhase?.("uploads-copy-complete", { uploadRoot: stagedUploads });
-    const stagedDatabaseBytes = await readFile(stagedDatabase);
-    if (stagedDatabaseBytes.length !== manifest.database.bytes || sha256(stagedDatabaseBytes) !== manifest.database.sha256) {
-      throw new Error("Staged restore database checksum or size validation failed.");
-    }
-    const stagedFiles = await listFiles(stagedUploads);
-    if (
-      manifest.uploads.files.map((file) => file.storageKey).sort().join("\n") !==
-        stagedFiles.map((file) => file.storageKey).sort().join("\n")
-    ) {
-      throw new Error("Staged restore validation failed.");
-    }
-    for (const file of manifest.uploads.files) {
-      const target = safeArtifactPath(stagedUploads, file.storageKey);
-      const info = await assertRegularFile(target, `Staged restore upload ${file.storageKey}`);
-      const bytes = await readFile(target);
-      if (info.size !== file.bytes || bytes.length !== file.bytes || sha256(bytes) !== file.sha256) {
-        throw new Error(`Staged restore upload checksum or size validation failed: ${file.storageKey}`);
+    child.stdin.write(`${JSON.stringify({
+      command: "prepare", source: root, allowedRoot: allowedTargetRoot,
+      database: databasePath, uploads: uploadRoot,
+      databaseFile: manifest.database, files: manifest.uploads.files,
+    })}\n`);
+    const lines = createInterface({ input: child.stdout, crlfDelay: Infinity });
+    for await (const line of lines) {
+      const event = JSON.parse(line) as {
+        type: string; operation: string; uploadRoot: string; error?: string;
+        published?: string[]; stagingRetained?: boolean;
+      };
+      if (event.type === "staged" || event.type === "database-published") {
+        input.signal?.throwIfAborted();
+        await input.onPhase?.(
+          event.type === "staged" ? "uploads-copy-complete" : "database-published",
+          { uploadRoot: event.uploadRoot },
+        );
+        input.signal?.throwIfAborted();
+        child.stdin.write(`${JSON.stringify({
+          command: event.type === "staged" ? "publish" : "publish-uploads",
+        })}\n`);
+      } else if (event.type === "complete") {
+        completed = event;
+      } else if (event.type === "error") {
+        failure = `${event.error}; retained operation: ${event.operation ?? "none"}; published: ${event.published?.join(",") ?? "none"}`;
+      } else {
+        throw new Error("Unexpected restore helper response.");
       }
     }
-    await mkdir(path.dirname(databasePath), { recursive: true });
-    await mkdir(path.dirname(uploadRoot), { recursive: true });
-    await rename(stagedDatabase, databasePath);
-    try {
-      await rename(stagedUploads, uploadRoot);
-    } catch (error) {
-      await rm(databasePath, { force: true });
-      throw error;
+    const code = await exited;
+    input.signal?.throwIfAborted();
+    if (code !== 0 || !completed || failure) {
+      throw new Error(`Safe restore failed: ${failure ?? stderr.trim() ?? "helper did not complete"}`);
     }
-    const restoredDatabaseValidation = await databaseValidation(databasePath, manifest);
-    if (JSON.stringify(restoredDatabaseValidation.rowCounts) !== JSON.stringify(sourceDatabase.rowCounts)) {
-      throw new Error("Restored protected table row counts do not match the verified source backup.");
-    }
+    // Source integrity/FK/count checks above apply to the entire verified SQLite
+    // snapshot. The helper re-hashes that exact byte set before AND after its
+    // descriptor-relative publication, so no different database is accepted.
     return {
       backupProfile: manifest.backupProfile,
       sourceManagedUploadsState: manifest.schemaCapabilities.managedUploadsState,
-      integrityCheck: restoredDatabaseValidation.integrityCheck,
-      foreignKeyViolations: restoredDatabaseValidation.foreignKeyViolations,
+      integrityCheck: sourceDatabase.integrityCheck,
+      foreignKeyViolations: sourceDatabase.foreignKeyViolations,
       mediaAssetCount: manifest.uploads.mediaAssetCount,
-      uploadFileCount: stagedFiles.length,
-      rowCounts: restoredDatabaseValidation.rowCounts,
+      uploadFileCount: manifest.uploads.files.length,
+      rowCounts: sourceDatabase.rowCounts,
       sourceRowCounts: sourceDatabase.rowCounts,
+      restoreOperationDirectory: completed.operation,
     };
   } finally {
-    await rm(stagingRoot, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+    input.signal?.removeEventListener("abort", abort);
+    child.stdin.end();
+    if (child.exitCode === null && child.signalCode === null) child.kill("SIGTERM");
+    await exited.catch(() => undefined);
+    // Failed/partial publications and private staging are deliberately retained.
+    // Never unlink a destination after lstat: another process may now own it.
   }
 }

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { PageIntro } from "@/components/templates/page-intro";
+import { Notice } from "@/components/ui/foundation-primitives";
 import { StatusBadge } from "@/components/ui/status-badge";
 
 export type CategoryEntry = {
@@ -60,7 +61,7 @@ export function CategoryEntryLayout({ eyebrow, title, description, sectionTitle,
               <div><p>SECTION ROUTES</p><h2 id="category-entry-title">{sectionTitle}</h2></div>
               <span>{sectionDescription}</span>
             </div>
-            {notice ? <p className="template-notice" role="note">{notice}</p> : null}
+            {notice ? <Notice className="template-notice">{notice}</Notice> : null}
             <div className="category-route-list">
               {entries.map((entry, index) => <CategoryRoute entry={entry} index={index} key={entry.title} />)}
             </div>

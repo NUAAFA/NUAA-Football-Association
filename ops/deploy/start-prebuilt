@@ -1,0 +1,80 @@
+#!/usr/bin/python3 -I
+"""Root-installed startup contract; inspect metadata, never print configuration."""
+import json
+import os
+from pathlib import Path
+import pwd
+import re
+import stat
+import subprocess
+import sys
+
+CURRENT = "/srv/nuaafa/current"
+RELEASES = "/srv/nuaafa/releases"
+SHARED = "/srv/nuaafa/shared"
+NODE = "/usr/bin/node"
+APP_USER = "nuaafa"
+PORT = "3001"
+TRUSTED_UIDS = {0}
+
+
+def require(value, message):
+    if not value: raise ValueError(message)
+
+
+def trusted(path, owners=TRUSTED_UIDS):
+    require(path.resolve(strict=True) == path, "startup path is not canonical")
+    for item in (path, *path.parents):
+        info = item.lstat()
+        require(not stat.S_ISLNK(info.st_mode) and info.st_uid in owners and
+                not info.st_mode & 0o022, "startup metadata is not root controlled")
+
+
+def main():
+    # Same checks for activation/recovery preflight and actual startup. Preflight
+    # never executes Node, loads application configuration or switches current.
+    check_only = len(sys.argv) == 3 and sys.argv[1] == "--check-release"
+    require(len(sys.argv) == 1 or check_only, "invalid startup contract arguments")
+    require(os.geteuid() == pwd.getpwnam(APP_USER).pw_uid, "startup application identity differs")
+    current, releases, shared = Path(CURRENT), Path(RELEASES), Path(SHARED)
+    trusted(current.parent); trusted(releases); trusted(shared)
+    require(current.is_symlink(), "startup current must be a direct release link")
+    release = Path(sys.argv[2]) if check_only else Path(os.readlink(current))
+    require(release.parent == releases and re.fullmatch(r"[0-9a-f]{40}", release.name) and
+            (check_only or current.resolve(strict=True) == release), "startup current target differs")
+    trusted(release)
+    require({p.name for p in release.iterdir() if p.name.startswith(".env")} == {".env.production"}, "unexpected startup environment source")
+    for name in (".env.production", "prisma/dev.db"):
+        entry, target = release / name, shared / name
+        require(entry.is_symlink() and os.readlink(entry) == str(target), "startup shared link differs")
+        info = target.lstat()
+        require(target.resolve(strict=True) == target and stat.S_ISREG(info.st_mode) and
+                info.st_nlink == 1 and not info.st_mode & 0o022, "unsafe startup shared target")
+        trusted(target.parent, TRUSTED_UIDS if name == ".env.production" else TRUSTED_UIDS | {os.geteuid()})
+        if name == ".env.production":
+            require(info.st_uid in TRUSTED_UIDS and not info.st_mode & 0o007 and os.access(target, os.R_OK), "startup configuration permissions differ")
+        else:
+            require(info.st_uid in TRUSTED_UIDS | {os.geteuid()}, "startup database owner differs")
+    build = release / ".next/BUILD_ID"
+    trusted(build)
+    require(build.is_file() and build.stat().st_size > 0, "startup build is missing")
+    cli = release / "node_modules/next/dist/bin/next"
+    trusted(cli)
+    package = release / "node_modules/next/package.json"
+    trusted(package)
+    require(json.loads(package.read_bytes())["version"] == "16.3.8", "startup Next version differs")
+    node = Path(NODE).resolve(strict=True)
+    trusted(node)
+    require(subprocess.check_output([str(node), "--version"], env={}, timeout=10).strip() == b"v22.23.2", "startup Node version differs")
+    if check_only:
+        return
+    os.chdir(release)
+    os.execve(str(node), ["node", str(cli), "start", "--hostname", "127.0.0.1", "--port", PORT],
+              {"PATH": "/usr/bin:/bin", "NODE_ENV": "production", "NEXT_TELEMETRY_DISABLED": "1"})
+
+
+if __name__ == "__main__":
+    try: main()
+    except (ValueError, KeyError, OSError, subprocess.SubprocessError) as error:
+        print("STOP: " + str(error), file=sys.stderr)
+        sys.exit(1)

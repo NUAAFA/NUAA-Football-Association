@@ -70,7 +70,7 @@ async function main() {
  assert((await html('/')).includes(`#match-${fixtures[1].id}`));
  // Three additional candidates each have 40 matches, nearest kickoff wins over publicOrder.
  for(let c=0;c<3;c++){const createdOther=await request('/api/referees/admin/competitions','POST',{...cp,slug:`ops-other-${suffix}-${c}`,name:`合成候选${c}`,publicPublished:true,homepageFeatured:true,publicOrder:c},compCookie,201);const other=await db.competition.findUniqueOrThrow({where:{id:createdOther.competitionId}});const a=await db.team.create({data:{competitionId:other.id,name:`候选${c}甲`}}),b=await db.team.create({data:{competitionId:other.id,name:`候选${c}乙`}});for(let j=0;j<40;j++)await db.match.create({data:{slug:`ops-other-${suffix}-${c}-${j}`,competitionId:other.id,homeTeamId:a.id,awayTeamId:b.id,stage:'合成',status:'SCHEDULED',kickoff:new Date(now+(c+4)*86400000+j*3600000),venue:'隔离候选场'}});}
- home=await html('/');assert.equal((home.match(/<article class="next-match-forecast-card"/g)??[]).length,2);assert(home.includes(`/competitions/${slug}#match-${fixtures[1].id}`));
+ home=await html('/');assert.equal((home.match(/<article\b[^>]*\bdata-home-forecast(?:="[^"]*")?(?=[\s>])/g)??[]).length,2);assert(home.includes(`/competitions/${slug}#match-${fixtures[1].id}`));
  // Time-only rotation: two-second near kickoff, no mutation between requests.
  const clock=await db.match.create({data:{slug:`ops-clock-${suffix}`,competitionId:id,homeTeamId:teams[0].id,awayTeamId:teams[1].id,stage:'时钟测试',status:'SCHEDULED',kickoff:new Date(Date.now()+3000),venue:'仅时间流逝'}});
  assert((await html('/')).includes(`#match-${clock.id}`));await new Promise(r=>setTimeout(r,3200));assert(!(await html('/')).includes(`#match-${clock.id}`));

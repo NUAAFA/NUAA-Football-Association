@@ -3,6 +3,7 @@ import Link from "next/link";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { PageIntro } from "@/components/templates/page-intro";
+import { Notice } from "@/components/ui/foundation-primitives";
 
 type DataPageLayoutProps = {
   eyebrow: string;
@@ -28,7 +29,7 @@ export function DataPageLayout({ eyebrow, title, description, dataTitle, dataDes
               <span>{dataDescription}</span>
             </div>
             {filters ? <div className="data-filter-bar">{filters}</div> : null}
-            {note ? <p className="template-notice" role="note">{note}</p> : null}
+            {note ? <Notice className="template-notice">{note}</Notice> : null}
             {children}
             <Link className="template-back-link" href="/competitions">← 返回赛事中心</Link>
           </div>

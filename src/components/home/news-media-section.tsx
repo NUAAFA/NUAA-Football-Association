@@ -1,32 +1,80 @@
+import Image from "next/image";
 import Link from "next/link";
 
-import { NewsImage } from "@/components/news/news-image";
-import { DemoLabel } from "@/components/ui/demo-label";
+import styles from "@/components/home/home-page.module.css";
+import {
+  Badge,
+  Card,
+  LinkButton,
+} from "@/components/ui/foundation-primitives";
 import { homeNews } from "@/data/content";
 
 export function NewsMediaSection() {
-  const [featuredNews, ...compactNews] = homeNews;
+  const featuredNews = homeNews.find((item) => !item.image.startsWith("/brand/")) ?? homeNews[0];
+  const secondaryNews = homeNews.filter((item) => item.id !== featuredNews.id).slice(0, 2);
+
   return (
-    <section className="home-news-media home-screen" data-home-screen="news" id="home-news" aria-labelledby="home-news-media-title">
-      <div className="page-shell home-news-shell">
-        <div className="home-section-bar" data-home-reveal data-home-delay="0">
-          <div><p>LATEST STORIES / 新闻动态</p><h2 id="home-news-media-title">赛场故事，持续更新</h2></div>
-        </div>
-        <div className="home-news-stream">
-            <article className="home-featured-news" data-home-reveal data-home-delay="1">
-              <NewsImage className="home-featured-news-image" src={featuredNews.image} alt={featuredNews.imageAlt} variant="featured" sizes="(max-width: 760px) 100vw, 48vw"><DemoLabel>重点新闻 · {featuredNews.badge}</DemoLabel></NewsImage>
-              <div><span>{featuredNews.category} · {featuredNews.dateLabel}</span><h3>{featuredNews.title}</h3><p>{featuredNews.summary}</p><Link href={featuredNews.href}>阅读全文 <span aria-hidden="true">→</span></Link></div>
-            </article>
-            <div className="home-compact-news-list">
-              {compactNews.slice(0, 2).map((item) => (
-                <Link href={item.href} key={item.id} data-home-reveal data-home-delay="2"><time>{item.dateLabel}</time><div><span>{item.category}</span><h3>{item.title}</h3></div><b aria-hidden="true">→</b></Link>
-              ))}
-            </div>
-            <div className="home-news-actions" data-home-reveal data-home-delay="3">
-              <Link className="button button-secondary" href="/news">更多新闻 <span aria-hidden="true">→</span></Link>
-              <Link className="button button-secondary" href="/media">影像资料 <span aria-hidden="true">→</span></Link>
-            </div>
+    <section className={`${styles.section} ${styles.latestStories}`} id="home-news" aria-labelledby="home-news-media-title">
+      <div className={`page-shell ${styles.sectionShell}`}>
+        <div className={styles.sectionHeading}>
+          <div>
+            <p className={styles.sectionEyebrow}>LATEST STORIES / 最新故事</p>
+            <h2 id="home-news-media-title">从赛场，到每一次共同奔赴</h2>
           </div>
+          <LinkButton href="/news" size="small" tone="quiet">
+            查看全部新闻 <span aria-hidden="true">→</span>
+          </LinkButton>
+        </div>
+        <div className={styles.storyLayout}>
+          <article className={styles.featuredStory}>
+            <Link className={styles.featuredStoryImage} href={featuredNews.href} aria-label={`阅读：${featuredNews.title}`}>
+              <Image
+                src={featuredNews.image}
+                alt={featuredNews.imageAlt}
+                fill
+                sizes="(max-width: 1100px) 100vw, 62vw"
+              />
+              <span className={styles.featuredStoryMarker}>FEATURED STORY</span>
+            </Link>
+            <div className={styles.featuredStoryCopy}>
+              <div className={styles.storyMeta}>
+                <Badge>{featuredNews.badge}</Badge>
+                <span>{featuredNews.category}</span>
+                <time>{featuredNews.dateLabel}</time>
+              </div>
+              <h3><Link href={featuredNews.href}>{featuredNews.title}</Link></h3>
+              <p>{featuredNews.summary}</p>
+              <Link className={styles.inlineLink} href={featuredNews.href}>
+                阅读完整报道 <span aria-hidden="true">→</span>
+              </Link>
+            </div>
+          </article>
+          <div className={styles.secondaryStories}>
+            {secondaryNews.map((item) => (
+              <Card className={styles.secondaryStory} interactive key={item.id}>
+                <Link href={item.href}>
+                  <span className={styles.secondaryStoryImage}>
+                    <Image
+                      className={item.image.startsWith("/brand/") ? styles.brandImage : undefined}
+                      src={item.image}
+                      alt={item.imageAlt}
+                      fill
+                      sizes="(max-width: 720px) 34vw, (max-width: 1100px) 26vw, 15vw"
+                    />
+                  </span>
+                  <span className={styles.secondaryStoryCopy}>
+                    <span className={styles.storyMeta}>
+                      <span>{item.category}</span>
+                      <time>{item.dateLabel}</time>
+                    </span>
+                    <strong>{item.title}</strong>
+                    <span className={styles.storyArrow} aria-hidden="true">→</span>
+                  </span>
+                </Link>
+              </Card>
+            ))}
+          </div>
+        </div>
       </div>
     </section>
   );

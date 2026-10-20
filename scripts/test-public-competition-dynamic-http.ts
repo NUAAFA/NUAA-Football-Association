@@ -18,7 +18,7 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 
 function homepageCards(html: string) {
-  return [...html.matchAll(/<article class="next-match-forecast-card"[\s\S]*?<\/article>/gu)]
+  return [...html.matchAll(/<article[^>]*data-home-forecast="[^"]+"[^>]*>[\s\S]*?<\/article>/gu)]
     .map((match) => match[0]);
 }
 

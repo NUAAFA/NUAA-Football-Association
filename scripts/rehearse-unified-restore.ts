@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -16,11 +16,27 @@ function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
+function diagnostic(event: string, details: Record<string, unknown> = {}) {
+  console.error(JSON.stringify({ restoreDiagnostic: { event, monotonicMs: performance.now(), pid: process.pid, ...details } }));
+}
+
+function childExited(child: ChildProcess) {
+  return child.exitCode !== null || child.signalCode !== null;
+}
+
 async function run(command: string, args: string[], env: NodeJS.ProcessEnv) {
+  diagnostic("migration_process_start", {
+    command, args, cwd: process.cwd(), syntheticDatabaseUrl: env.DATABASE_URL,
+    environment: Object.fromEntries(["NODE_ENV", "NODE_OPTIONS", "RUST_LOG", "JITI_FS_CACHE", "PATH", "TMPDIR"]
+      .map((key) => [key, env[key] ?? null])),
+  });
   const code = await new Promise<number>((resolve, reject) => {
     const child = spawn(command, args, { cwd: process.cwd(), env, stdio: "inherit" });
     child.once("error", reject);
-    child.once("exit", (exitCode) => resolve(exitCode ?? 1));
+    child.once("exit", (exitCode, signal) => {
+      diagnostic("migration_process_exit", { childPid: child.pid, exitCode, signal });
+      resolve(exitCode ?? 1);
+    });
   });
   if (code !== 0) throw new Error(`${path.basename(command)} ${args.join(" ")} exited ${code}.`);
 }
@@ -53,13 +69,13 @@ async function availablePort() {
 }
 
 async function stopChild(child: ChildProcess) {
-  if (child.exitCode !== null) return;
+  if (childExited(child)) return;
   child.kill("SIGTERM");
   await Promise.race([
     new Promise<void>((resolve) => child.once("exit", () => resolve())),
     new Promise<void>((resolve) => setTimeout(resolve, 5_000)),
   ]);
-  if (child.exitCode === null) child.kill("SIGKILL");
+  if (!childExited(child)) child.kill("SIGKILL");
 }
 
 async function rowCounts(client: PrismaClient) {
@@ -171,11 +187,16 @@ async function main() {
   const prismaDatabaseUrl = `file:./prisma/${path.basename(sourceDatabase)}`;
   let server: ChildProcess | null = null;
   let sourceClient: PrismaClient | null = null;
+  let phase = "migrations";
+  let shutdownRequested = false;
+  diagnostic("runtime_identity", { node: process.version, v8: process.versions.v8, platform: process.platform, arch: process.arch });
   try {
     await mkdir(sourceUploads, { recursive: true });
     await mkdir(path.dirname(backupDirectory), { recursive: true });
     await mkdir(restoreRoot, { recursive: true });
     await runPrismaDeploy(prismaDatabaseUrl);
+    diagnostic("migrations_complete");
+    phase = "seed_and_backup";
     const seeded = await seedIsolatedDataset(databaseUrl, sourceUploads);
     sourceClient = seeded.client;
     const cleanOrphanReport = await scanMediaStorage({ databaseUrl, uploadRoot: sourceUploads });
@@ -185,11 +206,14 @@ async function main() {
 
     const backupStarted = performance.now();
     const manifest = await createCombinedBackup({ databaseUrl, uploadRoot: sourceUploads, outputDirectory: backupDirectory });
+    diagnostic("backup_complete");
     const backupDurationMs = Math.round(performance.now() - backupStarted);
     const restoreRequired = Math.ceil((manifest.database.bytes + manifest.uploads.totalBytes) * 1.1) + 1024 * 1024;
     const restoreDisk = await assertMinimumFreeSpace(restoreRoot, restoreRequired);
     const restoreStarted = performance.now();
+    phase = "restore";
     const restored = await restoreCombinedBackup({ backupDirectory, databasePath: restoredDatabase, uploadRoot: restoredUploads, allowedTargetRoot: restoreRoot });
+    diagnostic("restore_complete");
     const restoreDurationMs = Math.round(performance.now() - restoreStarted);
     assert(JSON.stringify(seeded.beforeCounts) === JSON.stringify(restored.rowCounts), "Protected table row counts changed after restore.");
     assert(JSON.stringify(restored.sourceRowCounts) === JSON.stringify(restored.rowCounts), "Source and restored database row counts differ.");
@@ -199,6 +223,7 @@ async function main() {
     const port = await availablePort();
     const origin = `http://127.0.0.1:${port}`;
     const serverStarted = performance.now();
+    phase = "application_startup";
     server = spawn(process.execPath, [path.resolve("node_modules/next/dist/bin/next"), "start", "--hostname", "127.0.0.1", "-p", String(port)], {
       cwd: process.cwd(),
       env: {
@@ -212,11 +237,19 @@ async function main() {
       },
       stdio: "inherit",
     });
+    let serverError: Error | null = null;
+    server.once("error", (error) => {
+      serverError = error;
+      diagnostic("server_spawn_error", { phase, errorClass: error.name });
+    });
+    server.once("exit", (exitCode, signal) => diagnostic("server_exit", { childPid: server?.pid, phase, exitCode, signal, shutdownRequested }));
+    diagnostic("server_spawned", { childPid: server.pid });
     let applicationStartupDurationMs: number | null = null;
     let healthReadyDurationMs: number | null = null;
     const deadline = Date.now() + 30_000;
     while (Date.now() < deadline) {
-      if (server.exitCode !== null) throw new Error(`Restored application exited ${server.exitCode} before health was ready.`);
+      if (serverError) throw serverError;
+      if (childExited(server)) throw new Error(`Restored application exited ${server.exitCode ?? "by signal"} (${server.signalCode ?? "none"}) before health was ready.`);
       try {
         const response = await fetch(`${origin}/health`, { signal: AbortSignal.timeout(2_000) });
         applicationStartupDurationMs ??= Math.round(performance.now() - serverStarted);
@@ -231,14 +264,26 @@ async function main() {
     }
     assert(applicationStartupDurationMs !== null, "Restored application never accepted HTTP requests.");
     assert(healthReadyDurationMs !== null, "Restored application health never became ready.");
-
-    const checks = await Promise.all([
-      fetch(`${origin}/api/health`),
-      fetch(`${origin}/news`),
-      fetch(`${origin}/news/${seeded.postSlug}`),
-      fetch(`${origin}/api/content/posts/${seeded.postSlug}`),
-      fetch(`${origin}/media/${seeded.mediaId}`),
-    ]);
+    phase = "http_checks";
+    diagnostic("health_ready");
+    const probes = [
+      ["api_health", `${origin}/api/health`],
+      ["news", `${origin}/news`],
+      ["news_detail", `${origin}/news/${seeded.postSlug}`],
+      ["content_detail", `${origin}/api/content/posts/${seeded.postSlug}`],
+      ["media", `${origin}/media/${seeded.mediaId}`],
+    ] as const;
+    const checks = await Promise.all(probes.map(async ([probe, url]) => {
+      diagnostic("http_probe_start", { probe });
+      try {
+        const response = await fetch(url);
+        diagnostic("http_probe_complete", { probe, status: response.status });
+        return response;
+      } catch (error) {
+        diagnostic("http_probe_failed", { probe, errorClass: error instanceof Error ? error.name : "unknown" });
+        throw error;
+      }
+    }));
     const [apiHealth, news, newsDetail, contentDetail, media] = checks.map((response) => response.status);
     console.log(JSON.stringify({ rehearsalHttpProbe: { apiHealth, news, newsDetail, contentDetail, media } }));
     assert(apiHealth === 200, `/api/health returned ${apiHealth}.`);
@@ -266,8 +311,13 @@ async function main() {
       applicationVerification: { health: 200, apiHealth, news, newsDetail, contentDetail, media },
     }, null, 2));
   } finally {
-    if (server) await stopChild(server);
+    phase = "cleanup";
+    if (server) {
+      shutdownRequested = !childExited(server);
+      await stopChild(server);
+    }
     await sourceClient?.$disconnect();
+    diagnostic("worker_cleanup_complete");
   }
 }
 
@@ -276,11 +326,16 @@ async function entry() {
     await main();
     return;
   }
-  const root = await mkdtemp(path.join(os.tmpdir(), "nuaafa-r1-3c-restore-"));
+  const root = await realpath(await mkdtemp(path.join(os.tmpdir(), "nuaafa-r1-3c-restore-")));
   const sourceDatabase = path.resolve("prisma", `r1-3c-restore-${randomUUID()}.db`);
   const prismaRoot = `${path.resolve("prisma")}${path.sep}`;
   if (!sourceDatabase.startsWith(prismaRoot)) throw new Error("R1-3C restore database escaped the workspace prisma directory.");
   const code = await new Promise<number>((resolve, reject) => {
+    diagnostic("restore_worker_start", {
+      command: process.execPath,
+      args: [path.resolve("node_modules/tsx/dist/cli.mjs"), path.resolve("scripts/rehearse-unified-restore.ts")],
+      cwd: process.cwd(), syntheticDatabasePath: sourceDatabase,
+    });
     const child = spawn(process.execPath, [path.resolve("node_modules/tsx/dist/cli.mjs"), path.resolve("scripts/rehearse-unified-restore.ts")], {
       cwd: process.cwd(),
       env: {
@@ -292,7 +347,10 @@ async function entry() {
       stdio: "inherit",
     });
     child.once("error", reject);
-    child.once("exit", (exitCode) => resolve(exitCode ?? 1));
+    child.once("exit", (exitCode, signal) => {
+      diagnostic("restore_worker_exit", { childPid: child.pid, exitCode, signal });
+      resolve(exitCode ?? 1);
+    });
   });
   await Promise.all([
     ...[sourceDatabase, `${sourceDatabase}-wal`, `${sourceDatabase}-shm`].map((target) => rm(target, { force: true, maxRetries: 10, retryDelay: 100 })),

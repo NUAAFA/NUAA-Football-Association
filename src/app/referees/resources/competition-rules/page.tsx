@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { SiteFooter } from "@/components/layout/site-footer";
-import { SiteHeader } from "@/components/layout/site-header";
+import { RefereePage, RefereeResource, RefereeSection } from "@/components/referees/referee-public-layout";
+import styles from "@/components/referees/referee-public.module.css";
 import { publicCompetitionFiles } from "@/data/competition-center";
 
 export const metadata: Metadata = {
@@ -29,52 +29,16 @@ const ruleGroups = [
 ] as const;
 
 export default function CompetitionRulesPage() {
-  return (
-    <>
-      <SiteHeader />
-      <main className="functional-page referee-rules-page" id="main-content">
-        <section className="functional-hero">
-          <div className="detail-shell">
-            <p>COMPETITION RULES</p>
-            <h1>竞赛规则</h1>
-            <p>集中查阅十一人制、五人制足球竞赛规则及现有规则变更说明。</p>
-          </div>
-        </section>
-        <section className="functional-section">
-          <div className="detail-shell referee-rule-groups">
-            {ruleGroups.map((group) => {
-              const files = group.fileIds
-                .map((fileId) => publicCompetitionFiles.find((file) => file.id === fileId))
-                .filter((file) => file !== undefined);
-
-              return (
-                <section id={group.id} key={group.id} aria-labelledby={`${group.id}-title`}>
-                  <header>
-                    <span>{group.eyebrow}</span>
-                    <h2 id={`${group.id}-title`}>{group.title}</h2>
-                    <p>{group.description}</p>
-                  </header>
-                  <div className="referee-resource-file-list">
-                    {files.map((file) => (
-                      <article key={file.id}>
-                        <span>{file.fileType}</span>
-                        <div>
-                          <h3>{file.title}</h3>
-                          <p>{file.scope} · {file.source}</p>
-                          <small>{file.versionStatusLabel} · {file.versionNote}</small>
-                        </div>
-                        <a href={file.href} target="_blank" rel="noopener noreferrer">查看规则文件</a>
-                      </article>
-                    ))}
-                  </div>
-                </section>
-              );
-            })}
-            <Link className="functional-back-link" href="/referees#referee-resources">← 返回学习与资料</Link>
-          </div>
-        </section>
-      </main>
-      <SiteFooter />
-    </>
-  );
+  return <RefereePage current="/referees/resources/competition-rules" eyebrow="LAWS & RULES" title="竞赛规则" description="集中查阅十一人制、五人制足球竞赛规则及现有规则变更说明。请留意各文件的适用版本。">
+    {ruleGroups.map((group) => {
+      const files = group.fileIds.map((fileId) => publicCompetitionFiles.find((file) => file.id === fileId)).filter((file) => file !== undefined);
+      return <RefereeSection key={group.id} id={group.id} title={group.title} description={group.description}>
+        <ul role="list" className={styles.resourceList}>{files.map((file) => <RefereeResource key={file.id} title={file.title} type={file.fileType}
+          actions={<a href={file.href} target="_blank" rel="noopener noreferrer" aria-label={`查看规则文件：${file.title}（新窗口）`}>查看规则文件 ↗</a>}>
+          <p>{file.scope} · {file.source}</p><p className={styles.meta}>{file.versionStatusLabel}</p><p>{file.versionNote}</p>
+        </RefereeResource>)}</ul>
+      </RefereeSection>;
+    })}
+    <Link className={styles.textLink} href="/referees#referee-resources">← 返回学习与工作资料</Link>
+  </RefereePage>;
 }

@@ -1,0 +1,239 @@
+name: V2.10 Linux validation
+
+# Integration validation only; neither job authorizes a production release.
+on:
+  push:
+    branches: [integration/v2.10-ui-release]
+  workflow_dispatch:
+    inputs:
+      prebuilt_artifact:
+        description: Save candidate digest summary and upload (never release approval)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Explicit Bash enables pipefail: tee cannot hide a failed privileged/runtime test.
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: v2-10-linux-validation-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Linux application validation
+    if: github.repository == 'NUAAFA/NUAA-Football-Association' && github.ref == 'refs/heads/integration/v2.10-ui-release'
+    # Standard GitHub-hosted x64 VM; no self-hosted or larger runner.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      CHECKPOINT_DISABLE: "1"
+      PRISMA_HIDE_UPDATE_MESSAGE: "1"
+      REFEREE_ADMIN_SESSION_SECRET: Synthetic-Admin-Linux-Validation-Secret-2026
+      REFEREE_MEMBER_SESSION_SECRET: Synthetic-Member-Linux-Validation-Secret-2026
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6, verified 2026-10-09
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6, verified 2026-10-09
+        with:
+          node-version: 22.23.2
+          package-manager-cache: false
+          # No dependency cache or billed artifact uploads.
+      - name: Verify platform and record exact candidate
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.sha }}
+        run: |
+          test "$(uname -sm)" = "Linux x86_64"
+          test "$(node --version)" = "v22.23.2"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
+          printf 'DATABASE_URL=file:%s/synthetic-build.db\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          # Set the runtime path after the runner starts; job env has no runner context.
+          # Unique case logs do not enable upload or condition core validation.
+          printf 'NUAAFA_TEST_EVIDENCE=%s/prebuilt-output/case-logs\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          git rev-parse HEAD
+          sha256sum package-lock.json prisma/migrations/*/migration.sql
+          cat /etc/os-release
+          ldd --version
+          node -p 'JSON.stringify(process.versions)'
+          npm --version
+          lscpu
+          systemd-detect-virt || true
+          free -b
+          df -T "$GITHUB_WORKSPACE" "$RUNNER_TEMP"
+          cat /proc/sys/kernel/core_pattern
+          ulimit -c
+          python3 - <<'PY'
+          import json, os, shutil
+          minimum = 20 * 1024 ** 3
+          for name in ("GITHUB_WORKSPACE", "RUNNER_TEMP"):
+              usage = shutil.disk_usage(os.environ[name])
+              print("NUAAFA_DISK_PREFLIGHT " + json.dumps(dict(location=name, total_bytes=usage.total,
+                    free_bytes=usage.free, required_free_bytes=minimum)), flush=True)
+              if usage.free < minimum:
+                  raise SystemExit("STOP: insufficient free space for isolated archive diagnostics")
+          PY
+      - name: Install locked dependencies
+        run: npm ci --include=dev --include=optional
+      - name: Prisma generation, validation and synthetic migrations
+        run: |
+          npx prisma generate
+          npx prisma validate
+          npx prisma migrate deploy
+          npx next typegen
+      - name: TypeScript
+        run: npm run typecheck
+      - name: ESLint
+        run: npm run lint
+      - name: Unicode
+        run: UNICODE_BASE=origin/main npm run check:unicode
+      - name: Student ID compatibility and read-only preflight
+        run: |
+          npm run test:student-id-release-preflight
+          npx tsx scripts/test-student-id-compatibility.ts
+          npm run release:student-id-preflight -- --database="$RUNNER_TEMP/synthetic-build.db"
+      - name: Linux production build
+        run: npm run build
+      - name: Security, operations and compatibility regressions
+        run: |
+          npm run test:security-dependencies
+          npm run test:security-runtime-r2
+          npm run test:security-http
+          npm run test:unified-admin-rbac
+          npm run test:unified-admin-blockers:http
+          SECURITY_R4A_F006_DATABASE_PATH="$RUNNER_TEMP/f006.db" node --import tsx scripts/test-security-r4a-f006-worker.ts
+          node --import tsx scripts/test-unified-admin-blockers.ts --cms
+          npm run test:referee-flow
+          npm run test:referee-admission
+          npm run test:referee-r1-3a:migration
+          npm run test:referee-r1-3a:migration:fresh
+          npm run test:competition-import
+          npm run test:public-competition-dynamic:http
+          npx tsx scripts/test-news-navigation.ts
+          npm run test:production-hardening
+          node --import tsx scripts/test-restore-target-safety.ts
+          npm run restore:rehearsal
+          npm run test:deployer
+          sha256sum .next/BUILD_ID
+      - name: Prebuilt import and activation safety tests
+        run: |
+          python3 scripts/test-prebuilt-pack.py
+          python3 scripts/test-prebuilt-artifact.py
+          python3 scripts/test-deploy-recovery-health.py
+      - name: Real root and nonprivileged Linux permission tests
+        run: sudo env "PATH=$PATH" "NUAAFA_TEST_EVIDENCE=$NUAAFA_TEST_EVIDENCE" python3 scripts/test-prebuilt-linux.py
+      - name: Package, actually import twice and start exact Linux runtime
+        # Import/journal/wrapper regressions run even when artifact upload is off.
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.sha }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/prebuilt-output"
+          python3 ops/deploy/prebuilt-artifact.py pack --source="$GITHUB_WORKSPACE" --commit="$EXPECTED_SOURCE_SHA" --output="$RUNNER_TEMP/prebuilt-output/nuaafa-$EXPECTED_SOURCE_SHA.tar.gz"
+          digest="$(sha256sum "$RUNNER_TEMP/prebuilt-output/nuaafa-$EXPECTED_SOURCE_SHA.tar.gz" | cut -d ' ' -f 1)"
+          sudo env "PATH=$PATH" "NUAAFA_TEST_EVIDENCE=$NUAAFA_TEST_EVIDENCE" python3 scripts/test-prebuilt-linux.py --archive="$RUNNER_TEMP/prebuilt-output/nuaafa-$EXPECTED_SOURCE_SHA.tar.gz" --commit="$EXPECTED_SOURCE_SHA" --sha256="$digest" | tee "$RUNNER_TEMP/prebuilt-output/runtime-validation.json"
+          # Recheck the same tested bytes; optional upload never controls validation.
+          (cd "$RUNNER_TEMP/prebuilt-output" && sha256sum -c ./*.sha256)
+      - name: Emit bounded real-archive phase and lifecycle diagnostics
+        if: always()
+        # Text only: do not upload archives, environment files or crash payloads.
+        run: |
+          python3 - <<'PY'
+          from datetime import datetime
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path(os.environ["RUNNER_TEMP"]) / "prebuilt-output"
+          remaining = 2 * 1024 ** 2
+          def emit(path):
+              global remaining
+              if not path.is_file() or path.is_symlink() or remaining <= 0:
+                  return
+              with path.open("rb") as stream:
+                  data = stream.read(min(remaining, 256 * 1024))
+              remaining -= len(data)
+              print("NUAAFA_DIAGNOSTIC_FILE " + json.dumps(dict(file=str(path.relative_to(root)),
+                    file_bytes=path.stat().st_size, emitted_bytes=len(data), emitted_sha256=hashlib.sha256(data).hexdigest(),
+                    truncated=len(data) < path.stat().st_size)))
+              print(data.decode("utf-8", errors="replace"))
+          cases = sorted((root / "case-logs").glob("real-archive-*/result.json"))
+          print("NUAAFA_REAL_ARCHIVE_RECORDS " + json.dumps(dict(count=len(cases), limit=16)))
+          for record in cases[:16]:
+              emit(record)
+              metadata = json.loads(record.read_text())
+              elapsed = (datetime.fromisoformat(metadata["finished_at"]) - datetime.fromisoformat(metadata["started_at"])).total_seconds()
+              print("NUAAFA_CASE_ENVELOPE " + json.dumps(dict(case=metadata["case"],
+                    elapsed_seconds=elapsed, scope="recorded_run_including_cleanup", timed_out=metadata["timed_out"])))
+              for name in ("stdout.log", "stderr.log", "shared-postconditions.json"):
+                  emit(record.parent / name)
+          emit(root / "runtime-validation.json")
+          for sidecar in sorted(root.glob("*.sha256"))[:4]:
+              emit(sidecar)
+          print("NUAAFA_DIAGNOSTIC_OUTPUT " + json.dumps(dict(byte_budget=2 * 1024 ** 2, remaining_bytes=remaining)))
+          PY
+      - name: Record independent candidate digest in authenticated run summary
+        if: github.event_name == 'workflow_dispatch' && inputs.prebuilt_artifact
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.sha }}
+        run: |
+          {
+            printf 'Prebuilt candidate commit: `%s`\n\n' "$EXPECTED_SOURCE_SHA"
+            printf 'Archive SHA-256 (copy from this authenticated run; do not trust an archive sidecar alone):\n\n'
+            sha256sum "$RUNNER_TEMP/prebuilt-output/"*.tar.gz
+            printf '\nCandidate only. Independent security advisory gate and Human Review still required. No approval generated.\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: github.event_name == 'workflow_dispatch' && inputs.prebuilt_artifact
+        with:
+          name: nuaafa-prebuilt-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/prebuilt-output/*
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  security:
+    name: Security advisory gate
+    if: github.repository == 'NUAAFA/NUAA-Football-Association' && github.ref == 'refs/heads/integration/v2.10-ui-release'
+    # Independent of application validation: real audit failures stay failures.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      CHECKPOINT_DISABLE: "1"
+      PRISMA_HIDE_UPDATE_MESSAGE: "1"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 22.23.2
+          package-manager-cache: false
+      - name: Verify source and set synthetic database path
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
+          printf 'DATABASE_URL=file:%s/synthetic-audit.db\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - name: Install locked dependencies
+        run: npm ci --include=dev --include=optional
+      - name: Full dependency audit
+        run: npm audit --json > "$RUNNER_TEMP/audit-full.json"
+      - name: Production dependency audit
+        if: always()
+        run: npm audit --omit=dev --json > "$RUNNER_TEMP/audit-production.json"
+      - name: Record inventory and keep unresolved High advisories blocked
+        if: always()
+        run: |
+          node -e 'for (const kind of ["full", "production"]) { const r = require(process.env.RUNNER_TEMP + "/audit-" + kind + ".json"); if (r.error || !r.metadata?.vulnerabilities) throw Error("Audit unverifiable: release blocked"); console.log(kind, r.metadata.vulnerabilities); console.log(JSON.stringify(r.vulnerabilities)); }'
+      - name: Keep unresolved High advisory as a release blocker
+        if: always()
+        run: |
+          node -e 'const r = require(process.env.RUNNER_TEMP + "/audit-full.json"); if (r.error || !r.metadata?.vulnerabilities) throw Error("Audit unverifiable: release blocked"); const v = r.metadata.vulnerabilities; console.log("Build validation is separate from release approval", v); if (v.critical || v.high) throw Error("Unresolved security gate including GHSA-vfj7-8cjw-p6xm: Human Review required; no exception granted");'

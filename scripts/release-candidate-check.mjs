@@ -48,87 +48,25 @@ async function npm(args, label, options) {
 
 async function securityGate() {
   await access(path.resolve("docs/operations/R1-3C_SECURITY_ADVISORY_DISPOSITION.md"));
-  const audit = await npm(
-    ["audit", "--omit=dev", "--audit-level=critical", "--json"],
-    "production dependency critical audit JSON",
-    { capture: true, allowNonZero: true },
-  );
-  process.stdout.write(audit.stdout);
-  if (audit.stderr) process.stderr.write(audit.stderr);
-  let report;
-  try {
-    report = JSON.parse(audit.stdout);
-  } catch {
-    throw new Error("npm audit did not return parseable JSON.");
+  const reports = [];
+  for (const scope of ["full", "production"]) {
+    const audit = await npm(["audit", ...(scope === "production" ? ["--omit=dev"] : []), "--json"], `${scope} dependency audit JSON`, { capture: true, allowNonZero: true });
+    process.stdout.write(audit.stdout);
+    if (audit.stderr) process.stderr.write(audit.stderr);
+    let report;
+    try { report = JSON.parse(audit.stdout); } catch { throw new Error("Audit JSON is unverifiable: release blocked."); }
+    const inventory = report.metadata?.vulnerabilities;
+    if (report.error || !inventory || ![0, 1].includes(audit.code) ||
+        !["critical", "high", "moderate", "low"].every((key) => Number.isSafeInteger(inventory[key]) && inventory[key] >= 0)) {
+      throw new Error("Audit inventory is unverifiable: release blocked.");
+    }
+    reports.push({ scope, inventory, code: audit.code });
   }
-  const names = Object.keys(report.vulnerabilities ?? {}).sort();
-  const expected = [
-    "@prisma/config",
-    "@tiptap/core",
-    "@tiptap/extension-blockquote",
-    "@tiptap/extension-bold",
-    "@tiptap/extension-bubble-menu",
-    "@tiptap/extension-bullet-list",
-    "@tiptap/extension-code",
-    "@tiptap/extension-code-block",
-    "@tiptap/extension-document",
-    "@tiptap/extension-dropcursor",
-    "@tiptap/extension-floating-menu",
-    "@tiptap/extension-gapcursor",
-    "@tiptap/extension-hard-break",
-    "@tiptap/extension-heading",
-    "@tiptap/extension-horizontal-rule",
-    "@tiptap/extension-image",
-    "@tiptap/extension-italic",
-    "@tiptap/extension-link",
-    "@tiptap/extension-list",
-    "@tiptap/extension-list-item",
-    "@tiptap/extension-list-keymap",
-    "@tiptap/extension-ordered-list",
-    "@tiptap/extension-paragraph",
-    "@tiptap/extension-strike",
-    "@tiptap/extension-text",
-    "@tiptap/extension-underline",
-    "@tiptap/extensions",
-    "@tiptap/react",
-    "@tiptap/starter-kit",
-    "baseline-browser-mapping",
-    "deepmerge-ts",
-    "mysql2",
-    "prisma",
-  ];
-  const metadata = report.metadata?.vulnerabilities;
-  const expectedAdvisories = {
-    "@tiptap/core": [
-      "https://github.com/advisories/GHSA-cp6q-959q-f8rh",
-      "https://github.com/advisories/GHSA-j95f-988m-3j2f",
-    ],
-    "baseline-browser-mapping": ["https://github.com/advisories/GHSA-w5vr-8v7q-w6rv"],
-    "deepmerge-ts": ["https://github.com/advisories/GHSA-ggr8-5vv4-36mx"],
-    mysql2: [
-      "https://github.com/advisories/GHSA-3f6p-5ww8-9rcr",
-      "https://github.com/advisories/GHSA-rgwj-5xj2-c3m3",
-    ],
-  };
-  const actualAdvisories = Object.fromEntries(Object.keys(expectedAdvisories).map((name) => [
-    name,
-    (report.vulnerabilities?.[name]?.via ?? [])
-      .filter((item) => typeof item === "object")
-      .map((item) => item.url)
-      .sort(),
-  ]));
-  if (
-    audit.code !== 0 ||
-    names.join("\n") !== expected.join("\n") ||
-    metadata?.critical !== 0 ||
-    metadata?.high !== 5 ||
-    metadata?.moderate !== 28 ||
-    Object.entries(expectedAdvisories).some(([name, urls]) => actualAdvisories[name].join("\n") !== [...urls].sort().join("\n"))
-  ) {
-    throw new Error("Production dependency critical gate or documented advisory inventory differs from the reviewed dependency disposition.");
+  if (reports.some(({ inventory, code }) => code !== 0 || inventory.critical || inventory.high || inventory.moderate || inventory.low)) {
+    throw new Error("Unresolved dependency advisories: release BLOCKED. Historical dispositions grant no new risk approval.");
   }
-  logGate("Critical dependencies 0; documented advisory inventory exact", "KNOWN-ADVISORIES");
-  return "READY_WITH_DOCUMENTED_ADVISORIES";
+  logGate("Full and production dependency audits contain no unresolved advisories", "PASS");
+  return "SECURITY_CLEAN";
 }
 
 async function main() {

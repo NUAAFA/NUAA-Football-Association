@@ -1,0 +1,218 @@
+2026-10-11 综合修复更新（阅读优先）
+本文件以下正文保留上一轮历史记录。修改后的代码与测试结论由
+V2_10_COMPREHENSIVE_REMEDIATION_FINAL_REPORT.txt 替代，不能沿用下文历史 PASS。
+当前代码修复判定 PASS WITH NOTES；正式生产发布 NO-GO。
+最新 26 个归档/部署测试通过；新增真实 Linux 跨用户套件已接入工作流，NOT RUN。
+审计生产 0 Critical / 4 High / 0 Moderate；完整树 0 / 9 / 0，原始审计仍退出 1。
+无项目提交、推送、远程 Actions 触发或生产操作。
+
+-------------------- 以下为保留的历史报告 --------------------
+
+NUAAFA V2.10 — Minimal Prebuilt Artifact Deployment
+日期：2026-10-11（Europe/London）
+
+结论
+本轮机制已实现，新增合成归档/部署器测试 18 个测试方法全部通过；
+旧部署器隔离回归通过；使用全新锁定依赖的 macOS 运行副本完成了合成
+迁移、启动、原生依赖、备份、校验和隔离恢复验证。
+新增 Ubuntu 24.04 x64 产物打包/导入/启动链路：NOT RUN。
+可进入本轮代码与隔离测试的 Human Review，不能视为 Linux 产物或正式发布批准。
+Security advisory gate 仍为 FAIL，正式发布仍为 BLOCKED。
+
+基线与授权
+仓库：NUAAFA/NUAA-Football-Association
+工作树：/Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA
+分支：integration/v2.10-ui-release
+HEAD：15df2a09f4e2ca9f809284e9c10516496e8884bc（未改变）
+此前 application Linux validation PASS 沿用既有证据，本轮未重跑该完整验收。
+本轮修改尚未提交，不能把这些修改声称为上述 SHA 已包含的产物能力。
+未来真实打包必须使用经另行授权提交后的准确 SHA 和干净 checkout。
+
+1. 修改文件及必要性
+
+（1）.github/workflows/v2-10-linux-validation.yml
+增加 workflow_dispatch 的 prebuilt_artifact 布尔选项，默认 false。
+复用原 Ubuntu 24.04 x64、Node 22.23.2、npm ci 和 production build，
+仅在显式选中选项时执行新增测试、打包、搬迁后启动验证、摘要记录和上传。
+上传动作固定到 actions/upload-artifact v4.6.2 的准确 commit。
+保留 1 天、对已有 gzip 不重复压缩、失败不上传、不生成发布批准。
+原 security job 的内容与 HEAD 逐字节一致，未改审计阈值或失败行为。
+
+（2）ops/deploy/nuaafa-deploy
+新增 --import-artifact 和 --activate-prebuilt 两个明确分开的模式。
+保留原锁、allowed-ref 可达性、学号只读预检、备份、迁移、原子切换及
+失败回退；预构建模式不调用 npm ci、Prisma generate 或 Next build。
+旧 full/stage/activate 模式拒绝通过外部 receipt 或内部标记识别的导入版本，
+防止绕过预构建专用激活门禁。
+将固定远程仓库的 owner 改为本轮明确指定的 NUAAFA，保留已有 SSH alias；
+该 alias 在真实主机上的配置和可用性未连接验证。
+
+（3）ops/deploy/prebuilt-artifact.py
+单个 Python 标准库工具负责打包、有限大小的私有快照、安全解包、文件
+清单校验、可信 Git 源文件比对、运行目录复核及独立批准记录检查。
+无需增加 Python 包、签名服务或远程基础设施。
+部署时必须由运维从已审查源码单独安装到 root 控制的
+/usr/local/lib/nuaafa/prebuilt-artifact.py；不从候选包加载校验程序。
+本轮没有进行该生产安装。
+
+（4）scripts/test-prebuilt-artifact.py
+覆盖新增归档与真实部署器分支的合成测试；使用临时本地 Git 仓库、
+合成 SQLite、隔离 releases/shared/current 和短小归档。
+测试期间的 Git commit 仅用于临时测试夹具；项目仓库没有新增 commit。
+
+（5）scripts/test-prebuilt-runtime.mjs
+只对指定隔离运行副本执行合成迁移、Prisma/libSQL 和 sharp 原生操作、
+HTTP/资源检查以及现有备份、校验和恢复脚本。
+不执行 install、generate 或 build；运行环境自行创建空数据库和上传目录，
+不继承应用凭据，也不读取工作树 .env。
+
+（6）docs/operations/V2_10_PREBUILT_ARTIFACT_REPORT.txt
+本报告：交付范围、操作契约、已执行证据与未验证事项。
+
+未修改 package.json、package-lock.json、Next 配置、数据库模式或任一
+现有 17 条 migration.sql。Next 16.3.8 / Node 22.23.2 / Prisma 7.9.1 保持。
+
+2. 产物生成与 standalone 取舍
+
+先阅读安装的 Next 16.3.8 output 和 CLI 指南，并核对实际运行方式。
+standalone 的自动追踪面向网站请求；需要额外带 public 和 .next/static，
+并使用专用 server.js。它不自动提供现有 Prisma migrate CLI、tsx 运维脚本、
+Git 版本元数据以及这些脚本的依赖闭包。
+本轮选用常规 next start 预构建产物，保留现有启动和运维机制，避免更换
+服务入口或拆分运维架构；没有声称 standalone 的 Linux 兼容性已通过。
+
+包含：
+- 锁文件对应的完整 node_modules（包含现有运维所需 dev/optional 依赖）；
+- .next 构建输出（排除 cache、dev、diagnostics 和 standalone 副本）；
+- src/generated/prisma-v29 生成的 Prisma client；
+- Git 跟踪的 src、scripts、prisma、public 以及必要的五个配置/包文件；
+- commit、锁文件摘要、依赖版本、OS/libc/Node ABI/OpenSSL、原生文件清单，
+  以及各文件大小、模式、SHA-256 和安全 npm bin 链接的 manifest。
+
+不包含：.git、.env*、.npmrc、数据库、私钥/证书私密材料、用户 uploads、
+备份或构建缓存。public 和其他源文件只来自受 Git 跟踪的准确 commit，
+不遍历复制该目录中的未跟踪用户文件。CI 只使用合成数据库和合成 secret。
+打包要求干净 checkout、准确 HEAD、准确版本、安装元数据与 lockfile 一致，
+以及 Linux ELF 原生文件；不接受 macOS 包作为生产包。
+
+产物命名：nuaafa-<40位commit>.tar.gz
+另生成 .tar.gz.sha256，作为传输检查便利文件。
+CI 在上传前解包到独立目录，补充可信本地 Git 元数据，从搬迁后的包运行
+合成数据库启动与运维测试，最后重新检查原归档 SHA-256。
+
+3. 校验与导入契约
+
+操作员必须从经过认证并审核的 GitHub Actions run summary/log 独立取得
+准确 commit 和 tar.gz SHA-256。不能仅从下载包或其 sidecar 取得信任值；
+upload-artifact 外层 ZIP 的 digest 也不能替代这里的 tar.gz digest。
+
+命令形式（本轮未对生产执行）：
+nuaafa-deploy --import-artifact <绝对归档路径> --artifact-sha256 <独立64位SHA256> --allowed-ref <明确refs/heads/...> <40位commit>
+
+导入在全局部署锁内执行，先做有界私有副本和外部摘要校验，再验证归档。
+仅接受规范的相对路径、普通文件和指向 node_modules 内普通文件的 npm bin
+相对链接。拒绝绝对路径、..、歧义分隔符、控制字符、重复条目、Git 元数据、
+敏感/可变路径、硬链接、设备/FIFO、目录链接、危险符号链接、特殊权限、
+额外/缺失条目及内容不符。解包不调用 tar.extract 或 extractall。
+有文件数、压缩输入/展开大小、单文件限制以及 512 MiB 磁盘安全余量。
+
+随后从固定仓库取得准确 commit，确认其可从 allowed-ref 到达，将候选内容
+放入临时 releases 目录，逐个比对 Git 源文件与归档文件，校验依赖和完整闭包。
+只有全部通过才发布版本目录。失败删除临时目录，不覆盖已有同 SHA 版本。
+重复导入只有在 receipt、来源和所有运行文件仍一致时才复用；冲突直接拒绝。
+
+校验 receipt 位于 /srv/nuaafa/prebuilt/<commit>.json，root 控制，位于版本
+目录之外；它绑定独立 SHA、commit、ref 和已验证文件清单。
+receipt 先写，版本目录后原子改名；中途异常最多留下一个禁止自动复用的
+orphan receipt，需要运维调查，不会产生无标记的可激活版本。
+内部 manifest 仅用于枚举和附加校验，不能单独建立信任。
+
+4. 激活与生产隔离
+
+导入不连接 shared/.env.production、prisma/dev.db，不读取 shared 数据，
+不运行候选代码，不执行备份/迁移，不切换 current，不操作服务或上传目录。
+归档与展开副本均位于可清理的私有临时目录。
+
+--activate-prebuilt 是另一次明确调用，要求相同独立 SHA、外部 root receipt、
+整目录复核以及 root 控制的 /etc/nuaafa/prebuilt-approvals/<commit>.json。
+该批准记录必须同时准确绑定 commit、tar.gz SHA、allowed-ref，并明确含
+security_gate=PASS、linux_artifact_validation=PASS、human_review=APPROVED。
+产物内 release_allowed 固定 false；任何产物内自我批准声明均会被拒绝。
+工具不产生批准文件，不接受异常字段，也不自动批准任何漏洞例外。
+本轮没有交付当前候选的批准文件；已知 Security FAIL 不能转成上述 PASS。
+
+实际激活还要求主机 Ubuntu 24.04 x64、glibc 2.39、Node 22.23.2 / ABI 127。
+之后才进行远程可达性确认、学号只读预检、共享链接、旧机制备份、迁移、
+第二次学号预检、运行文件复核、原子切换、重启及健康验证。
+重启/健康失败恢复旧版本链接并尝试重启旧服务；不反向回滚数据库迁移。
+旧 full/stage 代码保留兼容，本轮预构建分支不会进入其安装/构建路径。
+
+没有 SSH、生产数据库访问、生产迁移/安装/部署/重启；没有修改 main 或
+UI 分支；没有项目 commit、push、PR、Release、Tag 或安全阈值修改。
+
+5. 已执行的合成验证
+
+归档/新部署器：PASS，18 个 unittest 测试方法（其中包含多项子案例）。
+正确合成归档实际导入隔离 releases；SHA 不符、独立 digest 缺失/错误、
+文件损坏/缺失、非法路径、重复归档/JSON 键、危险链接、特殊文件和模式、
+不可信源文件、额外运行文件、安装版本不符及磁盘余量不足均拒绝。
+验证重复导入、dry-run、目的版本冲突、早期/晚期失败清理和 current 不变。
+验证安全批准缺失/FAIL、Linux 未验证、Human Review 未批准和错 SHA 不放行。
+使用真实只读学号预检验证危险身份阻断；模拟迁移/服务回调验证顺序及
+重启/健康失败的旧版本回退，迁移仅正向执行一次，没有 install/build/generate。
+
+本机测试替换了 root/属主检查、flock、systemd、生产备份/迁移和平台检查；
+使用本机原子 rename 适配 GNU mv -T。这里的通过不能证明真实 Linux 属主、
+锁、systemd、磁盘挂载或 Linux 应用 native ABI。合成 ELF 文件是短小夹具，
+不是已执行的网站 Linux 二进制。
+
+旧部署器 test:deployer 隔离矩阵：PASS。
+脚本语法、工作流 YAML 解析、git diff --check：PASS。
+17 条 migration.sql 与 HEAD 逐字节一致，security job 与 HEAD 逐字节一致。
+
+实际搬迁运行验证：PASS，仅 darwin/arm64，Node 22.23.2。
+使用基线 SHA 的临时源码副本，全新 npm ci 后确认 560 个已安装包的
+version/integrity/resolved 与 lockfile 完全一致，删除旧构建再重新 build。
+实测 sharp 原生图片处理、Prisma 7.9.1 的 17 条合成迁移、生成客户端/libSQL
+原生查询、冷启动、/api/health、首页和裁判页面、.next/static、public PDF，
+以及现有 tsx 备份、校验、隔离恢复和恢复数据库摘要匹配。
+生产 pack 在这个真实 Darwin 副本上明确拒绝，未生成伪 Linux 包。
+
+保留的问题发现过程：首轮导入测试发现复制权限和 EXIT 清理变量问题，已
+修复并重跑；早期拒绝测试存在 Bash 条件上下文影响 errexit 的夹具错误，
+已修复，并强化新批准检查的显式错误返回。早期本机 smoke 使用了已有依赖；
+最终发现其落后于锁文件，因此另在临时目录全新安装、构建和重新 smoke。
+早期失败不记 PASS，早期依赖结果不代替最终锁定依赖证据。
+
+6. 尚待确认
+
+- 新增工作流在真实 Ubuntu 24.04 x64 上的完整 tar 生成、安全导入和搬迁
+  运行验证：NOT RUN。本轮没有 commit/push，也没有触发新代码的 CI。
+- Linux Prisma schema-engine、libSQL、sharp、Next SWC 及主机 OpenSSL/ABI
+  兼容性：需新 CI 真实执行，不由本机结果或此前 application PASS 替代。
+- 真实主机的平台、固定仓库 SSH alias、Python 标准库工具安装权限、
+  root-owned receipt/approval、磁盘容量、flock、GNU mv -T、systemd 和
+  原有服务配置：NOT VERIFIED，本轮不访问生产。
+- 当前 security advisory gate FAIL 未解除；本轮未批准 braces 或任何例外。
+
+7. 成本
+
+本轮没有创建/租用服务器或触发新增 CI，没有新增基础设施或云产物存储。
+以后打包复用现有标准 runner/build，只增加短小验证和归档存储；默认关闭，
+显式开启后保留 1 天。完整依赖的包比 standalone 大，换取现有运维兼容性。
+不承诺未来账单绝对为零：Actions 额度、仓库可见性和超额设置决定分钟数及
+存储是否收费。本轮未修改计费设置，也未核实账户剩余额度。
+参考：https://docs.github.com/en/billing/concepts/product-billing/github-actions
+产物参考：https://docs.github.com/en/actions/tutorials/store-and-share-data
+
+8. Human Review 与停止边界
+
+本轮代码、操作契约和本机隔离证据已可供 Human Review。
+Human Review 必须保留新增 Linux 产物链 NOT RUN 和正式发布 BLOCKED 状态。
+本轮成果不是可直接发布的 Linux tar，不是漏洞例外批准或生产部署授权。
+下一步执行 Linux CI、提交、推送或生产验证均需另行授权；本轮到此停止。
+
+证据目录：
+/Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-prebuilt-artifact-al0ijnin
+包含归档/部署器日志、最终全新依赖安装/构建/运行日志、Darwin 拒绝日志和
+完整性记录；其中 preliminary 本机日志仅保留过程，不作为最终锁定依赖证据。

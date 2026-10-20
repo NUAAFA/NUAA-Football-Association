@@ -1,0 +1,675 @@
+NUAAFA V2.10 — Comprehensive Remediation Final Report
+日期：2026-10-11（Europe/London）
+
+代码修复判定：PASS WITH NOTES
+正式生产发布判定：NO-GO
+
+本轮已完成授权范围内的发布链修复、可兼容依赖更新、隔离回归和自动化准备。
+这两个判定相互独立。PASS WITH NOTES 仅表示源码自审及实际本机验证完成；
+它不表示 Ubuntu、root/应用用户权限模型、生产主机或独立 Human Review 已通过。
+仍有未处置的 High；真实 Linux 新链路 NOT RUN；生产前置条件 NOT VERIFIED。
+项目改动全部未提交；没有 push、PR、Release/Tag、Actions 触发或生产访问。
+
+证据根目录：
+/Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u
+历史证据（仅作背景，不继承变更路径的 PASS）：
+/Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-prebuilt-artifact-al0ijnin
+精确命令、cwd、退出码、耗时：checks.jsonl；原始输出：各 label.log。
+原始六文件副本：initial/；初始 Git、SHA-256、迁移清单：baseline.json。
+最终 Git 核对：final-integrity.json；最终源码指纹：delivery-files.json。
+
+A. Git Baseline
+
+授权工作树：/Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA
+分支：integration/v2.10-ui-release
+初始及最终 HEAD：15df2a09f4e2ca9f809284e9c10516496e8884bc
+仓库：NUAAFA/NUAA-Football-Association
+
+只读 ls-remote 开始/结束复核相同：
+  integration：15df2a09f4e2ca9f809284e9c10516496e8884bc
+  远程 main：529a8600feb86fe331a9852e6b08d9cefb18a9a9
+  远程 UI：83630cb1296405757a2591a444dca150f2a990fa
+本地 main 实际为 f7a5460713b3886130910d28b24f9f9c8cab9b7b，未改变。
+不得将远程 main SHA 当作本地 main HEAD。
+原 UI 工作树：/Users/xianghanwang/Documents/Codex/NUAAFA
+其分支 feat/v2.10-ui-ux-refresh，HEAD 83630cb1296405757a2591a444dca150f2a990fa；
+起止均 clean，未进行编辑、构建或测试写入。
+
+原始六项待提交状态（全部保留，不 reset、不覆盖重建）：
+ M .github/workflows/v2-10-linux-validation.yml
+ M ops/deploy/nuaafa-deploy
+?? ops/deploy/prebuilt-artifact.py
+?? scripts/test-prebuilt-artifact.py
+?? scripts/test-prebuilt-runtime.mjs
+?? docs/operations/V2_10_PREBUILT_ARTIFACT_REPORT.txt
+初始副本与哈希已保存在证据目录，新增修复是在这些成果上继续完成。
+已阅读原报告、安全处置文件、AGENTS.md、安装版本的 Next 环境/CLI 文档。
+应用版本保持 Next 16.3.8、React 19.2.4、Prisma 7.9.1；验证 Node 22.23.2。
+
+B. Initial Findings
+
+用户提供独立审查：BLOCKED，0 P0 / 2 P1 / 1 P2。
+B1 P1：verify_root_metadata 的 || die 在 Bash if/&&/|| 上下文不能保证返回失败；
+         不可信 helper、receipt、父目录可能打印 STOP 后仍被继续使用。
+B2 P1：root 私有 payload 经 cp -pR 带入 staging，应用用户无法遍历；
+         root 操作应用拥有的 Git checkout 触发 dubious ownership。
+B3 P2：仅 manifest/部分目录与 Git clean 不覆盖被忽略的额外 .env*。
+其它已知问题也纳入本轮：回退 || true 只尝试恢复、迁移后旧代码兼容性未证明、
+新增 Linux 权限/搬迁链未运行、原合成测试过多替换权限检查、旧模式仍可主机构建、
+High 风险尚未获批准。原始审计重新实测确认为 production 0/5/28、full 0/12/28。
+
+C. Additional Findings
+
+以下级别用于本轮工程分流，来自源代码路径或失败回归；不是新的独立第三方评级。
+C1 P1：同类失败传播存在于 fetch、shared/link、Git/build/目录检查等调用链；
+         fetch 失败必须拒绝，不能沿用旧 FETCH_HEAD。
+C2 P1：真实旧部署回归抓到空/不可验证学号 JSON 打印 STOP 后返回成功。
+C3 P1：应用拥有的 staging 不能作为 root 写入/激活的可信边界；需新建封存目录、
+         安全快照 Git 元数据，而不能向可变 checkout 复制 root 内容或 chmod 放宽。
+C4 P2：Git 元数据目录/文件链接、替换引用、alternates 和 inherited config 可改变
+         Git 查询或让 root 导入其它路径；必须只复制惰性数据并禁用这些来源。
+C5 P2：归档只统计成员内容不足以限制扩展头/填充的解压消耗；输入父目录及
+         hardlink/重复条目也必须纳入拒绝边界。
+C6 P2：新临时目录发生碰撞时，提前赋值的 cleanup 路径可能删除未知已有目录。
+C7 P2：产物输出/sidecar 不能覆盖既有文件；失败生成必须清理本次创建的 inode。
+C8 P1：tee 管道可能掩盖跨用户/原生测试失败；工作流必须显式 Bash pipefail。
+C9 P1：默认 dispatch 标志关闭时，安全/权限测试不能被一并跳过。
+C10 P1：仅切回链接、重启不报错不能证明恢复；无可信状态会让重复执行掩盖故障。
+C11 P1：SIGTERM 回归抓到 EXIT trap 引用已失效的局部 checkwork，妨碍状态持久化。
+C12 P1：旧 full/stage 可绕过预构建 gate，且曾以 critical-only 审计容忍 High。
+C13 P2：主机 Node 在检查其 root 元数据之前被 --version 执行，检查顺序需修正。
+C14 P2：备份命令从部署器 cwd=/ 启动，会使 applicationSha 取值失败；
+          root 封存目录中的应用 Git 查询也需要严格限定的安全目录支持。
+C15 P2：启动继承环境、额外 unit/drop-in/EnvironmentFile/挂载可能偏离已验证运行契约；
+          仅检查 fragment 或 ExecStart 文本不充分。
+C16 P2：锁文件正确不等于实际 node_modules 正确；所有已安装包元数据/版本需对比。
+C17 P2：历史精确库存 gate 可把保留 High 当作容许基线；本轮不可自动继承风险接受。
+发现的新可修复问题已处理；未以改架构或隐藏审计替代修复。
+
+D. Remediation Details
+
+以下行号指本轮最终源码；每项包括原因、改法、行为与验证范围。
+
+D1 错误传播（B1/C1/C2）
+ops/deploy/nuaafa-deploy:227、483、907、922、936、1078。
+所有关键 || die 改为明确 die + return，调用链逐层传播非零；主流程条件上下文
+仍失败。学号报告严格字段/计数/完整扫描/只读/允许发布检查不通过明确 return 1。
+Node/Python/helper 元数据先检查再执行。实际函数测试保留真实 verify_root_metadata，
+macOS 仅用 stat 方言适配读取真实 uid/mode，覆盖 if/&&、未知目录/链接/refs、
+helper/Node sentinel；实际旧部署器空/缺字段报告拒绝回归通过。
+Linux 中使用真实 GNU stat/所有权，不替换这些验证函数：NOT RUN。
+
+D2 身份和封存（B2/C3/C4）
+nuaafa-deploy:441、947；prebuilt-artifact.py:487、562、579、653；
+src/lib/combined-backup.ts:204。
+root 私有输入一直 0700；root 预建 app checkout 后 chown 给专用应用用户，由其
+clone/fetch/checkout；root materialize 新建 root-controlled staging。文件 0644/0755、
+目录 0755、Git 可读，只有 .next/cache app 0700。避免 cp -pR 和全员写入。
+root 通过 nofollow/dirfd 快照惰性 Git 数据，拒绝链接/硬链接/特殊文件，限制大小，
+写固定 origin/config，不复制 hooks/config/alternates/refs/replace。
+验证 Git 始终应用身份，命令 scoped safe.directory=精确版本、禁 hooks/fsmonitor/
+replace/global/system config；未写全局 safe.directory=*。
+备份库仅在 cwd 及全部祖先均为 root 且不可非 root 写时使用同样精确 scoped trust。
+首次导入、重复导入、激活复查一致封存模型。合成 import/repeat/source mismatch/
+Git link 测试通过；真正 root/app uid 验证待 Linux。
+
+D3 环境与完整运行目录（B3/C15）
+prebuilt-artifact.py:404、457、579；nuaafa-deploy:280、936；ops/deploy/start-prebuilt:1。
+校验整个目录的精确 files/dirs/source inventory，源文件对照可信 Git commit tree；
+.gitignore 本身也被 commit/manifest 绑定。新增/被忽略文件、空目录、嵌套 .env*、
+.env.local/.env.production.local/重命名配置、未验证链接全部拒绝。
+仅允许独立复核的两个共享链接；共享环境只查目标、uid/mode/nlink/父目录，
+不打开或哈希其内容。环境 root owned、非 root 不可写、world 无权限。
+启动 wrapper Python -I，清空继承 env，固定 host Node/Next CLI/地址/端口/cwd。
+服务 User、WorkingDirectory、唯一 ExecStart、root fragment/drop-ins 与无额外命令、
+环境来源、RootDirectory/RootImage/BindPaths 契约必须满足；不符直接阻断。
+正向共享配置与额外文件/目录/链接拒绝通过；真实 validator 的服务环境/drop-in
+拒绝通过（systemctl 属性是 fixture，未控制真实服务）。Linux 正向/拒绝已准备。
+
+D4 归档和实际安装一致性（C5/C7/C16）
+prebuilt-artifact.py:62、94、181、201、267、322、340。
+输入所有祖先通过 descriptor/no-follow，正则 SHA-256 独立输入，nlink=1 regular
+file、有界私有复制。read_archive 在同一已打开文件对象核验独立摘要；BoundedGzip
+限制全部解压字节，包括扩展头/填充；所有路径、条目、大小/总量、链接目标、模式、
+JSON 重复键、重复成员、ELF magic、源/原生清单、manifest shape 检查先完成。
+不使用 extractall。MAX_FILES=100000、MAX_BYTES=3GiB、MAX_FILE=512MiB；还要求
+磁盘余量。manifest 不能声称 release_allowed=true。
+pack 要求 clean exact HEAD，安装隐藏锁元数据的 version/integrity/resolved 与
+package-lock 对应，每个实际 package.json 版本对应且所有必需包存在。
+输出/sidecar exclusive create，归档生成后重新完整读取核验。失败只删除本次
+已记录 dev/inode 的 regular 输出，不覆盖未知文件；导入 EXIT 清理私有解包目录。
+合成边界测试通过。真实新 Linux 完整归档字节/体积/打包搬迁 NOT RUN。
+
+D5 清理、锁和状态（C6/C10/C11）
+nuaafa-deploy:173、322、348、663、947；prebuilt-artifact.py:622、641。
+锁改到 root-controlled /run/nuaafa-deploy.lock，检查 uid/mode/祖先、noclobber 创建、
+flock fd9；进程退出释放锁，保留 inode。staging/checkout 仅成功创建后登记 cleanup
+ownership；未知同 SHA 目录/临时目录/孤立 receipt 不删除、不覆盖。
+receipt 在封存目录原子发布前写到外部；崩溃只能形成阻断孤立 receipt。
+atomic current switch 清理仅本次创建且仍匹配的临时链接。
+激活 journal 使用 root temp + fsync + atomic replace + directory fsync。
+全局 activation_work 修复 EXIT 局部变量失效；普通异常/INT/TERM 保持退出失败并
+走恢复判定。未完成 journal 或 journal/current 不符阻断再次激活。
+collision 保留未知文件、失败 pack/private copy、真实 TERM 和恢复矩阵通过。
+SIGKILL/断电无法捕获；journal 将保留待人工核对状态，不声称已实际断电验证。
+
+D6 激活、备份、迁移、健康与恢复（C10/C14）
+nuaafa-deploy:252、262、304、327、1020；prebuilt-artifact.py:604。
+备份/迁移 cd 精确候选 release，env -i 传 explicit DB/upload/config 路径；
+迁移直接调用打包 Prisma CLI，没有 npx 下载或生成。备份创建后用现有 verifier
+独立校验 complete/checksum/schema/upload 清单；不通过不停止/切换服务。
+迁移前要求旧/新 schema hash 及 17 migration 名字/字节 hash 完全一致；
+SQLite read-only history 为无重复的正确前缀，无未知/失败/回退/checksum 不符条目。
+迁移后 require --complete 全部17条完成。不同 schema/inventory 需单独恢复评估，
+不会为了推进发布而忽略。迁移只正向，失败或中断不自动还原 DB。
+健康要求 systemd active、精确 {status:ok}、有效 MainPID 且 /proc/PID/cwd 指向
+current，而不是只看任意 HTTP 200。回退必须旧 Git/build/shared links/学号检查、
+恢复旧链接、旧重启、旧健康全部成功才能写 ROLLED_BACK。
+10种最终状态恢复案例、迁移 readiness SQLite 实测和实际备份函数 cwd 回归通过。
+服务动作为合成；真实 PID/systemd/生产权限与备份状态 NOT VERIFIED。
+
+D7 工作流（C8/C9）
+.github/workflows/v2-10-linux-validation.yml:18、95、97、99、113、130、143。
+准确 github.sha checkout；完整历史用于 source/reachability；Node22.23.2、Ubuntu24.04
+标准x64、npm ci include dev/optional；生成Prisma后构建；合成DB/env，不带生产秘密。
+显式 Bash（GitHub 执行 -e -o pipefail），tee 不能掩盖失败；归档安全测试和真实
+root/app fixture 无条件在 validate job 执行。仅 packaging/upload 使用默认false输入。
+root materialize 独立目录后以非特权用户执行真实 native/runtime/backup/restore，
+之后复核封存/full tree、上传前复核同一摘要；前面失败不执行上传。
+独立 authenticated run summary 绑定 SHA 与 archive digest；sidecar 不是独立信任源。
+upload one-day retention、compression0，默认无额外上传；没有 deploy/approval step。
+security job 独立，原始 full/prod audit 失败继续失败，不影响保存隔离验证证据，
+也不升级为可发布产物。Actions SHA pins 只读远程核对通过（action-pins.json）。
+实际新 GitHub Actions run：NOT RUN，未触发。
+
+D8 旧路径及安全门禁（C12/C17）
+nuaafa-deploy:211、791、814、837、897；scripts/release-candidate-check.mjs:49。
+旧 full/stage/activate-staged 必须独立 root-controlled legacy-commit.json，精确
+commit/ref 与 legacy_host_build=APPROVED、人类APPROVED；本轮不生成许可。
+预构建 receipt/marker 存在则拒绝旧路径。预构建不自动落入npm install/build。
+旧 full 改为先构建后backup/stop/migrate，使用兼容性/journal/验证恢复；旧stage
+仍不迁移/服务，旧activate-staged只保留另行批准的link-only行为。
+旧 full 的 audit 不再只检查 Critical。RC 从历史精确库存允许改为 full+prod
+原始审计均无未解决发现才通过，拒绝错误/不可验证JSON及保留High。
+真实 rc:check exit1/NOT_READY证明残余安全阻断继续有效；不是整个RC套件PASS。
+旧主机构建依然不是隔离生产路径，需要自己的明确批准，不能用于V2.10旁路。
+
+E. Dependency Security
+
+重新实测；所有 raw JSON 保留，不修改审计、不隐藏 High：
+范围          修复前 Critical/High/Moderate    修复后 Critical/High/Moderate    audit exit
+Production    0 / 5 / 28                     0 / 4 / 0                      1
+Full          0 / 12 / 28                    0 / 9 / 0                      1
+计数是 npm 漏洞 package inventory（含传播父包），不是唯一 advisory 数量。
+修复前 7 underlying roots / 10 URL；修复后 3 roots / 4 URL。
+
+已关闭根因及精确变更：
+@tiptap/core 及全29个 @tiptap 锁包 3.30.2 ->3.30.5：
+  GHSA-cp6q-959q-f8rh（Moderate，3.30.4补丁；own __proto__ 导致对象原型变化）；
+  GHSA-j95f-988m-3j2f（High，3.30.5补丁；Markdown属性解析二次复杂度ReDoS）。
+  四个直接依赖 @tiptap/extension-image、pm、react、starter-kit 同步稳定patch；
+  没有混用3.31.4。真实 mergeAttributes canary/合法属性及两种长输入解析探针通过；
+  1.75ms 仅本机该探针观测，不是通用性能保证。浏览器 DOM/编辑器 Human Review未重跑。
+baseline-browser-mapping 2.10.43 ->2.11.28：GHSA-w5vr-8v7q-w6rv（补丁>=2.11.0）。
+browserslist 4.28.6 ->4.29.3：GHSA-c83g-rgw3-j3cx、GHSA-73wf-gq98-2v4g。
+js-yaml 4.3.1 ->4.3.2：GHSA-2883-xcg3-v3hh。
+必须同步满足新Browserslist范围：
+  caniuse-lite 1.0.30001805 ->1.0.30001815
+  electron-to-chromium 1.5.389 ->1.5.452
+  node-releases 2.0.51 ->2.0.58
+  update-browserslist-db 1.2.3 ->1.3.4
+共36个 package version变化，root metadata共37个锁条目变化；无新增/删除包路径。
+package.json仅4个Tiptap直接版本变化；Next/React/Prisma/libSQL不变。
+全新npm ci重试通过，实际安装560包，version/integrity/resolved对锁零不一致。
+没有 audit fix --force、override、legacy-peer-deps、预发布版或减弱安全规则。
+
+剩余风险逐根分析（均UNAPPROVED）：
+1 braces@3.0.3 / GHSA-vfj7-8cjw-p6xm / High；当前最新3.0.3、上游无patched版本。
+  路径 eslint-config-next -> @next/eslint-plugin-next -> fast-glob -> micromatch ->braces。
+  是观察到的lint/tool路径，src无应用导入；但full runtime包含dev/tool包。
+  不以omit=dev或tool标签免责。兼容升级不存在；未验证替换lint体系不采用。
+  可选：等待上游兼容补丁；或单独审查攻击输入、隔离约束和有期限风险接受。
+  未发送上游消息、未创建豁免。仍阻断正式发布。
+2 deepmerge-ts@7.1.5 / GHSA-ggr8-5vv4-36mx / High；递归对象图栈耗尽。
+  patched>=8.0.0；最新stable8.0.2；Prisma config精确pin7.1.5。
+  已检查稳定Prisma7.10.0的config仍pin7.1.5，升级它不能修复。
+  本项目Prisma配置静态，未观察到app直接导入；配置/CLI和打包工具路径保留。
+  不可信配置/对象以及bundle副本没有正式生产可达性证明；无漏洞已不可达结论。
+  可选：等待Prisma兼容修正，或独立验证获授权替代CLI/runtime划分。
+  强制major override不满足兼容性证据，未使用。风险接受需另行人类审核。
+3 mysql2@3.15.3 / GHSA-3f6p-5ww8-9rcr High 与 GHSA-rgwj-5xj2-c3m3 Moderate。
+  前者认证插件降级泄露明文凭据，后者压缩协议inflate造成DoS。
+  两者分别补丁>=3.22.0及>3.23.0；stable3.24.5可修复。
+  Prisma7.9.1和已检查7.10.0都精确pin3.15.3；直接锁覆盖违反引入包契约。
+  app使用SQLite/libSQL、无MySQL业务连接/import；Prisma CLI/工具仍保留。
+  npm production audit也报告该根及传播父包，不能因dev标签宣称清除。
+  可选：上游pin修正；或另行授权验证CLI分离/替代，不未经验证改变迁移路径。
+  未批准风险接受，仍阻断。
+
+Prisma latest tag此刻为8.0.0-rc.22，本轮明确未选用；检查stable7.10.0无安全收益，
+因此未额外升级Prisma引入不必要兼容性风险。官方npm metadata存dependency-upstream-metadata.json。
+实际代码及完整/生产审计均保留4URL；Moderate独立公告仍在mysql2条目中，
+因为npm将该package聚合为High，Moderate计数0不等于所有Moderate公告都消失。
+
+官方来源（已实时核实；仅概述，无长引文）：
+https://github.com/advisories/GHSA-cp6q-959q-f8rh
+https://github.com/advisories/GHSA-j95f-988m-3j2f
+https://github.com/advisories/GHSA-w5vr-8v7q-w6rv
+https://github.com/advisories/GHSA-c83g-rgw3-j3cx
+https://github.com/advisories/GHSA-73wf-gq98-2v4g
+https://github.com/advisories/GHSA-2883-xcg3-v3hh
+https://github.com/advisories/GHSA-vfj7-8cjw-p6xm
+https://github.com/advisories/GHSA-ggr8-5vv4-36mx
+https://github.com/advisories/GHSA-3f6p-5ww8-9rcr
+https://github.com/advisories/GHSA-rgwj-5xj2-c3m3
+https://github.com/prisma/prisma/releases/tag/7.10.0
+
+F. Trust Chain Verification
+
+环节                 可信输入/身份/可写边界                           阻断及实际证据
+Git提交/可达性       精确commit、固定repository、指定allowed-ref       不可达/HEAD/origin/dirty拒绝；本地Git实测
+CI检出               github.sha；runner；pinned Actions                 源SHA不符拒绝；源码/YAML/pins验证；Ubuntu未跑
+安装/构建            精确lock、清洁npmci、Node/ABI/平台                  当前mac构建通过；Linux原生未跑
+打包                 Git tree+锁+实际安装+build files；runner           dirty/source/version/ELF/mode/limits拒绝；合成通过
+摘要/传输            authenticated run summary独立SHA256                不信任内部manifest或归档sidecar；生产传输未发生
+私有接收             root；0700工作区；有界nofollow同descriptor复制     hash/链接/硬链接/竞态边界拒绝；合成通过
+解包                 root；已验证私有archive和独立SHA                   无candidate执行；路径/类型/炸弹/重复拒绝通过
+源码复核             应用用户Git、trusted ref、root惰性Git snapshot     逐source字节与commit对应；模拟+真实本地Git通过
+封存/receipt         root新目录、外部root receipt                       app仅cache可写；首导/再导同验证；Linux权限未跑
+批准                 外部root exact JSON；security/Linux/Human decision  缺失/失败/身份不符拒绝；无批准生成
+学号                 root安装guard、app只读SQLite、严格输出              空/不完整/unsafe blocker拒绝；实际隔离测试通过
+备份                 app、已验证runtime、明确shared root                 fresh complete/checksum/schema/upload验证；合成实际通过
+迁移                 app packagedPrisma、read-only readiness             旧/新相同schema+17hash、有效prefix；差异阻断
+激活                 root journal/current、systemd approvedcontract      完整复查后原子切换；动作模拟通过；生产未运行
+健康                 active+exactJSON+MainPID+实际cwd                    HTTPmac实测；systemd/PID契约只有代码/fixture验证
+回退                 root journal、兼容旧code、已验证oldhealth           仅全部步骤成功ROLLED_BACK；失败MANUAL_REQUIRED
+
+从打包到再次验证无 candidate code 以root运行；候选app/备份/迁移代码以app身份执行。
+导入不打开共享环境/DB，不执行backup/migrate/build/install/start/service/current。
+共享上传目录仅在激活备份路径读取，导入不触及。
+外部digest、receipt、approval独立，内部release_allowed始终false。
+本轮未授权项目commit，所以当前修改不能声称属于15df2a09的已认证产物。
+真实新归档须以后授权commit、clean checkout和准确Linux run产生；本轮只有fixture归档
+和dirty-source mac runtimecopy，不产生可激活生产候选身份。
+
+G. Linux and Permission Validation
+
+macOS darwin/arm64实际执行：全新锁安装、Prisma验证/17合成迁移、typegen/type/lint/
+Unicode/build、相关业务安全/HTTP、backup/restore、原生Sharp/libSQL/Prisma启动。
+已搬迁到独立只读源码/依赖/构建目录（当前同一用户；文件0444/0555、目录0555，
+仅.next/cache可写）的真实运行验证通过；不是root ownership证据。
+
+Linux实际执行：NOT RUN。本机未找到可用授权Ubuntu环境；未开新VM、未借生产机。
+root/非特权用户真实组合：NOT RUN；未sudo创建本机账号或冒充Linux。
+真实GNU stat/runuser/ownership/import/repeat/root receipt/unsafe metadata/missing approval
+及原生CI归档搬迁套件已写入test-prebuilt-linux.py，Ubuntu工作流将运行它。
+它要求Linux+uid0；本机实际调用exit2并打印NOT RUN，保留原始日志。
+
+模拟：归档testpack替换platform_info（ELF只是fixture magic，不是可执行Linux二进制）；
+部署case适配root metadata/uid/runuser/platform/atomic操作，service/backup/migration为
+记录事件与失败注入。其结论限于流程/退出码/最终journal/current和保护边界。
+独立真实函数测试不Mock verify_root_metadata；仅stat方言读取真实元数据。
+service属性由fixture返回，未安装或控制真实systemd。
+Linux套件只阻止service动作的stub并断言未发生；不替换ownership/Git验证。
+实际runtime smoke的deployer backup身份adapter保留测试者本来非特权身份；
+backup函数和existing create/verify/restore工具实际运行。
+
+未运行：本revision的Ubuntu24.04x64/ELF/ABI/OpenSSL组合、实际root跨用户套件、
+真实新archive完整打包/搬迁/权限、真实systemd服务、生产数据/备份/迁移/恢复。
+先前application Linux PASS是旧code/lock证据，不能替代这些未运行事项。
+
+H. Rollback and Recovery
+
+流程：PREPARED -> SERVICE_STOPPING -> SERVICE_STOPPED -> MIGRATING -> MIGRATED ->
+SWITCHING -> SWITCHED -> HEALTHY；故障可进入ROLLED_BACK或MANUAL_REQUIRED。
+
+实际合成最终状态矩阵：
+新重启失败、仅新健康失败、stop返回失败后旧健康可验证：ROLLED_BACK；退出仍失败。
+旧链接恢复失败、旧重启失败、旧健康失败、普通switch异常：MANUAL_REQUIRED。
+迁移失败、迁移阶段真实SIGTERM：MANUAL_REQUIRED；绝不自动DB恢复/反向迁移。
+backup失败：无激活journal/current/service切换，旧current保留。
+每次正向迁移调用<=1，失败后复试被未完成journal挡住；回退成功验证oldhealth。
+
+代码回滚不等于数据库回滚。旧/新schema和17迁移inventory必须完全相同才能自动
+使用旧代码；此为保守兼容性前提，不宣称任意未来schema能回滚。
+当前生产旧版本是否满足此条件UNKNOWN，需要授权只读生产核对；不满足时激活
+提前拒绝，需要独立code/DB恢复评估。本轮没有放宽条件，也没有未批准恢复方案。
+
+人工步骤（未执行，任何生产动作需额外授权）：
+1 保留root journal/receipt/未知冲突文件；如果stop失败，首先处理仍在运行服务。
+2 在获授权后核对current真实目标、service/PID/cwd、exact source/runtime/receipt/approval。
+3 只读检查_prisma_migrations、DB校验与已验证backup；确认迁移是否完整及旧代码兼容性。
+4 选择经过审核的forward repair或受控恢复方案；不能用自动down migration/任意snapshot。
+5 如需恢复DB，必须另外获得明确数据恢复授权与验证方案；本轮没有授予该权限。
+6 只有人工恢复的服务/健康/数据与目标身份已证明一致，才能由授权操作员重新记录
+  terminal journal；不能删除journal“解锁”绕过检查。
+SIGKILL/断电之后锁fd自动释放但journal保留阶段；未运行物理崩溃试验，不写PASS。
+
+I. Regression Results
+
+所有应用检查在证据runtime副本执行：来自可信Git archive基线+本轮源码overlay，
+clean npmci，全新的generated client/next build，仅合成DB/uploads/auth secrets。
+运行HOME/TMPDIR及允许env隔离；没有复制真实.env*、数据库或uploads。
+该副本因overlay为dirty，不声称可发布产物。测试localGit fixture可创建合成commit，
+不属于项目提交。业务/UI源码仅combined-backup信任处理有改动，其余UI/业务保持。
+
+最终通过：26个预构建安全测试方法（原18保留并扩展）、旧deployer矩阵、全新安装、
+build/type/lint/Unicode、Prisma17迁移、auth/RBAC/top-owner/security/CMS/referee/competition
+HTTP、hardening、ops backup、restore rehearsal、student preflight、只读搬迁native/
+NextHTTP/static/public/备份校验与隔离恢复、实际deployer backup cwd探针。
+HTTP/browserDOM不同：实际本机HTTP已执行；本輪没有重跑视觉/编辑器浏览器Human Review。
+rc:check因安全门禁exit1，后续RC步骤未执行；它不是full RC PASS。
+
+失败历史保留：
+prebuilt-first：BoundedGzip缺seekable，setUp失败；补API后重新执行。
+second/third：新root/private模型需显式标记模拟adapter，fixture遗漏.gitignore导致dirty。
+fourth/fifth：fixture manifest额外文件/重复unlink错误；修正fixture而非放宽校验。
+clean-install：新Browserslist范围缺4个数据库节点；补必要锁条目后retry通过。
+dependency-update：精确Tiptap旧peer库存ERESOLVE；重新解析一致family，不force。
+deployer-updated：实际空学号报告绕过抓到；生产函数明确return1后retry通过。
+recovery-expanded：Mac Bash没有BASHPID，旧中断注入不实际发signal；改Node发送真实TERM。
+final-matrix：真实TERM抓到局部变量cleanup错误；全局activation_work后通过。
+syntax-workflow-final：bundled Python无PyYAML；改用项目已安装patched js-yaml解析，未装新依赖。
+audit full/prod与rc阻断exit1是保留漏洞的真实失败，不改写为安全PASS。
+下一页命令逐条保留cwd/退出码和结果，不能只选最终绿灯。
+
+I.1 完整命令记录（本轮实际执行；按记录顺序）
+
+prebuilt-second: exit 1; FAIL (retained); 7.07s
+  cwd: /Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA
+  command: python3 scripts/test-prebuilt-artifact.py
+  evidence: prebuilt-second.log
+prebuilt-third: exit 1; FAIL (retained); 5.7s
+  cwd: /Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA
+  command: python3 scripts/test-prebuilt-artifact.py
+  evidence: prebuilt-third.log
+prebuilt-fourth: exit 1; FAIL (retained); 11.93s
+  cwd: /Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA
+  command: python3 scripts/test-prebuilt-artifact.py
+  evidence: prebuilt-fourth.log
+clean-install: exit 1; FAIL (retained); 0.23s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: npm ci --include=dev --include=optional
+  evidence: clean-install.log
+clean-install-retry: exit 0; PASS; 5.43s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: npm ci --include=dev --include=optional
+  evidence: clean-install-retry.log
+prebuilt-fifth: exit 1; FAIL (retained); 12.66s
+  cwd: /Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA
+  command: python3 scripts/test-prebuilt-artifact.py
+  evidence: prebuilt-fifth.log
+audit-after-full: exit 1; BLOCKED / audit retained; 1.65s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: npm audit --json
+  evidence: audit-after-full.log
+deployer-updated: exit 1; FAIL (retained); 7.15s
+  cwd: /Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA
+  command: node scripts/test-deployer.mjs
+  evidence: deployer-updated.log
+audit-after-prod: exit 1; BLOCKED / audit retained; 0.96s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: npm audit --omit=dev --json
+  evidence: audit-after-prod.log
+deployer-retry: exit 0; PASS; 8.65s
+  cwd: /Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA
+  command: node scripts/test-deployer.mjs
+  evidence: deployer-retry.log
+prebuilt-sixth: exit 0; PASS; 13.96s
+  cwd: /Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA
+  command: python3 scripts/test-prebuilt-artifact.py
+  evidence: prebuilt-sixth.log
+prebuilt-expanded: exit 0; PASS; 15.52s
+  cwd: /Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA
+  command: python3 scripts/test-prebuilt-artifact.py
+  evidence: prebuilt-expanded.log
+prebuilt-recovery-expanded: exit 1; FAIL (retained); 37.9s
+  cwd: /Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA
+  command: python3 scripts/test-prebuilt-artifact.py
+  evidence: prebuilt-recovery-expanded.log
+prisma-validate: exit 0; PASS; 0.99s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: node node_modules/prisma/build/index.js validate
+  evidence: prisma-validate.log
+linux-permission-not-run: exit 2; NOT RUN; 0.08s
+  cwd: /Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA
+  command: python3 scripts/test-prebuilt-linux.py
+  evidence: linux-permission-not-run.log
+synthetic-migrations: exit 0; PASS; 0.57s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: node node_modules/prisma/build/index.js migrate deploy
+  evidence: synthetic-migrations.log
+typegen: exit 0; PASS; 0.96s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: node node_modules/next/dist/bin/next typegen
+  evidence: typegen.log
+prebuilt-final-matrix: exit 1; FAIL (retained); 40.83s
+  cwd: /Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA
+  command: python3 scripts/test-prebuilt-artifact.py
+  evidence: prebuilt-final-matrix.log
+unicode: exit 0; PASS; 0.4s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: npm run check:unicode
+  evidence: unicode.log
+typecheck: exit 0; PASS; 7.35s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: npm run typecheck
+  evidence: typecheck.log
+lint: exit 0; PASS; 8.37s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: npm run lint
+  evidence: lint.log
+production-build: exit 0; PASS; 11.05s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: npm run build
+  evidence: production-build.log
+prebuilt-recovery-signal-fix: exit 0; PASS; 43.76s
+  cwd: /Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA
+  command: python3 scripts/test-prebuilt-artifact.py
+  evidence: prebuilt-recovery-signal-fix.log
+security-runtime: exit 0; PASS; 1.16s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: npm run test:security-runtime-r2
+  evidence: security-runtime.log
+security-http: exit 0; PASS; 5.98s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: npm run test:security-http
+  evidence: security-http.log
+rbac: exit 0; PASS; 1.03s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: npm run test:unified-admin-rbac
+  evidence: rbac.log
+admin-http: exit 0; PASS; 2.21s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: npm run test:unified-admin-blockers:http
+  evidence: admin-http.log
+cms-http: exit 0; PASS; 3.17s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: node --import tsx scripts/test-unified-admin-blockers.ts --cms
+  evidence: cms-http.log
+referee-flow: exit 0; PASS; 4.81s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: npm run test:referee-flow
+  evidence: referee-flow.log
+referee-admission: exit 0; PASS; 0.79s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: npm run test:referee-admission
+  evidence: referee-admission.log
+competition-import: exit 0; PASS; 0.73s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: npm run test:competition-import
+  evidence: competition-import.log
+public-competition-http: exit 0; PASS; 1.96s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: npm run test:public-competition-dynamic:http
+  evidence: public-competition-http.log
+production-hardening: exit 0; PASS; 1.03s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: npm run test:production-hardening
+  evidence: production-hardening.log
+ops-backup: exit 0; PASS; 0.95s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: npm run test:ops-r3-1-3
+  evidence: ops-backup.log
+restore-rehearsal: exit 0; PASS; 6.43s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: npm run restore:rehearsal
+  evidence: restore-rehearsal.log
+student-preflight: exit 0; PASS; 2.74s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: npm run test:student-id-release-preflight
+  evidence: student-preflight.log
+prebuilt-final: exit 0; PASS; 42.7s
+  cwd: /Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA
+  command: python3 scripts/test-prebuilt-artifact.py
+  evidence: prebuilt-final.log
+release-gate-blocked: exit 1; BLOCKED / audit retained; 6.34s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: npm run rc:check
+  evidence: release-gate-blocked.log
+lint-final: exit 0; PASS; 7.46s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: npm run lint
+  evidence: lint-final.log
+deployer-final: exit 0; PASS; 10.34s
+  cwd: /Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA
+  command: node scripts/test-deployer.mjs
+  evidence: deployer-final.log
+readonly-relocated-runtime: exit 0; PASS; 3.26s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: node scripts/test-prebuilt-runtime.mjs --runtime=/Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/relocated-runtime
+  evidence: readonly-relocated-runtime.log
+relocated-backup-contract: exit 0; PASS; 2.34s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: node /Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA/scripts/test-prebuilt-runtime.mjs --runtime=/Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/relocated-runtime
+  evidence: relocated-backup-contract.log
+prebuilt-hardening-final: exit 0; PASS; 42.02s
+  cwd: /Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA
+  command: python3 scripts/test-prebuilt-artifact.py
+  evidence: prebuilt-hardening-final.log
+deployer-hardened-final: exit 0; PASS; 8.54s
+  cwd: /Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA
+  command: node scripts/test-deployer.mjs
+  evidence: deployer-hardened-final.log
+syntax-workflow-final: exit 1; FAIL (retained); 0.07s
+  cwd: /Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA
+  command: /Users/xianghanwang/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/static-final.py
+  evidence: syntax-workflow-final.log
+unicode-delivery: exit 0; PASS; 0.18s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: npm run check:unicode
+  evidence: unicode-delivery.log
+lint-delivery: exit 0; PASS; 6.67s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: npm run lint
+  evidence: lint-delivery.log
+syntax-workflow-retry: exit 0; PASS; 0.14s
+  cwd: /Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA
+  command: python3 /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/static-final.py
+  evidence: syntax-workflow-retry.log
+service-contract-actual-validator: exit 0; PASS; 1.22s
+  cwd: /Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA
+  command: python3 scripts/test-prebuilt-artifact.py ArtifactTests.test_bash_real_validation_functions_in_conditions
+  evidence: service-contract-actual-validator.log
+dependency-metadata: exit 0; PASS; 3.76s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: python3 /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/dependency-metadata.py
+  evidence: dependency-metadata.log
+prebuilt-delivery: exit 0; PASS; 42.55s
+  cwd: /Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA
+  command: python3 scripts/test-prebuilt-artifact.py
+  evidence: prebuilt-delivery.log
+action-pins-read-only: exit 0; PASS; 1.3s
+  cwd: /Users/xianghanwang/.codex/worktrees/v2-10-release-integration/NUAAFA
+  command: python3 /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/action-pins.py
+  evidence: action-pins-read-only.log
+tiptap-security-probe: exit 0; PASS; 0.05s
+  cwd: /Users/xianghanwang/Documents/Codex/2026-10-11/nuaafa-comprehensive-9a6rg09u/runtime
+  command: node dependency-security-probe.mjs
+  evidence: tiptap-security-probe.log
+
+记录补充：prebuilt-first.log 对应同一 python3 scripts/test-prebuilt-artifact.py、integration
+cwd、退出1，发生在统一checks recorder建立前；没有被删除或标为PASS。
+最初两个Tiptap锁解析trial见dependency-update.log(exit1/ERESOLVE)、dependency-update-retry.log
+(exit0)和dependency-transitive-update.log(exit0)。开始npm audit full/prod exit1，raw JSON
+为audit-before-full.json / audit-before-prod.json。Git基线/结束和上游pin读取均只读。
+终稿完整性复核和git diff --check的记录另见final-review.json / final-review.log。
+
+J. Git Integrity
+
+final-integrity.json实际assert所有项目local heads/tags保持初始SHA，integration HEAD
+保持15df2a09，index无staged；UI status仍clean。结束只读ls-remote三分支均与开头一致。
+17 migration.sql逐文件SHA256与baseline.json相同；schema未修改。
+未修改src业务模型、UI设计、认证/RBAC/顶级owner保护、裁判语义和privacy。
+唯一src改动为combined-backup的精确Git身份处理；实际业务安全回归通过。
+真实本地/生产数据未被测试打开或写入；所有应用测试使用自己的合成副本/路径。
+未测真实DB起止hash，因此不伪称生产数据checksum实测PASS；该结论来自隔离输入和操作范围。
+无生产SSH、环境读取、DB访问、Nginx/systemd改动、部署/切换/重启。
+无项目commit/add/push/PR/Release/Tag或Actions dispatch；只读Git/npm/web操作不是远程写入。
+所有修复留在授权integration工作树；原六项继续待提交，另有相关源码/测试/文档改动。
+
+K. Cost and Operational Impact
+
+无新增直接依赖或锁包路径，无新收费服务器、容器编排、签名服务、数据库或微服务。
+复用Python stdlib、Node、Git、现有GitHub-hosted Ubuntu runner与SQLite备份体系。
+CI新增标准runner内临时user/root目录及测试，结束移除；无持久化生产服务。
+候选使用next-start完整node_modules（含PrismaCLI/tsx），无需生产安装构建。
+本机搬迁副本36559文件、945288841 uncompressed bytes，darwin/arm64；不是Linux归档体积，
+没有旧Linux产物可比较，Linux实际压缩大小/增量NOT RUN。锁路径数量不变不等于字节不变。
+默认upload=false，无本轮Actions/收费云操作；将来显式开启upload retention1day、compression0。
+GitHub存储/runner计费取决于账户配额；本轮未读取额度或生成账单，新增费用实测UNKNOWN，
+不能保证未来零费用。流程额外CPU/磁盘峰值包括archive+privatepayload+sourceclone+sealedruntime，
+helper限制体积并预检可用空间；真实Ubuntu耗时/峰值仍待运行，30分钟job上限可能需实测。
+运维增量为root helper/wrapper/guard、两类独立root JSON与一个journal；现有host能否满足
+所有root parent、node/python版本、env权限、backup目录与service契约需授权核对/安装。
+本轮没有更改任何installed production file。
+
+L. Remaining Risks
+
+1 代码缺陷：本轮已知可合理修复项已关闭，最终源码自审未发现未关闭P0/P1/P2；
+  这是自审结论，未请求/冒称新的第三方独立安全审查。跨用户/平台/服务组合未实测，
+  不能排除其发现新的实现问题。低层文件系统崩溃耐久性没有物理断电证据。
+2 上游漏洞：braces无patch；deepmerge/mysql有patch但Prisma exactpin无兼容上游修正，
+  stable7.10也不解决。3根4URL未获风险接受，0/4/0和0/9/0仍阻断。
+3 Linux条件：新授权commit/push和一次准确Ubuntu24.04 Node22.23.2 Actions运行，需
+  app/security分别记录、root/app真正权限、realarchive搬迁native/HTTP/backup/restore。
+  用户未授权commit/push/trigger，本轮止于源码准备，全部NOT RUN。
+4 生产条件：需要单独授权只读主机检查其OS/ABI/OpenSSL、root目录/receipt/approval/
+  helper/wrapper/guard/service/current、旧schema/migrations、synthetic rehearsal和真实backup准备。
+  未确认旧版本是否满足相同17inventory；差异会明确阻断激活。不能本轮登录代为确认。
+  安装新契约、实际迁移/切换/恢复必须再明确授权，与只读核对分开。
+5 人类批准：新代码独立Human Review、Tiptap编辑器交互/视觉验收、上游风险处置、
+  Linux可信run/digest审阅、exactartifact/security批准、最终生产窗口/恢复方案皆未完成。
+  不生成APPROVED、不把CI应用测试通过替代安全评审。风险建议详E与安全处置文档。
+
+M. Final Verdict
+
+代码修复：PASS WITH NOTES。
+依据：原审查2P1+1P2、相关失败传播/身份/环境/归档/CI/恢复/旧路径/依赖缺陷已集中修复，
+受影响的实际macOS/合成检查通过，所有失败保留；真实Linux和独立Human Review未运行。
+这不是零漏洞、安全豁免、LinuxPASS或部署批准。
+
+正式生产发布：NO-GO。
+依据：仍有未处置High、当前源码未授权commit/真实Linuxrun、root跨用户证据缺失、
+独立release/Human/security批准缺失、生产前置条件与恢复兼容性未知。
+没有正式候选摘要/批准记录可交给生产激活；原始audit与rc实际保持失败。
+
+交付完成后STOP。不自动提交、推送、触发Actions、创建PR或发布。
+
+终稿待提交文件清单：
+docs/operations/V2_10_COMPREHENSIVE_REMEDIATION_FINAL_REPORT.txt
+docs/operations/V2_10_PREBUILT_ARTIFACT_REPORT.txt
+ops/deploy/prebuilt-artifact.py
+ops/deploy/start-prebuilt
+scripts/test-prebuilt-artifact.py
+scripts/test-prebuilt-linux.py
+scripts/test-prebuilt-runtime.mjs
+.github/workflows/v2-10-linux-validation.yml
+docs/operations/R1-3C_SECURITY_ADVISORY_DISPOSITION.md
+ops/deploy/README.md
+ops/deploy/nuaafa-deploy
+package-lock.json
+package.json
+scripts/release-candidate-check.mjs
+scripts/test-deployer.sh
+src/lib/combined-backup.ts

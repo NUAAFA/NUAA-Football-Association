@@ -188,13 +188,18 @@ async function main() {
     const routeEvidence = [
       ["src/app/api/admin/system/admin-accounts/route.ts", "authorizeUnifiedAdminServiceRequest"],
       ["src/app/api/admin/competitions/import/commit/route.ts", "authorizeUnifiedAdminServiceRequest"],
-      ["src/app/api/referees/admin/accounts/route.ts", "authorizeLegacyAdminRequest"],
+      ["src/app/api/referees/admin/accounts/route.ts", "authorizeUnifiedAdminRequest"],
       ["src/app/api/referees/admin/appointments/[matchId]/route.ts", "authorizeLegacyAdminRequest"],
       ["src/app/api/referees/account/password/route.ts", "authorizeRefereeMemberSecurityRequest"],
     ] as const;
     for (const [file, marker] of routeEvidence) {
       assert((await readFile(path.resolve(file), "utf8")).includes(marker), `${file} lost ${marker}.`);
     }
+    const accountRoute = await readFile(path.resolve("src/app/api/referees/admin/accounts/route.ts"), "utf8");
+    assert(
+      /await\s+authorizeUnifiedAdminRequest\(request,\s*"referees:write",\s*\{\s*mutation:\s*true\s*\}\)/u.test(accountRoute),
+      "Referee account creation lost referees:write mutation authorization.",
+    );
 
     console.log("R4A_F006_AUTHORIZED=PASS");
     console.log("R4A_F006_INSUFFICIENT=PASS");

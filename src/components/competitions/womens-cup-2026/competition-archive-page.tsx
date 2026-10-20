@@ -1,4 +1,4 @@
-import { CompetitionArchiveLayout } from "@/components/competitions/archive/competition-archive-layout";
+import { RichArchiveLayout } from "@/components/competitions/archive/rich-archive-layout";
 import { ShareActions } from "@/components/share/share-actions";
 import { womensIntercollegeCup2026 } from "@/data/womens-intercollege-cup-2026";
 
@@ -15,7 +15,7 @@ export function WomensCompetitionArchivePage() {
   const { competition, heroImage } = womensIntercollegeCup2026;
 
   return (
-    <CompetitionArchiveLayout
+    <RichArchiveLayout
       className="cup-womens-page"
       titleId="womens-cup-title"
       title={competition.canonicalTitle}
@@ -40,6 +40,6 @@ export function WomensCompetitionArchivePage() {
       <WomensCompetitionTeams />
       <WomensCompetitionOfficials />
       <WomensCompetitionStories />
-    </CompetitionArchiveLayout>
+    </RichArchiveLayout>
   );
 }

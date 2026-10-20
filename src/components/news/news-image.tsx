@@ -1,27 +1,18 @@
 import Image from "next/image";
-import type { ReactNode } from "react";
+
+import styles from "@/components/news/news-listing.module.css";
 
 type NewsImageProps = {
   src: string;
   alt: string;
   variant: "featured" | "list";
   sizes: string;
-  className?: string;
-  children?: ReactNode;
 };
 
-export function NewsImage({
-  src,
-  alt,
-  variant,
-  sizes,
-  className,
-  children,
-}: NewsImageProps) {
+export function NewsImage({ src, alt, variant, sizes }: NewsImageProps) {
   return (
-    <div className={`shared-news-image shared-news-image-${variant}${src.startsWith("/brand/") ? " shared-news-image-brand" : ""}${className ? ` ${className}` : ""}`}>
-      <Image src={src} alt={alt} fill sizes={sizes} />
-      {children}
+    <div className={variant === "featured" ? styles.featuredImage : styles.rowImage}>
+      <Image src={src} alt={alt} fill sizes={sizes} loading={variant === "featured" ? "eager" : "lazy"} />
     </div>
   );
 }

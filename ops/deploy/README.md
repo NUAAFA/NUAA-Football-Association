@@ -1,4 +1,166 @@
-# NUAAFA production deployer provenance and reviewed modes
+# NUAAFA V2.10 deployment source — current contract
+
+Current source: `V2.10-PREBUILT-2`. The source has not been installed on production.
+The [import/journal closure report](../../docs/operations/V2_10_IMPORT_JOURNAL_CLOSURE_REPORT.txt)
+records this revision and supersedes changed-path conclusions in the preserved
+comprehensive/prebuilt reports. Ubuntu execution and
+real root/application-user tests remain **NOT RUN**. Unresolved High advisories
+keep production **NO-GO**.
+
+## Prebuilt modes
+
+Future CLI contract only; these commands have not run on production:
+
+```bash
+nuaafa-deploy --import-artifact /absolute/candidate.tar.gz \
+  --artifact-sha256 EXACT_64_HEX_FROM_AUTHENTICATED_RUN \
+  --allowed-ref refs/heads/integration/v2.10-ui-release EXACT_40_HEX_COMMIT
+nuaafa-deploy --activate-prebuilt \
+  --artifact-sha256 EXACT_64_HEX_FROM_AUTHENTICATED_RUN \
+  --allowed-ref refs/heads/integration/v2.10-ui-release EXACT_40_HEX_COMMIT
+```
+
+Import takes a root-controlled lock, creates a bounded private archive snapshot,
+checks the independent digest, safely verifies/extracts every entry, clones trusted
+Git as the application user, proves allowed-ref reachability, and materializes a
+new root-owned runtime with inert Git metadata. It publishes an external root-owned
+receipt before the canonical release. An orphan receipt blocks further reuse.
+Import never reads shared data, executes candidate code, installs/builds, migrates,
+switches current or controls services. First and repeat imports both fetch the
+allowed ref into a fresh application-user checkout and verify its origin, exact
+commit, ancestry and clean full worktree before validating the trimmed runtime.
+The root receipt also records the verified remote HEAD.
+
+The runtime intentionally excludes tracked `README.md`, `AGENTS.md`, `.github`,
+`docs` and `ops` files. Its full Git index is retained for exact commit/blob lookup;
+ordinary Git status therefore contains expected tracked deletions. Runtime
+validation instead requires the complete commit-derived source set, exact source
+bytes, exact HEAD/origin/ref ancestry, full receipt file/directory/native inventory,
+and sealed ownership. Missing or modified included sources, extra excluded files,
+extra `.env*`, wrong origin/HEAD/ref and unsafe receipt metadata are rejected.
+Legacy full checkouts continue to require a clean Git worktree.
+
+Runtime directories are root-owned `0755`, files `0644`/`0755`; only `.next/cache`
+is application-owned `0700`. Private workspaces and receipts remain root-private.
+Git runs as the application user with command-scoped `safe.directory` for the exact
+release; no global exemption. Unknown collision files/directories are preserved.
+
+Activation requires a separate root-controlled exact approval record at
+`/etc/nuaafa/prebuilt-approvals/<commit>.json`: format `1`, exact commit, exact
+`artifact_sha256`, exact `allowed_ref`, `security_gate=PASS`,
+`linux_artifact_validation=PASS`, `human_review=APPROVED`. No approval is generated.
+Application validation while audit fails cannot satisfy release approval.
+
+Activation verifies receipt, full tree, platform/ABI/OpenSSL, fresh ref reachability,
+current release, trusted student-ID preflight, schema/migration compatibility,
+DB migration history and service contract. It creates and independently verifies a
+fresh combined DB/upload backup, stops service, performs forward migration, checks
+complete history, rechecks IDs/tree/approval, switches current and verifies service
+state, exact health JSON and service process working directory. Backup/migration
+run from the verified release with explicit paths and no install/build/generation.
+
+## Startup and configuration
+
+Future production use requires separate authorization to install the reviewed
+deployer, helper, student-ID guard and `start-prebuilt` wrapper and adopt its service
+contract. Nothing was installed or changed in systemd/Nginx this round.
+
+ExecStart must be the root-controlled wrapper, User `nuaafa`, WorkingDirectory
+`/srv/nuaafa/current`. The wrapper verifies application UID, canonical direct
+current link, trusted parent/build/CLI metadata, exact shared links, configuration
+permissions and Next `16.3.8`. It rejects extra `.env*` before executing Next,
+clears inherited environment, uses host
+`/usr/bin/node` version `22.23.2`, and starts packaged Next on `127.0.0.1:3001`.
+Unit fragment/drop-ins must be root controlled. Additional start/stop commands,
+environment sources, alternate filesystem roots and bind mounts are rejected.
+
+Only `.env.production -> /srv/nuaafa/shared/.env.production` and
+`prisma/dev.db -> /srv/nuaafa/shared/prisma/dev.db` are allowed. The environment
+must be canonical, root-owned, non-root non-writable, not world accessible and
+readable through the approved application group. Validators inspect metadata only.
+Additional `.env*`, ignored configuration/source files, extra directories and unsafe
+links are rejected. No production secrets were read.
+
+## Recovery
+
+The root-controlled, atomic/fsynced journal is
+`/srv/nuaafa/prebuilt-activation.json`. Both full and prebuilt activation verify the
+old release's complete identity, build and shared-link metadata before backup,
+stop or migration. An imported old release is verified against its own receipt,
+digest and ref; legacy old releases retain strict clean-worktree validation.
+Recovery rechecks these conditions. Only old Git/build/shared-link validation,
+old current switch, successful old restart and verified old health can yield
+`ROLLED_BACK`. Failed recovery yields `MANUAL_REQUIRED` and attempts service stop;
+a failed stop is reported. Ordinary failures and SIGINT/SIGTERM run recovery.
+An interrupted/failed `MIGRATING` state never automatically restarts old code or
+restores DB. Differing old/candidate schema or migration inventories block before
+writes. There are no automatic down migrations.
+
+For unfinished journals, SIGKILL/power loss, orphan receipts, collisions or
+journal/current mismatch: keep service stopped where possible. After separate
+production authorization, inspect journal, current/service/PID, migration history,
+verified backup and exact source/runtime identities. Do not delete unknown files,
+clear the journal or restore DB to bypass the block. An operator must establish a
+compatible forward repair or explicitly approve a controlled recovery before
+recording a terminal state. The lock releases on process exit; its inode remains.
+
+## Legacy modes and validation
+
+Historical full/stage/activate-staged modes require an independent exact root-owned
+`legacy-<commit>.json` with `legacy_host_build=APPROVED` and `human_review=APPROVED`.
+Imported candidates are refused by receipt/marker checks. No legacy approval is
+generated and prebuilt activation never falls back to host build. Legacy builds
+remain unisolated and require their own reviewed scope. Full mode now builds before
+migration and uses compatibility, stop, journal and verified recovery gates.
+Activate-staged keeps the separately approved link-only boundary. With an existing
+terminal journal it may only retain the journal-confirmed current version; a
+different target is rejected before switching and requires full activation. An
+already-current result leaves the journal unchanged and explicitly does not claim
+fresh health validation. Incomplete/manual/mismatched journals remain blocked.
+The previously approved absent-journal legacy link-only path creates no journal.
+
+`python3 scripts/test-prebuilt-artifact.py` uses synthetic archives, local Git and
+actual import `main`, Git and state/check-state logic, with marked
+same-user/service/platform adapters for deployment simulations. It includes
+excluded tracked files, first/repeat import, real journal sequences, old-release
+prechecks and recovery to a separately imported old artifact.
+`npm run test:deployer` runs the preserved isolated legacy matrix.
+`test-prebuilt-runtime.mjs` tests relocated native modules, HTTP and synthetic
+backup/verify/restore plus the actual deployer backup function. Its
+`--startup-fixture`/`--wrapper` pair executes the actual startup wrapper from `/`,
+with inherited application environment deliberately poisoned.
+`python3 scripts/test-start-prebuilt.py` probes wrapper identity, environment,
+configuration and Node-version rejection through the actual script entry.
+`test-tiptap-browser.mjs` uses an explicitly selected isolated runtime and bundled
+Playwright to exercise edit/save/reopen/preview/publish and illegal-content
+rejection. Every browser URL is intercepted and served only from loopback.
+
+`sudo env "PATH=$PATH" python3 scripts/test-prebuilt-linux.py` is for a disposable
+Ubuntu runner only. It creates an ephemeral user/root-owned trees under `/opt`,
+executes real import/repeat verification without replacing ownership/Git validators,
+rejects unsafe metadata and missing approvals, and removes its own fixture/user.
+Optional `--archive/--commit/--sha256` sends the exact archive through real deployer
+import twice, retains the same digest, and starts actual Next through a copy of the
+wrapper as the nonprivileged user. Only fixed deployment paths/account/host Node
+are adapted; root metadata/UID enforcement is retained on Linux. It also validates
+real journal sequences and pre-stop rejection. No persistent service or production access.
+On macOS it exits `2`: **NOT RUN**.
+
+The workflow uses pinned Actions, Ubuntu 24.04 x64, Node 22.23.2 and clean locked
+install. Safety/cross-user fixtures and real packaging/import-twice/wrapper runtime
+validation always run after successful prior checks. Authenticated digest summary
+and candidate upload alone are default-off and recheck the same tested digest.
+One-day retention; security remains an independent failed gate;
+there is no deployment or approval-generation step.
+
+## Archived Fix-3A/Fix-3B provenance
+
+The following text records historical source and behavior. Its hashes, default-mode
+availability, operation ordering, cleanup and rollback statements are superseded
+by the current contract above. They are not current installed-host evidence or
+permission to bootstrap this revision.
+
+# Historical NUAAFA production deployer provenance and reviewed modes
 
 ## Status
 

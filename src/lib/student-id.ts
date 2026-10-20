@@ -56,13 +56,18 @@ export async function getRefereeStudentIdCompatibility(db: StudentIdDb = prisma)
   const activeMissingStudentId = referees.filter(
     (referee) => referee.status === "ACTIVE" && !referee.studentId?.trim(),
   ).length;
+  const activeNonNormalizedStudentId = referees.filter(
+    (referee) => referee.status === "ACTIVE" && referee.studentId?.trim() &&
+      referee.studentId !== normalizeStudentId(referee.studentId),
+  ).length;
   const duplicateStudentIdGroups = [...normalizedCounts.values()].filter((count) => count > 1).length;
   return {
     totalReferees: referees.length,
     totalActiveAccounts: referees.filter((referee) => referee.status === "ACTIVE").length,
     missingStudentId,
     activeMissingStudentId,
+    activeNonNormalizedStudentId,
     duplicateStudentIdGroups,
-    unsafeLoginMigrationBlockers: activeMissingStudentId + duplicateStudentIdGroups,
+    unsafeLoginMigrationBlockers: activeMissingStudentId + activeNonNormalizedStudentId + duplicateStudentIdGroups,
   };
 }
