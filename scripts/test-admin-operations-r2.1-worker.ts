@@ -136,7 +136,12 @@ async function main() {
     assert(calendarSource.includes("referee-status-options") && calendarSource.includes('mode === "WINDOW"') && calendarSource.includes("referee-calendar-legend"), "Availability visual-state contracts are incomplete.");
     assert(!workspaceNavSource.includes("RefereeMemberLogoutButton") && workspaceHeroSource.includes("RefereeMemberLogoutButton") && workspaceHeroSource.includes("账号与安全") && workspaceHeroSource.includes("返回公开裁判中心"), "Workspace account actions were not moved out of primary navigation.");
     assert(competitionFormSource.includes("页面地址标识") && competitionFormSource.includes("用于生成赛事固定网址，仅支持小写英文字母、数字和连字符；创建后不建议修改。") && competitionFormSource.includes("admin-competition-slug-help"), "Competition slug label, help copy, or independent help region is missing.");
-    assert(adminStylesSource.includes(".admin-competition-slug-help { grid-column: 1 / -1") && adminStylesSource.includes(".admin-tabs a, .admin-tabs button { min-height: 40px; display: inline-flex; align-items: center; justify-content: center;") && adminStylesSource.includes(".admin-tabs a:focus-visible, .admin-tabs button:focus-visible"), "Competition alignment or shared admin tab alignment/focus contracts are missing.");
+    const tabRule = adminStylesSource.match(/\.admin-tabs a,\s*\.admin-tabs button\s*\{([^}]*)\}/)?.[1];
+    const tabDeclarations = new Map((tabRule ?? "").split(";").map((declaration) => {
+      const colon = declaration.indexOf(":");
+      return [declaration.slice(0, colon).trim(), declaration.slice(colon + 1).trim()];
+    }));
+    assert(adminStylesSource.includes(".admin-competition-slug-help { grid-column: 1 / -1") && tabDeclarations.get("min-height") === "40px" && tabDeclarations.get("display") === "inline-flex" && tabDeclarations.get("align-items") === "center" && tabDeclarations.get("justify-content") === "center" && adminStylesSource.includes(".admin-tabs a:focus-visible, .admin-tabs button:focus-visible"), "Competition alignment or shared admin tab alignment/focus contracts are missing.");
     assert(openMatchesShellSource.includes("if (!member) return <RefereePage") && openMatchesShellSource.includes("<RefereeWorkspaceNav />") && openMatchesShellSource.includes("RefereeWorkspaceHero") && openMatchesPageSource.includes("getRefereeMemberSession") && openMatchesPageSource.includes("RefereeOpenMatchesShell") && openMatchDetailSource.includes("RefereeOpenMatchesShell"), "Open-match routes are not using the authenticated/public session-aware shell.");
     assert(workspaceNavSource.includes('aria-current={current("/referees/open-matches")') && workspaceNavSource.includes("pathname.startsWith(`${href}/`)"), "Open-match workspace navigation does not retain its active state on list and detail routes.");
 
