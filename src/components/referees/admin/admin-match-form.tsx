@@ -191,6 +191,6 @@ export function AdminMatchForm({
       <p aria-live="polite" className="admin-form-message">{message}</p>
       <footer><button className="admin-button admin-button-secondary" onClick={() => router.back()} type="button">取消</button>{!match ? <button className="admin-button admin-button-secondary" disabled={busy} value="continue" type="submit">保存并继续创建</button> : null}<button className="admin-button" disabled={busy} type="submit">{match ? "保存比赛" : "创建比赛"}</button></footer>
     </form>
-    {match ? <form className="admin-copy-form" onSubmit={copy}><header><strong>复制为新场次</strong><span>副本默认关闭报名。</span></header><input aria-label="新页面标识" name="copySlug" placeholder="新页面标识" required /><input aria-label="新阶段文字" name="copyStage" placeholder="新阶段" required /><input aria-label="复制后的开球时间" name="copyKickoff" required type="datetime-local" /><button disabled={busy} className="admin-button admin-button-secondary" type="submit">复制比赛</button></form> : null}
+    {match ? <form className="admin-copy-form" onSubmit={copy}><header><strong>复制为新场次</strong><span>副本默认关闭报名。</span></header><input aria-label="新页面标识" name="copySlug" placeholder="新页面标识" required /><input aria-label="新阶段文字" name="copyStage" placeholder="新阶段" required /><label><span>复制后的开球时间 · 北京时间（UTC+8）</span><input aria-label="复制后的开球时间 · 北京时间（UTC+8）" name="copyKickoff" required type="datetime-local" /></label><button disabled={busy} className="admin-button admin-button-secondary" type="submit">复制比赛</button></form> : null}
   </>;
 }

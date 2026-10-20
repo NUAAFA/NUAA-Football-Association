@@ -3,7 +3,7 @@ on:
   push:
     branches: [codex/v2.10x-admin-optimization]
   pull_request:
-    branches: [integration/v2.10-ui-release]
+    branches: [main, integration/v2.10-ui-release]
 permissions:
   contents: read
 concurrency:

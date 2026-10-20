@@ -71,6 +71,8 @@ async function main() {
     assert.equal((await getAdminMatchList({ ...q, stage: knockout.id }, "matches", asOf)).round, "");
     assert.equal((await getAdminMatchList({ competition: c.id, stage: "legacy" }, "matches", asOf)).total, 1);
     assert.equal((await getAdminMatchList({ competition: c.id, date: "2026-10-27" }, "matches", asOf)).total, 601);
+    const invalidDay = await getAdminMatchList({ competition: c.id, date: "2026-10-27T16:00" }, "matches", asOf); assert.equal(invalidDay.total, 0); assert(invalidDay.dateError);
+    assert.equal((await getAdminMatchList({ competition: c.id, date: "2026-02-30" }, "matches", asOf)).total, 0);
     assert.equal((await getAdminMatchList({ competition: competitions[2].id }, "matches", asOf)).total, 0);
     console.log("PASS B/C 600 matches, 300 per logical round, A/B distinct IDs, server pagination/count, stage switch, legacy, Beijing natural day, separate real competitions");
     await prisma.referee.createMany({ data: Array.from({ length: 1000 }, (_, i) => ({ id: `v210x-ref-${i}`, publicCode: `V${String(i).padStart(4, "0")}`, name: `虚构裁判${String(i).padStart(4, "0")}`, studentId: `1026${String(i).padStart(5, "0")}`, status: "ACTIVE", assignmentEligibility: "ELIGIBLE", grade: "大三" })) });

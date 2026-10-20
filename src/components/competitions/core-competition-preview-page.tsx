@@ -107,7 +107,7 @@ export function CoreCompetitionPreviewPage({
           <div className="core-competition-section-intro">
             <div>
             <p>SCHEDULE & RESULTS</p>
-            <h2 id={`${competition.id}-schedule-title`}>赛程与赛果</h2>
+            <h2 id={`${competition.id}-schedule-title`}>赛程与赛果</h2><p>本页业务时间均为北京时间（UTC+8）。</p>
             </div>
             <p>{schedule.summary}</p>
           </div>

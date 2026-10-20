@@ -49,7 +49,7 @@ export async function getAdminMatchList(query: AdminQuery, mode: "matches" | "ap
   if (q) filters.push({ OR: [{ homeTeam: { name: { contains: q } } }, { awayTeam: { name: { contains: q } } }, { stage: { contains: q } }, { round: { contains: q } }] });
   const date = queryText(query, "date");
   let dateError = "";
-  if (date) { try { const start = parseBeijingDateTime(date, "比赛日期")!; filters.push({ kickoff: { gte: start, lt: new Date(start.getTime() + 86400000) } }); } catch { dateError = "日期无效，请使用真实北京自然日。"; filters.push({ id: { in: [] } }); } }
+  if (date) { try { if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("日期格式无效"); const start = parseBeijingDateTime(date, "比赛日期")!; filters.push({ kickoff: { gte: start, lt: new Date(start.getTime() + 86400000) } }); } catch { dateError = "日期无效，请使用真实北京自然日。"; filters.push({ id: { in: [] } }); } }
   const matchStatus = queryText(query, "matchStatus");
   if (["SCHEDULED", "COMPLETED", "CANCELLED"].includes(matchStatus)) filters.push({ status: matchStatus as "SCHEDULED" | "COMPLETED" | "CANCELLED" });
   const appointmentStatus = queryText(query, "appointmentStatus");
