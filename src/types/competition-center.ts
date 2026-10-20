@@ -154,6 +154,7 @@ export type PublicCompetitionMatch = {
   awayScore: number | null;
   appointment: null | {
     id: string;
+    recordSource?: string;
     positions: Array<{ key: string; label: string; refereeName: string }>;
   };
 };

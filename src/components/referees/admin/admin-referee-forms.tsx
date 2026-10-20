@@ -32,6 +32,8 @@ export type AdminRefereeRecord = {
   collegeId: string;
   currentAffiliationUnitId: string;
   grade: string;
+  gradeMode?: string;
+  effectiveGrade?: string;
   phone: string;
   qq: string;
   refereeLevel: string;
@@ -87,6 +89,7 @@ function fullPayload(form: FormData) {
   return {
     publicCode: text(form, "publicCode"), name: text(form, "name"),
     studentId: text(form, "studentId"), collegeId: text(form, "collegeId"), grade: text(form, "grade"),
+    gradeChangeReason: text(form, "gradeChangeReason"),
     currentAffiliationUnitId: text(form, "currentAffiliationUnitId"),
     phone: text(form, "phone"), qq: text(form, "qq"), refereeLevel: text(form, "refereeLevel"),
     joinedAt: text(form, "joinedAt"), initialPassword: "", status: text(form, "status"),
@@ -213,16 +216,17 @@ export function RefereeEditForm({ account, colleges, affiliationUnits }: { accou
   const [publicEnabled, setPublicEnabled] = useState(account.publicDirectoryEnabled);
   const [publicBio, setPublicBio] = useState(account.publicBio);
 
+  const recommendationGrade = account.gradeMode === "AUTO_STUDENT_ID" ? account.effectiveGrade ?? "" : grade;
   const recommendedUnit = useMemo(() => {
     if (!collegeId) return null;
-    if (["大一", "大二"].includes(grade)) {
+    if (["大一", "大二"].includes(recommendationGrade)) {
       return affiliationUnits.find((unit) => unit.type === "SHUYUAN" && unit.childUnitIds.includes(collegeId)) ?? null;
     }
-    if (["大三", "大四", "已毕业"].includes(grade)) {
+    if (["大三", "大四", "已毕业"].includes(recommendationGrade)) {
       return affiliationUnits.find((unit) => unit.id === collegeId) ?? null;
     }
     return null;
-  }, [affiliationUnits, collegeId, grade]);
+  }, [affiliationUnits, collegeId, recommendationGrade]);
 
   function markDirty() {
     setDirty(true);
@@ -275,6 +279,7 @@ export function RefereeEditForm({ account, colleges, affiliationUnits }: { accou
         <label><span>裁判员编号</span><input defaultValue={account.publicCode} name="publicCode" required /></label>
         <label><span>学号</span><input defaultValue={account.studentId} name="studentId" /></label>
         <label><span>年级</span><select name="grade" onChange={(event) => { setGrade(event.target.value); markDirty(); }} value={grade}><option value="">待确认</option>{refereeGrades.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+        <label><span>学号 / 原年级修改核实原因</span><input name="gradeChangeReason" maxLength={500} placeholder="仅修改学号或原年级时必填" /></label>
         <label><span>学院背景</span><select name="collegeId" onChange={(event) => { setCollegeId(event.target.value); markDirty(); }} value={collegeId}><option value="">待确认</option>{colleges.map((college) => <option key={college.id} value={college.id}>{college.label}</option>)}</select></label>
         <label><span>当前组织归属</span><select name="currentAffiliationUnitId" onChange={(event) => { setCurrentUnitId(event.target.value); markDirty(); }} value={currentUnitId}><option value="">待管理员确认</option><AdminAffiliationOptionGroups options={affiliationUnits} /></select>{recommendedUnit && recommendedUnit.id !== currentUnitId ? <small className="admin-field-suggestion">根据年级和学院背景建议：{recommendedUnit.name} <button onClick={() => { setCurrentUnitId(recommendedUnit.id); markDirty(); }} type="button">采用建议</button></small> : <small>已有归属不会因年级变化被自动覆盖。</small>}</label>
         <label><span>手机号</span><input defaultValue={account.phone} name="phone" /></label>

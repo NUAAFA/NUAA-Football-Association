@@ -1,3 +1,4 @@
+import { parseBeijingDateTime } from "@/lib/beijing-datetime";
 export type CalendarAvailabilityRecord = {
   id: string; refereeId: string; kind: string; startAt: string; endAt: string;
   competitionFormat: string | null; note: string | null;
@@ -17,7 +18,7 @@ export function beijingDateKey(value: Date) {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 export function shiftCalendarDay(day: string, offset: number) {
-  const value = new Date(`${day}T12:00:00Z`);
+  const value = new Date(calendarDayBounds(day).start + 20 * 3600000);
   value.setUTCDate(value.getUTCDate() + offset);
   return value.toISOString().slice(0, 10);
 }
@@ -28,11 +29,14 @@ export function calendarDays(month: string) {
   return Array.from({ length: 42 }, (_, i) => shiftCalendarDay(first, i - offset));
 }
 export function calendarDayBounds(day: string) {
-  const start = new Date(`${day}T00:00:00+08:00`).getTime();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new Error("日期格式不正确。");
+  const start = parseBeijingDateTime(day, "日期")!.getTime();
   return { start, end: start + 86400000 };
 }
 export function beijingCalendarDateTime(day: string, time: string) {
-  return new Date(`${day}T${time}:00+08:00`).toISOString();
+  calendarDayBounds(day);
+  if (!/^\d{2}:\d{2}$/.test(time)) throw new Error("时间格式不正确。");
+  return parseBeijingDateTime(`${day}T${time}`, "可执裁时间")!.toISOString();
 }
 export function calendarClock(value: string) {
   return clockFormatter.format(new Date(value));

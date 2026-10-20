@@ -74,7 +74,7 @@ export function AvailabilityManager({ items, referees, date }: {
         <label><span>裁判员</span><select name="refereeId" required>{referees.map((referee) => <option key={referee.id} value={referee.id}>{referee.label}</option>)}</select></label>
         <label><span>类型</span><select name="kind"><option value="AVAILABLE">可执裁</option><option value="UNAVAILABLE">不可执裁</option></select></label>
         <label><span>比赛制式</span><select name="competitionType"><option value="BOTH">均可</option><option value="ELEVEN_A_SIDE">十一人制</option><option value="FUTSAL">五人制</option></select></label>
-        <label><span>开始</span><input name="startAt" required type="datetime-local" /></label><label><span>结束</span><input name="endAt" required type="datetime-local" /></label>
+        <label><span>开始 · 北京时间（UTC+8）</span><input name="startAt" required type="datetime-local" /></label><label><span>结束 · 北京时间（UTC+8）</span><input name="endAt" required type="datetime-local" /></label>
       </div><label><span>说明</span><input maxLength={240} name="note" /></label><footer><button className="admin-button admin-button-secondary" onClick={() => setOpen(false)} type="button">取消</button><button className="admin-button" type="submit">保存记录</button></footer></form>
     </div></div> : null}
   </>;

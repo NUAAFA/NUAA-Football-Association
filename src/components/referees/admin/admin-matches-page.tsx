@@ -1,79 +1,35 @@
-import { MatchSchedulingForm } from "@/components/admin/match-scheduling-form";
 import Link from "next/link";
-
 import { AdminMatchNavigation } from "@/components/referees/admin/admin-match-navigation";
+import { AdminPagination } from "@/components/referees/admin/admin-pagination";
 import { AdminEmptyState, AdminPageHeader, AdminPanel, AdminStatusBadge, appointmentStatusLabels, matchStatusLabels } from "@/components/referees/admin/admin-ui";
-import { prisma } from "@/lib/prisma";
+import { appointmentQuickLabels, getAdminMatchList, matchQuickLabels, queryHref, queryText } from "@/lib/admin-match-query";
 import { formatRefereeDateTime } from "@/lib/referee-presenters";
 import { getUnifiedAdminActor, hasUnifiedAdminPermission } from "@/lib/unified-admin-rbac";
-
-export type AdminMatchesPageProps = {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-};
-
-export async function AdminMatchesPageContent({
-  searchParams,
-  mode = "matches",
-}: AdminMatchesPageProps & { mode?: "matches" | "appointments" }) {
+export type AdminMatchesPageProps = { searchParams: Promise<Record<string, string | string[] | undefined>> };
+export async function AdminMatchesPageContent({ searchParams, mode = "matches" }: AdminMatchesPageProps & { mode?: "matches" | "appointments" }) {
   const query = await searchParams;
-  const competitionId = typeof query.competition === "string" ? query.competition : "";
-  const rawMatchStatus = typeof query.matchStatus === "string" ? query.matchStatus : "";
-  const matchStatus = ["PENDING", "SCHEDULED", "COMPLETED", "CANCELLED"].includes(rawMatchStatus) ? rawMatchStatus : "";
-  const rawAppointmentStatus = typeof query.appointmentStatus === "string" ? query.appointmentStatus : "";
-  const appointmentStatus = ["NONE", "DRAFT", "PUBLISHED", "WITHDRAWN", "COMPLETED", "CANCELLED"].includes(rawAppointmentStatus) ? rawAppointmentStatus : "";
-  const quick = typeof query.quick === "string" && ["pending", "incomplete", "conflict", "published"].includes(query.quick) ? query.quick : "";
-  const date = typeof query.date === "string" ? query.date : "";
-  const dateStart = /^\d{4}-\d{2}-\d{2}$/.test(date) ? new Date(`${date}T00:00:00+08:00`) : null;
-  const [actor, competitions, allMatches] = await Promise.all([
-    getUnifiedAdminActor(),
-    prisma.competition.findMany({ select: { id: true, name: true }, orderBy: [{ year: "desc" }, { name: "asc" }] }),
-    prisma.match.findMany({
-      where: {
-        ...(competitionId ? { competitionId } : {}),
-        ...(matchStatus === "PENDING" ? { status: "SCHEDULED" as const, OR: [{ kickoff: null }, { venue: null }, { venue: "" }] } : matchStatus ? { status: matchStatus as "SCHEDULED" | "COMPLETED" | "CANCELLED" } : {}),
-        ...(dateStart ? { kickoff: { gte: dateStart, lt: new Date(dateStart.getTime() + 86400000) } } : {}),
-        ...(appointmentStatus === "NONE" ? { appointment: null } : appointmentStatus ? { appointment: { status: appointmentStatus as "DRAFT" | "PUBLISHED" | "WITHDRAWN" | "COMPLETED" | "CANCELLED" } } : {}),
-      },
-      select: {
-        id: true, kickoff: true, venue: true, stage: true, status: true,
-        competition: { select: { name: true } }, homeTeam: { select: { name: true } }, awayTeam: { select: { name: true } },
-        positionRequirements: { select: { count: true } },
-        appointment: { select: { status: true, positions: { select: { refereeId: true } }, conflictReports: { where: { status: "PENDING" }, select: { id: true } } } },
-      },
-      orderBy: { kickoff: "desc" }, take: 250,
-    }),
-  ]);
-  const canWriteCompetitions = Boolean(actor && hasUnifiedAdminPermission(actor.roles, "competitions:write"));
-  const isAppointmentView = mode === "appointments";
-  const detailRoot = isAppointmentView ? "/admin/appointments" : "/admin/matches";
-  const matches = allMatches.filter((match) => {
-    if (!quick) return true;
-    const required = match.positionRequirements.reduce((sum, item) => sum + item.count, 0);
-    const assigned = match.appointment?.positions.filter((position) => position.refereeId).length ?? 0;
-    if (quick === "pending") return !match.appointment || ["DRAFT", "WITHDRAWN"].includes(match.appointment.status);
-    if (quick === "incomplete") return assigned < required;
-    if (quick === "conflict") return Boolean(match.appointment?.conflictReports.length);
-    return match.appointment?.status === "PUBLISHED";
-  });
+  const [data, actor] = await Promise.all([getAdminMatchList(query, mode), getUnifiedAdminActor()]);
+  const appointments = mode === "appointments", root = appointments ? "/admin/appointments" : "/admin/matches";
+  const canWrite = Boolean(actor && hasUnifiedAdminPermission(actor.roles, "competitions:write"));
+  const canReferee = Boolean(actor && hasUnifiedAdminPermission(actor.roles, "referees:read"));
+  const labels = appointments ? appointmentQuickLabels : matchQuickLabels;
+  const href = (patch: Record<string, string | undefined>) => queryHref(root, data.canonical, { page: undefined, ...patch });
   return <>
-    <AdminPageHeader
-      eyebrow={isAppointmentView ? "REFEREE APPOINTMENTS" : "MATCH MANAGEMENT"}
-      title={isAppointmentView ? "选派管理" : "比赛管理"}
-      description={isAppointmentView ? "按场次查看人员完整度、发布状态和冲突提醒，并直接进入选派。" : "维护比赛资料；裁判选派在裁判中心独立管理。"}
-      actions={!isAppointmentView ? <><Link className="admin-button admin-button-secondary" href="/admin/competitions">赛事管理</Link>{canWriteCompetitions ? <Link className="admin-button" href="/admin/matches/new">+ 新建比赛</Link> : null}</> : undefined}
-    />
-    {!isAppointmentView ? <AdminMatchNavigation active="matches" /> : null}
-    <form className="admin-filter-bar">
-      <label><span>赛事</span><select defaultValue={competitionId} name="competition"><option value="">全部赛事</option>{competitions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-      <label><span>日期</span><input defaultValue={date} name="date" type="date" /></label>
-      <label><span>比赛状态</span><select defaultValue={matchStatus} name="matchStatus"><option value="">全部状态</option><option value="PENDING">待排期</option>{Object.entries(matchStatusLabels).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-      <label><span>选派状态</span><select defaultValue={appointmentStatus} name="appointmentStatus"><option value="">全部状态</option>{Object.entries(appointmentStatusLabels).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-      <button className="admin-button admin-button-secondary" type="submit">筛选</button>
-      <Link className="admin-filter-reset" href={detailRoot}>清除</Link>
-    </form>
-    {isAppointmentView ? <nav aria-label="选派快速筛选" className="admin-quick-filters"><Link aria-current={quick === "pending" ? "page" : undefined} href="/admin/appointments?quick=pending">待选派</Link><Link aria-current={quick === "incomplete" ? "page" : undefined} href="/admin/appointments?quick=incomplete">未完整选派</Link><Link aria-current={quick === "conflict" ? "page" : undefined} href="/admin/appointments?quick=conflict">有冲突 / 异常</Link><Link aria-current={quick === "published" ? "page" : undefined} href="/admin/appointments?quick=published">已发布</Link></nav> : null}
-    <AdminPanel title={`比赛列表 · ${matches.length}`} description="默认按开球时间倒序，最多显示 250 场。">
-      {matches.length ? <div className="admin-table-scroll"><table className="admin-data-table"><thead><tr><th>时间</th><th>比赛</th><th>赛事</th><th>场地</th><th>比赛状态</th>{isAppointmentView ? <th>人员完整度</th> : null}<th>选派状态</th>{isAppointmentView ? <th>提醒</th> : null}<th>操作</th></tr></thead><tbody>{matches.map((match) => { const required = match.positionRequirements.reduce((sum, item) => sum + item.count, 0); const assigned = match.appointment?.positions.filter((position) => position.refereeId).length ?? 0; const pendingConflicts = match.appointment?.conflictReports.length ?? 0; return <tr key={match.id}><td>{formatRefereeDateTime(match.kickoff)}</td><td><strong>{match.homeTeam.name} vs {match.awayTeam.name}</strong><small>{match.stage}</small></td><td>{match.competition.name}</td><td>{match.venue || "场地待定"}</td><td><AdminStatusBadge status={match.status} label={match.status === "SCHEDULED" && (!match.kickoff || !match.venue?.trim()) ? "待排期" : matchStatusLabels[match.status]} /></td>{isAppointmentView ? <td><strong className="admin-stat-number">{assigned}/{required}</strong></td> : null}<td><AdminStatusBadge status={match.appointment?.status ?? "NONE"} label={appointmentStatusLabels[match.appointment?.status ?? "NONE"]} /></td>{isAppointmentView ? <td>{pendingConflicts ? <Link className="admin-warning-link" href="/admin/conflicts?status=PENDING">{pendingConflicts} 个待处理冲突</Link> : assigned < required ? "人员未完整" : "—"}</td> : null}<td><div className="admin-table-actions">{!isAppointmentView && canWriteCompetitions && match.status === "SCHEDULED" && (!match.kickoff || !match.venue?.trim()) ? <MatchSchedulingForm matchId={match.id} /> : null}<Link className="admin-row-action-primary" href={`${detailRoot}/${match.id}`}>{isAppointmentView ? (match.appointment?.status === "PUBLISHED" ? "查看选派" : "进入选派") : "查看比赛"}</Link>{!isAppointmentView && canWriteCompetitions ? <Link href={`/admin/matches/${match.id}/edit`}>编辑</Link> : null}</div></td></tr>; })}</tbody></table></div> : <AdminEmptyState title="没有符合条件的比赛" description={canWriteCompetitions ? "调整筛选条件，或创建一场新比赛。" : "请调整筛选条件。"} />}
+    <AdminPageHeader eyebrow={appointments ? "REFEREE APPOINTMENTS" : "MATCH MANAGEMENT"} title={appointments ? "选派管理" : "比赛管理"} description="按真实赛事、阶段、轮次和分组查看。所有业务时间均为北京时间（UTC+8）。" actions={!appointments && canWrite ? <Link className="admin-button" href="/admin/matches/new">+ 新建比赛</Link> : undefined} />
+    {!appointments ? <AdminMatchNavigation active="matches" /> : null}
+    <section className="admin-panel admin-structure-nav" aria-label="赛事结构导航">
+      <form className="admin-filter-bar"><label><span>赛事</span><select key={data.competition} defaultValue={data.competition} name="competition"><option value="all">全部赛事（显式）</option>{data.competitions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><button className="admin-button admin-button-secondary">切换赛事</button></form>
+      <nav className="admin-quick-filters" aria-label="赛事阶段"><span>阶段</span><Link href={href({ stage: "", round: "", group: "" })} aria-current={!data.stage ? "page" : undefined}>全部阶段</Link>{data.stages.map(s => <Link key={s.id} href={href({ stage: s.id, round: "", group: "" })} aria-current={data.stage === s.id ? "page" : undefined}>{s.name}{data.competition === "all" ? ` · ${data.competitions.find(c => c.id === s.competitionId)?.name}` : ""}</Link>)}<Link href={href({ stage: "legacy", round: "", group: "" })} aria-current={data.stage === "legacy" ? "page" : undefined}>未结构化 / 待归类</Link></nav>
+      <nav className="admin-quick-filters" aria-label="比赛轮次"><span>轮次</span><Link href={href({ round: "" })} aria-current={!data.round ? "page" : undefined}>全部轮次</Link>{data.stage !== "legacy" ? data.rounds.map(r => <Link key={r.key} href={href({ stage: r.stageId, round: r.key })} aria-current={data.round === r.key ? "page" : undefined}>{r.label}{!data.stage ? ` · ${data.stages.find(s => s.id === r.stageId)?.name}` : ""}</Link>) : null}<Link href={href({ round: "unassigned" })} aria-current={data.round === "unassigned" ? "page" : undefined}>未归轮次</Link></nav>
+      <nav className="admin-quick-filters" aria-label="比赛分组"><span>分组</span><Link href={href({ group: "" })} aria-current={!data.group ? "page" : undefined}>全部小组</Link>{data.stage !== "legacy" ? data.groups.map(g => <Link key={g.id} href={href({ stage: g.stageId, group: g.id })} aria-current={data.group === g.id ? "page" : undefined}>{g.name}{!data.stage ? ` · ${data.stages.find(s => s.id === g.stageId)?.name}` : ""}</Link>) : null}<Link href={href({ group: "unassigned" })} aria-current={data.group === "unassigned" ? "page" : undefined}>无小组 / 待归类</Link></nav>
+    </section>
+    <form className="admin-filter-bar" key={JSON.stringify(data.canonical)}>{["competition", "stage", "round", "group", "quick"].map(key => <input key={key} type="hidden" name={key} value={queryText(data.canonical, key)} />)}<label><span>搜索对阵 / 历史阶段文字</span><input name="q" maxLength={100} defaultValue={queryText(query, "q")} /></label><label><span>比赛日期 · 北京时间</span><input name="date" type="date" defaultValue={queryText(query, "date")} /></label><button className="admin-button admin-button-secondary">筛选</button><Link href={root}>重置筛选</Link></form>
+    {data.dateError ? <p role="alert">{data.dateError}</p> : null}
+    <nav className="admin-quick-filters" aria-label="状态筛选"><Link href={href({ quick: "" })} aria-current={!data.quick ? "page" : undefined}>全部状态</Link>{Object.entries(labels).map(([key, label]) => <Link key={key} aria-current={data.quick === key ? "page" : undefined} href={href({ quick: key })}>{label} {data.counts[key]}</Link>)}</nav>
+    <AdminPanel title={`比赛列表 · ${data.total}`} description="轮次汇总同阶段各组的真实轮次；未归类旧场次保留可查。分页前完成全量筛选。">
+      <p className="admin-table-scroll-hint">窄屏可在表格内横向滚动查看所有列与操作。</p>
+      {data.matches.length ? <div className="admin-table-scroll" tabIndex={0} role="region" aria-label="比赛列表，可横向滚动"><table className="admin-data-table"><thead><tr><th>北京时间</th><th>对阵 / 结构</th><th>场地</th><th>比分 / 比赛状态</th><th>执裁状态</th><th>操作</th></tr></thead><tbody>{data.matches.map(m => <tr key={m.id}><td>{formatRefereeDateTime(m.kickoff)}</td><td><strong>{m.homeTeam.name} vs {m.awayTeam.name}</strong><small>{m.competition.name} · {m.structureStage?.name ?? `未结构化：${m.stage}`} · {m.structureRound?.name ?? m.round ?? "未归轮次"} · {m.structureGroup?.name ?? "无小组 / 待归类"}</small></td><td>{m.venue || "场地待定"}</td><td>{m.homeScore !== null && m.awayScore !== null ? <strong>{m.homeScore}:{m.awayScore} </strong> : null}<AdminStatusBadge status={m.status} label={m.status === "SCHEDULED" && (!m.kickoff || !m.venue?.trim()) ? "待排期" : matchStatusLabels[m.status]} /></td><td>{m.appointment?.recordSource === "POST_MATCH_ENTRY" ? "赛后补录 · 已记录" : appointmentStatusLabels[m.appointment?.status ?? "NONE"]}<small>{m.appointment?.positions.filter(p => p.refereeId).length ?? 0}/{m.positionRequirements.reduce((n, r) => n + r.count, 0) || (m.competition.format === "CUSTOM" ? 0 : 5)} 岗位</small>{m.appointment?.conflictReports.length ? <small>待处理冲突 {m.appointment.conflictReports.length}</small> : null}</td><td><div className="admin-table-actions"><Link className="admin-row-action-primary" href={`${root}/${m.id}`}>{appointments ? m.status === "COMPLETED" ? m.appointment?.status === "COMPLETED" ? "查看 / 更正执裁历史" : "赛后补录" : "进入选派" : "查看 / 录入赛果"}</Link>{!appointments && canWrite ? <Link href={`/admin/matches/${m.id}/edit`}>编辑比赛</Link> : null}{!appointments && canReferee ? <Link href={`/admin/appointments/${m.id}`}>{m.status === "COMPLETED" ? "实际执裁记录" : "查看选派"}</Link> : null}</div></td></tr>)}</tbody></table></div> : <AdminEmptyState title="没有符合条件的比赛" description="请调整赛事、轮次、小组或状态。历史未归类场次可从“未结构化 / 待归类”查找。" />}
+      <AdminPagination root={root} query={data.canonical} page={data.page} pages={data.pages} total={data.total} />
     </AdminPanel>
   </>;
 }

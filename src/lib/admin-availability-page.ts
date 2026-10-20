@@ -1,14 +1,16 @@
+import { parseBeijingDateTime } from "@/lib/beijing-datetime";
 import { Prisma } from "@/generated/prisma-v29/client";
 import { prisma } from "@/lib/prisma";
 import { calendarDays, calendarDayBounds, shiftCalendarDay } from "@/lib/referee-availability-calendar";
 
 export type AvailabilityKindFilter = "AVAILABLE" | "UNAVAILABLE" | "";
-function dayStart(value: string) { return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00+08:00`)) ? new Date(`${value}T00:00:00+08:00`) : null; }
+function dayStart(value: string) { if (!value) return null; try { if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null; return parseBeijingDateTime(value, "日期") ?? null; } catch { return null; } }
 export async function getAdminAvailabilityPage(input: { refereeId?: string; date?: string; kind?: AvailabilityKindFilter; page?: number }) {
   const start = dayStart(input.date ?? "");
   const end = start && new Date(start.getTime() + 86400000);
   const where: Prisma.RefereeAvailabilityWhereInput = {
     referee: { status: { not: "ARCHIVED" } },
+    ...(input.date && !start ? { id: { in: [] } } : {}),
     ...(input.refereeId ? { refereeId: input.refereeId } : {}),
     ...(input.kind ? { kind: input.kind } : {}),
     ...(start && end ? { startAt: { lt: end }, endAt: { gt: start } } : {}),
@@ -47,11 +49,11 @@ export async function getAdminAvailabilityPage(input: { refereeId?: string; date
     availableRecords: kinds.find((k) => k.refereeId === g.refereeId && k.kind === "AVAILABLE")?._count._all ?? 0,
     unavailableRecords: kinds.find((k) => k.refereeId === g.refereeId && k.kind === "UNAVAILABLE")?._count._all ?? 0,
     updatedAt: g._max.updatedAt, dateRecords: dateRecords.filter((r) => r.refereeId === g.refereeId) }));
-  return { items, total, page, pageSize, totalPages, date: start ? input.date! : "" };
+  return { items, total, page, pageSize, totalPages, dateError: input.date && !start ? "日期无效，请使用真实北京自然日。" : "", date: start ? input.date! : "" };
 }
 export async function getAdminAvailabilityDetail(refereeId: string, input: { date?: string; kind?: AvailabilityKindFilter; page?: number }) {
   const start = dayStart(input.date ?? ""), end = start && new Date(start.getTime() + 86400000);
-  const where: Prisma.RefereeAvailabilityWhereInput = { refereeId, ...(input.kind ? { kind: input.kind } : {}), ...(start && end ? { startAt: { lt: end }, endAt: { gt: start } } : {}) };
+  const where: Prisma.RefereeAvailabilityWhereInput = { refereeId, ...(input.date && !start ? { id: { in: [] } } : {}), ...(input.kind ? { kind: input.kind } : {}), ...(start && end ? { startAt: { lt: end }, endAt: { gt: start } } : {}) };
   const [referee, total] = await Promise.all([prisma.referee.findUnique({ where: { id: refereeId }, select: { id: true, name: true, publicCode: true, status: true } }), prisma.refereeAvailability.count({ where })]);
   if (!referee || referee.status === "ARCHIVED") return null;
   const pageSize = 20, totalPages = Math.max(1, Math.ceil(total / pageSize));

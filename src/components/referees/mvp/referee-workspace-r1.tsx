@@ -104,8 +104,8 @@ export function RefereeWorkspaceR1({
               kind: form.get("kind"), note: form.get("note"),
             }));
           }}>
-            <label><span>开始</span><input name="startAt" required type="datetime-local" /></label>
-            <label><span>结束</span><input name="endAt" required type="datetime-local" /></label>
+            <label><span>开始 · 北京时间（UTC+8）</span><input name="startAt" required type="datetime-local" /></label>
+            <label><span>结束 · 北京时间（UTC+8）</span><input name="endAt" required type="datetime-local" /></label>
             <label><span>类型</span><select name="kind"><option value="AVAILABLE">可执裁</option><option value="UNAVAILABLE">不可执裁</option></select></label>
             <label><span>说明</span><input maxLength={240} name="note" /></label>
             <button type="submit">新增时间</button>

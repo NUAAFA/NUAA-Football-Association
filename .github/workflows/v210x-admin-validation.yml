@@ -1,0 +1,87 @@
+name: V2.10.x isolated admin validation
+on:
+  push:
+    branches: [codex/v2.10x-admin-optimization]
+  pull_request:
+    branches: [integration/v2.10-ui-release]
+permissions:
+  contents: read
+concurrency:
+  group: v210x-admin-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  application:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      CHECKPOINT_DISABLE: '1'
+      TZ: UTC
+      REFEREE_ADMIN_SESSION_SECRET: Synthetic-V210x-CI-Admin-Secret-Only-2026
+      REFEREE_MEMBER_SESSION_SECRET: Synthetic-V210x-CI-Member-Secret-Only-2026
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 22.23.2
+          package-manager-cache: false
+      - name: Isolated database and locked installation
+        shell: bash
+        run: |
+          printf 'DATABASE_URL=file:%s/v210x-build.db\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          touch "$RUNNER_TEMP/v210x-build.db"
+          npm ci --no-audit --no-fund
+      - name: Generate, migrate and build
+        run: |
+          npx prisma validate
+          npx prisma migrate deploy
+          npm run build
+          npm run typecheck
+          npm run lint
+          UNICODE_BASE=704bf0af9e9b7f538cfbf6d3a76ec5f4148190e8 npm run check:unicode
+      - name: Beijing time and business matrix in three Node timezones
+        shell: bash
+        run: |
+          mkdir -p docs/v210x-admin/evidence
+          TZ=Europe/London npm run test:v210x-admin > docs/v210x-admin/evidence/special-london.log 2>&1
+          TZ=UTC npm run test:v210x-admin > docs/v210x-admin/evidence/special-utc.log 2>&1
+          TZ=Asia/Shanghai npm run test:v210x-admin > docs/v210x-admin/evidence/special-shanghai.log 2>&1
+          npm run test:v210x-migration
+      - name: Existing application and real HTTP regressions
+        run: |
+          npm run test:v210x-regressions
+          npm run test:v210x-http-regressions
+      - name: Install pinned browser test runtime in runner temp
+        shell: bash
+        run: |
+          npm install --prefix "$RUNNER_TEMP/browser" --no-package-lock --no-audit --no-fund --ignore-scripts playwright@1.62.1
+          node "$RUNNER_TEMP/browser/node_modules/playwright/cli.js" install --with-deps chromium
+          printf 'PLAYWRIGHT_MODULE=%s/browser/node_modules/playwright/index.mjs\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - name: Browser timezone, privacy, workflow and responsive acceptance
+        env:
+          V210X_BROWSER_CHANNEL: chromium
+        run: npm run test:v210x-browser
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: v210x-isolated-evidence-${{ github.sha }}-${{ github.run_id }}
+          path: docs/v210x-admin/evidence/
+          retention-days: 5
+  security:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 22.23.2
+          package-manager-cache: false
+      - run: npm ci --no-audit --no-fund
+      - run: npm audit
+      - run: npm audit --omit=dev
+# No deploy, SSH, production credentials, migration of production data or release job.

@@ -1,0 +1,20 @@
+import { randomBytes, scryptSync } from "node:crypto";
+import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import os from 'node:os'; import path from 'node:path'; import net from 'node:net';
+const syntheticLegacy='V210x-Synthetic-Legacy-Only!'; const salt=randomBytes(16);const legacyHash=`scrypt$${salt.toString('base64url')}$${scryptSync(syntheticLegacy,salt,64).toString('base64url')}`;
+const dir='docs/v210x-admin/evidence/http-regressions';await mkdir(dir,{recursive:true});const results=[];
+const redact=s=>s.replace(/scrypt\$[^\s"']+/g,'[synthetic hash redacted]');
+async function run(args,env={}) {const child=spawn(process.execPath,args,{env:{...process.env,...env},stdio:['ignore','pipe','pipe']});let out='';child.stdout.on('data',c=>out+=c);child.stderr.on('data',c=>out+=c);const code=await new Promise((res,rej)=>{child.on('error',rej);child.on('exit',res);});return {code,out:redact(out)};}
+async function port(){const server=net.createServer();await new Promise(r=>server.listen(0,'127.0.0.1',r));const p=server.address().port;await new Promise(r=>server.close(r));return p;}
+async function httpCase(name,prepare){
+ const env=await prepare();const p=await port(),origin=`http://127.0.0.1:${p}`;const runtime={...env,NODE_ENV:'production',NUAAFA_CONTENT_SOURCE:'database',REFEREE_ADMIN_SESSION_SECRET:'v210x-http-synthetic-secret-32-characters-long',REFEREE_MEMBER_SESSION_SECRET:'v210x-member-synthetic-secret-32-characters-long',NEXT_TELEMETRY_DISABLED:'1'};
+ const server=spawn(process.execPath,['node_modules/next/dist/bin/next','start','-H','127.0.0.1','-p',String(p)],{env:{...process.env,...runtime},stdio:['ignore','pipe','pipe']});let serverLog='';server.stdout.on('data',c=>serverLog+=c);server.stderr.on('data',c=>serverLog+=c);
+ const startedAt=new Date().toISOString();try{let ready=false;for(let i=0;i<100;i++){try{if((await fetch(origin+'/api/health')).ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,200));}assert(ready,serverLog);
+ const result=await run(['--import','tsx',name==='r1-2'?'scripts/test-unified-admin-r1-2-http.ts':'scripts/test-ops-r3-1-3-http.ts'],{...env,R1_2_SMOKE_BASE_URL:origin,R1_2_SMOKE_ORIGIN:'https://nuaafa.cn',OPS_R313_ORIGIN:origin});await writeFile(`${dir}/${name}.log`,result.out);results.push({name,code:result.code,startedAt,finishedAt:new Date().toISOString()});console.log(`${result.code===0?'PASS':'FAIL'} ${name}`);if(result.code!==0)console.log(result.out.slice(-1800));
+ }finally{if(server.exitCode===null&&server.signalCode===null){const stopped=new Promise(r=>server.once('exit',r));server.kill('SIGTERM');await stopped;}await writeFile(`${dir}/${name}-server.log`,redact(serverLog));}
+}
+await httpCase('r1-2',async()=>{const root=await mkdtemp(path.join(os.tmpdir(),'nuaafa-v210x-r12-http-'));const env={UNIFIED_ADMIN_SMOKE_DATABASE_PATH:path.join(root,'synthetic.db'),DATABASE_URL:`file:${path.join(root,'synthetic.db')}`,NUAAFA_UPLOAD_DIR:path.join(root,'uploads')};const prep=await run(['--import','tsx','scripts/prepare-unified-admin-smoke.ts'],env);assert.equal(prep.code,0,prep.out);const info=JSON.parse(prep.out.trim().split('\n').at(-1));return {...env,REFEREE_ADMIN_PASSWORD_HASH:legacyHash,R1_2_LEGACY_PASSWORD:syntheticLegacy,R1_3A_ADMISSION_ID:info.admissionId,R1_2_PUBLIC_MEDIA_ID:info.coverMediaId,R1_2_SMOKE_COMPETITION_ID:info.competitionId,R1_2_SMOKE_MATCH_ID:info.matchId,R1_2_SMOKE_REFEREE_ID:info.refereeId};});
+await httpCase('r313',async()=>{const prep=await run(['--import','tsx','scripts/test-ops-r3-1-3.ts']);assert.equal(prep.code,0,prep.out);const root=prep.out.match(/ISOLATED_FIXTURE=(.+)/)?.[1];assert(root);const info=JSON.parse(await readFile(path.join(root,'fixture.json'),'utf8'));return {OPS_R313_ROOT:root,DATABASE_URL:info.databaseUrl,NUAAFA_UPLOAD_DIR:path.join(root,'uploads')};});
+await writeFile(`${dir}/results.json`,JSON.stringify(results,null,2));if(results.some(r=>r.code!==0))process.exitCode=1;

@@ -38,6 +38,7 @@ export async function PATCH(
       name: readShortText(body.name, "姓名", 48),
       studentId: readShortText(body.studentId, "学号", 32, false),
       collegeId: readShortText(body.collegeId, "学院", 64, false),
+      gradeChangeReason: readShortText(body.gradeChangeReason, "学号 / 年级核实原因", 500, false),
       grade: body.grade ? readEnum(body.grade, refereeGrades, "年级") : "",
       phone: readShortText(body.phone, "手机号", 32, false),
       qq: readShortText(body.qq, "QQ", 32, false),

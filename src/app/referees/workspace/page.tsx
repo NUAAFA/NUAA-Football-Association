@@ -1,3 +1,5 @@
+import { BeijingDayRefresh } from "@/components/referees/admin/beijing-day-refresh";
+import { getEffectiveRefereeGrade } from "@/lib/referee-grade";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -58,7 +60,7 @@ export default async function RefereeWorkspacePage() {
   const upcomingPositions = sortedPositions.filter((item) => item.appointment.status === "PUBLISHED" && item.appointment.match.status === "SCHEDULED" && item.appointment.match.kickoff !== null && Boolean(item.appointment.match.venue?.trim()));
   const historicalPositions = sortedPositions.filter((item) => item.appointment.status === "COMPLETED").reverse();
   return <>
-    <SiteHeader /><RefreshOnFocus />
+    <SiteHeader /><RefreshOnFocus /><BeijingDayRefresh />
     <main className="functional-page" id="main-content">
       <RefereeWorkspaceHero description={`登录账号 ${session.referee.studentId} · 从这里查看报名、正式任务与可执裁时间。`} eyebrow="REFEREE WORKSPACE" name={session.referee.name} publicCode={session.referee.publicCode} title={`${session.referee.name}，欢迎回来`} />
       <RefereeWorkspaceNav />
@@ -75,10 +77,10 @@ export default async function RefereeWorkspacePage() {
 
         <div className="referee-dashboard-secondary">
           <section><header><p>AVAILABILITY</p><h2>我的可执裁时间</h2></header><p>{availability.length ? `未来已有 ${availability.length} 条时间记录。` : "未来尚未设置可执裁时间。"}</p>{availability[0] ? <small>最近：{formatRefereeDateTime(availability[0].startAt)} · {availability[0].kind === "AVAILABLE" ? "可执裁" : "不可执裁"}</small> : null}<Link href="/referees/workspace/availability">打开月历管理 →</Link></section>
-          <section id="profile"><header><p>PROFILE</p><h2>基础个人资料</h2></header><dl><div><dt>姓名 / 学号</dt><dd>{session.referee.name} · {session.referee.studentId}</dd></div><div><dt>学院</dt><dd>{session.referee.college?.name ?? "待管理员确认"}</dd></div><div><dt>裁判资质</dt><dd>{session.referee.refereeLevel || "暂无正式裁判资质"}</dd></div><div><dt>联系方式</dt><dd>{[session.referee.phone, session.referee.qq ? `QQ ${session.referee.qq}` : ""].filter(Boolean).join(" / ") || "未填写"}</dd></div></dl><Link href="/referees/workspace/account">账号与安全 →</Link></section>
+          <section id="profile"><header><p>PROFILE</p><h2>基础个人资料</h2></header><dl><div><dt>姓名 / 学号</dt><dd>{session.referee.name} · {session.referee.studentId}</dd></div><div><dt>学院</dt><dd>{session.referee.college?.name ?? "待管理员确认"}</dd></div><div><dt>当前年级</dt><dd>{getEffectiveRefereeGrade(now, session.referee).grade ?? "学籍待核实"} · {getEffectiveRefereeGrade(now, session.referee).source}</dd></div><div><dt>裁判资质</dt><dd>{session.referee.refereeLevel || "暂无正式裁判资质"}</dd></div><div><dt>联系方式</dt><dd>{[session.referee.phone, session.referee.qq ? `QQ ${session.referee.qq}` : ""].filter(Boolean).join(" / ") || "未填写"}</dd></div></dl><Link href="/referees/workspace/account">账号与安全 →</Link></section>
         </div>
 
-        <section id="task-history"><header className="functional-section-heading"><div><p>HISTORY</p><h2>历史任务</h2></div><span>{historicalPositions.length} 项</span></header>{historicalPositions.length ? <div className="referee-personal-list">{historicalPositions.map((position) => <article key={position.id}><div><span>{position.appointment.match.competition.name}</span><h3>{position.appointment.match.homeTeam.name} vs {position.appointment.match.awayTeam.name}</h3><p>{formatRefereeDateTime(position.appointment.match.kickoff)}</p></div><strong>{position.label}</strong>{completedAssignmentReviewReason(position.appointment.match, now) ? <p>旧完成记录 · 完赛事实待核：{completedAssignmentReviewReason(position.appointment.match, now)}</p> : null}</article>)}</div> : <div className="functional-empty functional-empty-compact"><strong>暂无历史任务</strong><p>已完成的正式任务会保留在这里。</p></div>}</section>
+        <section id="task-history"><header className="functional-section-heading"><div><p>HISTORY</p><h2>历史任务</h2></div><span>{historicalPositions.length} 项</span></header>{historicalPositions.length ? <div className="referee-personal-list">{historicalPositions.map((position) => <article key={position.id}><div><span>{position.appointment.match.competition.name}</span><h3>{position.appointment.match.homeTeam.name} vs {position.appointment.match.awayTeam.name}</h3><p>{formatRefereeDateTime(position.appointment.match.kickoff)}</p></div><strong>{position.label} · {position.appointment.recordSource === "POST_MATCH_ENTRY" ? "赛后执裁记录" : "正式选派完成"}</strong>{completedAssignmentReviewReason(position.appointment.match, now) ? <p>旧完成记录 · 完赛事实待核：{completedAssignmentReviewReason(position.appointment.match, now)}</p> : null}</article>)}</div> : <div className="functional-empty functional-empty-compact"><strong>暂无历史任务</strong><p>已完成的正式任务会保留在这里。</p></div>}</section>
       </div></section>
     </main>
     <SiteFooter />

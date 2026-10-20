@@ -1,3 +1,8 @@
+import { getUnifiedAdminActor, hasUnifiedAdminPermission } from "@/lib/unified-admin-rbac";
+import { BeijingDayRefresh } from "@/components/referees/admin/beijing-day-refresh";
+import { AdminGradeControl } from "@/components/referees/admin/admin-grade-control";
+import { getEffectiveRefereeGrade } from "@/lib/referee-grade";
+import { formatBeijingDateTimeInput } from "@/lib/beijing-datetime";
 import { notFound } from "next/navigation";
 
 import { RefereeEditForm, type AdminRefereeRecord } from "@/components/referees/admin/admin-referee-forms";
@@ -22,6 +27,7 @@ export default async function AdminRefereeDetailPage({ params }: { params: Promi
         label: true,
         appointment: {
           select: {
+            recordSource: true, recordedAt: true,
             match: {
               select: {
                 kickoff: true,
@@ -45,11 +51,14 @@ export default async function AdminRefereeDetailPage({ params }: { params: Promi
     .map((college) => ({ id: college.id, name: college.name, label: affiliationOptionLabel(college) }));
   const unitOptions = sortAffiliationOptions(affiliationUnits.map((unit) => ({ ...unit, prefixes: unit.legacyCollege?.codeMappings.map((mapping) => mapping.prefix) ?? [] })))
     .map((unit) => ({ id: unit.id, name: unit.name, label: affiliationOptionLabel(unit), type: unit.type, childUnitIds: unit.parentRelations.map((relation) => relation.childUnitId) }));
+  const actor = await getUnifiedAdminActor();
+  const canWrite = Boolean(actor && hasUnifiedAdminPermission(actor.roles, "referees:write"));
   const record: AdminRefereeRecord = {
     id: referee.id, publicCode: referee.publicCode, name: referee.name, studentId: referee.studentId ?? "", collegeId: referee.collegeId ?? "",
     currentAffiliationUnitId: referee.currentAffiliationUnitId ?? "",
+    gradeMode: referee.gradeMode, effectiveGrade: getEffectiveRefereeGrade(new Date(), referee).grade ?? "",
     grade: referee.grade ?? "", phone: referee.phone ?? "", qq: referee.qq ?? "", refereeLevel: referee.refereeLevel ?? "",
-    joinedAt: referee.joinedAt ? referee.joinedAt.toISOString().slice(0, 10) : "", status: referee.status,
+    joinedAt: referee.joinedAt ? formatBeijingDateTimeInput(referee.joinedAt).slice(0, 10) : "", status: referee.status,
     elevenASide: referee.elevenASide, futsal: referee.futsal, certificateNote: referee.certificateNote ?? "", trainingStatus: referee.trainingStatus,
     assignmentEligibility: referee.assignmentEligibility,
     qualificationNote: referee.qualificationNote ?? "",
@@ -57,12 +66,13 @@ export default async function AdminRefereeDetailPage({ params }: { params: Promi
     mustChangePassword: referee.mustChangePassword, lastLoginAt: referee.lastLoginAt ? formatRefereeDateTime(referee.lastLoginAt) : "",
     capabilities: referee.capabilities.map((item) => `${item.format}:${item.positionKey}:${item.status}`),
   };
-  return <>
+  return <><BeijingDayRefresh />
     <section className="admin-detail-hero"><div><span>{referee.publicCode}</span><h1>{referee.name}</h1><p>{referee.college?.name ?? "学院待确认"} · {referee.refereeLevel || "暂无正式裁判资质"}</p><dl className="admin-detail-meta"><div><dt>账号状态</dt><dd>{refereeStatusLabels[referee.status]}</dd></div><div><dt>培养状态</dt><dd>{trainingStatusLabels[referee.trainingStatus]}</dd></div><div><dt>正式选派资格</dt><dd>{assignmentEligibilityLabels[referee.assignmentEligibility]}</dd></div><div><dt>READY 岗位</dt><dd>{referee.capabilities.filter((item) => item.status === "READY").length} 项</dd></div><div><dt>最近登录</dt><dd>{referee.lastLoginAt ? formatRefereeDateTime(referee.lastLoginAt) : "从未登录"}</dd></div><div><dt>执裁历史</dt><dd>{history.length} 条岗位记录</dd></div></dl></div><AdminStatusBadge status={referee.assignmentEligibility} label={assignmentEligibilityLabels[referee.assignmentEligibility]} /></section>
-    <AdminPanel title="裁判员档案" description="正式资质、培训状态与岗位培养状态分别维护。"><RefereeEditForm account={record} affiliationUnits={unitOptions} colleges={collegeOptions} /></AdminPanel>
+    <AdminPanel title="当前年级 · 计算方式">{canWrite && actor?.id ? <AdminGradeControl key={referee.updatedAt.toISOString()} id={referee.id} mode={referee.gradeMode} grade={referee.grade ?? ""} expectedUpdatedAt={referee.updatedAt.toISOString()} preview={`${getEffectiveRefereeGrade(new Date(), referee).grade ?? "学籍待核实"} · ${getEffectiveRefereeGrade(new Date(), referee).source} · 可识别入学年：${getEffectiveRefereeGrade(new Date(), referee).enrollmentYear ?? "待核实"}`} /> : <p>{getEffectiveRefereeGrade(new Date(), referee).grade ?? "学籍待核实"} · {getEffectiveRefereeGrade(new Date(), referee).source} · 只读档案</p>}</AdminPanel>
+    <AdminPanel title="裁判员档案" description="正式资质、培训状态与岗位培养状态分别维护。">{canWrite ? <RefereeEditForm account={record} affiliationUnits={unitOptions} colleges={collegeOptions} /> : <p>当前权限仅可查看档案。</p>}</AdminPanel>
     <div className="admin-two-column">
       <AdminPanel title="可执裁时间" description="最近 30 条，可到可执裁时间页代为维护。">{availability.length ? <div className="admin-compact-list">{availability.map((item) => <article className="admin-compact-row" key={item.id}><div><strong>{item.kind === "AVAILABLE" ? "可执裁" : "不可执裁"}</strong><span>{formatRefereeDateTime(item.startAt)} — {formatRefereeDateTime(item.endAt)}</span></div><p>{item.note || "—"}</p></article>)}</div> : <AdminEmptyState title="暂无可执裁时间" description="裁判员或管理员尚未添加记录。" />}</AdminPanel>
-      <AdminPanel title="执裁历史" description="保留原已完成选派；缺失赛果或比赛状态不一致的旧档案标注待核。">{history.length ? <div className="admin-compact-list">{history.map((item) => <article className="admin-compact-row" key={item.id}><div><strong>{item.appointment.match.homeTeam.name} vs {item.appointment.match.awayTeam.name}</strong><span>{item.appointment.match.competition.name} · {formatRefereeDateTime(item.appointment.match.kickoff)}</span>{completedAssignmentReviewReason(item.appointment.match) ? <span>旧完成记录 · 完赛事实待核：{completedAssignmentReviewReason(item.appointment.match)}</span> : null}</div><p>{item.label}</p></article>)}</div> : <AdminEmptyState title="暂无已完成执裁" description="选派完成后会进入这里。" />}</AdminPanel>
+      <AdminPanel title="执裁历史" description="保留原已完成选派；缺失赛果或比赛状态不一致的旧档案标注待核。">{history.length ? <div className="admin-compact-list">{history.map((item) => <article className="admin-compact-row" key={item.id}><div><strong>{item.appointment.match.homeTeam.name} vs {item.appointment.match.awayTeam.name}</strong><span>{item.appointment.match.competition.name} · {formatRefereeDateTime(item.appointment.match.kickoff)}</span>{completedAssignmentReviewReason(item.appointment.match) ? <span>旧完成记录 · 完赛事实待核：{completedAssignmentReviewReason(item.appointment.match)}</span> : null}</div><p>{item.label} · {item.appointment.recordSource === "POST_MATCH_ENTRY" ? "赛后执裁记录" : "正式选派完成"}</p></article>)}</div> : <AdminEmptyState title="暂无已完成执裁" description="选派完成后会进入这里。" />}</AdminPanel>
     </div>
   </>;
 }

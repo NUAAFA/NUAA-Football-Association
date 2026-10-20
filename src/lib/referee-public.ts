@@ -1,3 +1,4 @@
+import { publicAppointmentSourceWhere } from "@/lib/referee-record-publicity";
 import type { Prisma } from "@/generated/prisma-v29/client";
 import { prisma } from "@/lib/prisma";
 import {
@@ -7,6 +8,8 @@ import {
 
 const publicAppointmentSelect = {
   id: true,
+  recordSource: true,
+  recordedAt: true,
   publicationNote: true,
   publishedAt: true,
   updatedAt: true,
@@ -46,6 +49,7 @@ export async function getPublicUpcomingAppointments() {
   return prisma.refereeAppointment.findMany({
     where: {
       status: "PUBLISHED",
+      recordSource: "PRE_MATCH",
       match: {
         status: "SCHEDULED",
         kickoff: { not: null }, venue: { not: null },
@@ -62,6 +66,7 @@ export async function getPublicHistoricalAppointments(now = new Date()) {
   return prisma.refereeAppointment.findMany({
     where: {
       status: "COMPLETED",
+      ...publicAppointmentSourceWhere,
       match: {
         status: "COMPLETED",
         kickoff: { lte: now },
@@ -81,7 +86,10 @@ export async function getPublicAppointmentById(id: string) {
     where: {
       id,
       status: { in: ["PUBLISHED", "COMPLETED"] },
-      match: { kickoff: { not: null }, venue: { not: null }, isTestData: false, competition: { isTestData: false } },
+      ...publicAppointmentSourceWhere,
+
+      AND: [{ OR: [{ recordSource: "POST_MATCH_ENTRY" }, { recordSource: "PRE_MATCH", match: { venue: { not: null } } }] }],
+      match: { kickoff: { not: null }, isTestData: false, competition: { isTestData: false } },
     },
     select: publicAppointmentSelect,
   });

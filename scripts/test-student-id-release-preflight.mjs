@@ -28,7 +28,7 @@ async function main() {
   try {
     const migrations = (await readdir("prisma/migrations", { withFileTypes: true }))
       .filter((entry) => entry.isDirectory()).sort((a, b) => a.name.localeCompare(b.name));
-    assert.equal(migrations.length, 17);
+    assert.equal(migrations.length, 18);
     for (const entry of migrations) db.exec(await readFile(path.join("prisma/migrations", entry.name, "migration.sql"), "utf8"));
     const insert = db.prepare('INSERT INTO "Referee" (id, publicCode, name, status, studentId, updatedAt) VALUES (?, ?, ?, ?, ?, ?)');
     const fixtures = [

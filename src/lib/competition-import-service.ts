@@ -1,3 +1,4 @@
+import { parseBeijingDateTime } from "@/lib/beijing-datetime";
 import { importNameCandidates } from "@/lib/competition-import-matching";
 import { isKnockoutPlaceholder, validMatchNumber } from "@/lib/competition-match-number";
 import { createHash } from "node:crypto";
@@ -206,8 +207,7 @@ export function parseCompetitionImportDate(
   }
   const zonedIso = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/.test(text);
   if (zonedIso) {
-    const timestamp = Date.parse(text);
-    if (!Number.isNaN(timestamp)) return new Date(timestamp);
+    try { return parseBeijingDateTime(text, label) ?? null; } catch { /* invalid calendar / offset handled below */ }
   }
   errors.push(issue(field, "INVALID_OR_AMBIGUOUS_DATE", `${label}须使用 YYYY-MM-DD HH:mm（Asia/Shanghai）或带明确时区的 ISO 8601。`));
   return null;

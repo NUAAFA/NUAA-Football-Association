@@ -66,6 +66,7 @@ export default async function UnifiedMatchDetailPage({ params }: { params: Promi
         <AdminMatchDangerActions matchId={match.id} matchLabel={matchLabel} protectedReason={deletionProtected ? "该比赛已有报名意向、选派或正式历史记录，不能直接删除。请使用“取消比赛”保留业务历史。" : undefined} />
       </div> : null}
     </section>
+    {hasUnifiedAdminPermission(actor.roles, "referees:read") ? <AdminPanel title="裁判执裁记录"><Link className="admin-button admin-button-secondary" href={`/admin/appointments/${match.id}`}>{match.status === "COMPLETED" ? "补录 / 查看实际执裁人员" : "查看选派"}</Link></AdminPanel> : null}
     <AdminPanel title="比赛结果">{canWrite ? <MatchResultForm match={{ id: match.id, homeScore: match.homeScore, awayScore: match.awayScore, homePenaltyScore: match.homePenaltyScore, awayPenaltyScore: match.awayPenaltyScore, resultVersion: match.resultVersion, status: match.status, knockout: match.structureStage?.type === "KNOCKOUT", canConfirm: match.status !== "CANCELLED" && Boolean(match.venue?.trim()) && match.kickoff !== null && match.kickoff <= new Date() && (!match.endAt || match.endAt <= new Date()) }} /> : <p>{match.homeScore !== null && match.awayScore !== null ? `${match.homeScore}:${match.awayScore}` : "赛果待确认"}</p>}</AdminPanel>
     <AdminPanel title="暂定安排"><MatchTentativeForm matchId={id} date={match.tentativeDate} note={match.tentativeSchedule} canWrite={canWrite && match.status === "SCHEDULED"} /></AdminPanel>
     <AdminPanel title="比赛资料" description="赛事管理员仅维护比赛运营资料；裁判选派位于裁判中心。">

@@ -75,7 +75,12 @@
     "release:student-id-preflight": "node scripts/student-id-release-preflight.mjs",
     "test:student-id-release-preflight": "node --import tsx scripts/test-student-id-release-preflight.mjs",
     "test:admin-dialog:browser": "node scripts/test-admin-dialog-browser.mjs",
-    "test:security-dependencies": "node tests/security-dependencies.mjs"
+    "test:security-dependencies": "node tests/security-dependencies.mjs",
+    "test:v210x-admin": "tsx scripts/test-v210x-admin.ts",
+    "test:v210x-regressions": "node scripts/test-v210x-regressions.mjs",
+    "test:v210x-browser": "node --import tsx scripts/test-v210x-browser.mjs",
+    "test:v210x-migration": "python3 scripts/test-v210x-migration.py",
+    "test:v210x-http-regressions": "node scripts/test-v210x-http-regressions.mjs"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",

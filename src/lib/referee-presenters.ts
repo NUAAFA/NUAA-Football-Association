@@ -7,7 +7,7 @@ const dateTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
 
 export function formatRefereeDateTime(value: Date | null) {
   if (!value) return "时间待定";
-  return dateTimeFormatter.format(value).replaceAll("/", "-");
+  return `${dateTimeFormatter.format(value).replaceAll("/", "-")} 北京时间`;
 }
 
 export const applicationStatusLabels: Record<ApplicationStatus, string> = {
