@@ -671,7 +671,9 @@ test ! -e "$release_root/$COMMIT/prisma/dev.db"
         contract = self.root / "service-contract"
         contract.mkdir()
         for name in ("start", "unit", "dropin"):
-            (contract / name).write_text("synthetic trusted metadata\n")
+            # Execute the real public version marker as the real app identity.
+            # Unit/drop-in values remain synthetic metadata for this boundary.
+            (contract / name).write_text((REPO / "ops/deploy/start-prebuilt").read_text() if name == "start" else "synthetic trusted metadata\n")
             (contract / name).chmod(0o755 if name == "start" else 0o644)
         script = r'''source "$TEST_REPO/ops/deploy/nuaafa-deploy"
 prebuilt_start="$CONTRACT/start"; current_link="$CONTRACT/current"; deploy_user="$APP_USER"
