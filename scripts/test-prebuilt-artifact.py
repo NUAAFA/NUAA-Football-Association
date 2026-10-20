@@ -714,6 +714,14 @@ if validate_canonical_shared_file "$UNTRUSTED_LINK" unsafe; then exit 84; fi
 if verify_build_artifact "$MISSING"; then exit 85; fi
 if fetch_and_verify_reachability "$MISSING" bad refs/heads/main; then exit 86; fi
 prebuilt_start=/usr/bin/env; current_link=/synthetic/current; deploy_user=synthetic
+# This metadata test has no synthetic OS account. Isolate only the process
+# invocation for the public contract marker; root metadata checks remain real.
+# The installed-old-contract test exercises rejection by the actual deployer.
+run_as_deploy_user() {
+ [ "$#" = 4 ] && [ "$1" = "$prebuilt_python" ] && [ "$2" = -I ] &&
+ [ "$3" = "$prebuilt_start" ] && [ "$4" = --contract-version ] || return 1
+ echo NUAAFA_STARTUP_CONTRACT=V2.10X-PREBUILT-3
+}
 systemctl() {
  case "$4" in
   User) echo "$deploy_user";;
