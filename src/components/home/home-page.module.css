@@ -1079,6 +1079,31 @@
   }
 }
 
+/* Laptop browser chrome can leave much less height than the display resolution. */
+@media (min-width: 1101px) and (max-height: 900px) {
+  .hero {
+    min-height: 92svh;
+  }
+
+  .heroShell {
+    padding-block: calc(var(--header-height) + var(--spacing-5)) clamp(3rem, 7svh, 4rem);
+  }
+
+  .heroAssociation {
+    margin-top: var(--spacing-4);
+  }
+
+  .hero h1 {
+    margin-top: var(--spacing-4);
+    font-size: clamp(4rem, min(7.4vw, 11svh), 6.5rem);
+  }
+
+  .heroSummary,
+  .heroActions {
+    margin-top: var(--spacing-5);
+  }
+}
+
 @media (max-width: 1100px) {
   .currentFootballPanel,
   .storyLayout,
