@@ -1084,7 +1084,7 @@ test ! -e "$prebuilt_approvals"
         for p in (shared / "prisma", shared / "work", database):
             os.chown(p, LinuxPermissions.account.pw_uid, LinuxPermissions.account.pw_gid)
         environment = shared / ".env.production"
-        environment.write_text("DATABASE_URL=file:" + str(database) + "\nNUAAFA_UPLOAD_DIR=" + str(shared / "work/uploads") + "\nREFEREE_ADMIN_SESSION_SECRET=Synthetic-Wrapper-Admin-Only-2026\nREFEREE_MEMBER_SESSION_SECRET=Synthetic-Wrapper-Member-Only-2026\n")
+        environment.write_text("NUAAFA_CONTENT_SOURCE=database\nDATABASE_URL=file:" + str(database) + "\nNUAAFA_UPLOAD_DIR=" + str(shared / "work/uploads") + "\nREFEREE_ADMIN_SESSION_SECRET=Synthetic-Wrapper-Admin-Only-2026\nREFEREE_MEMBER_SESSION_SECRET=Synthetic-Wrapper-Member-Only-2026\n")
         environment.chmod(0o640); os.chown(environment, 0, LinuxPermissions.account.pw_gid)
         for name in (".env.production", "prisma/dev.db"): (runtime / name).symlink_to(shared / name)
         start_current = case / "startup-current"
