@@ -292,6 +292,7 @@ stop_service() { systemctl stop "$service_name"; }
 verify_service_contract() {
   verify_root_metadata "$prebuilt_start" || return $?
   [ -x "$prebuilt_start" ] || { die "trusted prebuilt start command missing"; return 1; }
+  [ "$(run_as_deploy_user "$prebuilt_python" -I "$prebuilt_start" --contract-version)" = "NUAAFA_STARTUP_CONTRACT=V2.10X-PREBUILT-3" ] || { die "reviewed V2.10.x startup contract must be installed before migration"; return 1; }
   [ "$(systemctl show --value -p User "$service_name")" = "$deploy_user" ] || { die "service identity differs"; return 1; }
   [ "$(systemctl show --value -p WorkingDirectory "$service_name")" = "$current_link" ] || { die "service working directory differs"; return 1; }
   local property configuration

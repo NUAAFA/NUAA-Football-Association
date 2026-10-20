@@ -96,6 +96,12 @@ class Readiness(unittest.TestCase):
   logs=list((self.root/'real-prisma').glob('activation.json.migration.*.log.*'));self.assertEqual(len(logs),2);self.assertTrue(all(p.stat().st_size>0 for p in logs))
   with sqlite3.connect(database) as db:self.assertEqual(db.execute('select count(*) from _prisma_migrations').fetchone()[0],18)
 
+ def test_installed_old_startup_contract_blocks_before_service_mutation(self):
+  wrapper=self.root/'old-wrapper';wrapper.write_text("print('OLD-CONTRACT')");wrapper.chmod(0o755)
+  script='source "$DEPLOYER"; prebuilt_start="$WRAPPER"; prebuilt_python="$PYTHON"; verify_root_metadata() { :; };run_as_deploy_user() { "$@"; }; systemctl() { echo FORBIDDEN_SERVICE_ACCESS; return 99; }; verify_service_contract'
+  r=subprocess.run(['/bin/bash','-c',script],env={**os.environ,'DEPLOYER':str(ROOT/'ops/deploy/nuaafa-deploy'),'WRAPPER':str(wrapper),'PYTHON':os.sys.executable},capture_output=True,text=True)
+  self.assertNotEqual(r.returncode,0);self.assertNotIn('FORBIDDEN_SERVICE_ACCESS',r.stdout);self.assertIn('startup contract must be installed',r.stderr)
+
  def test_real_bash_failure_matrix(self):
   # Real deployer/recovery helper, simulate only service/link operations. No systemd claims.
   original=self.database.read_bytes()

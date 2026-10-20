@@ -122,6 +122,11 @@ class StartupTests(unittest.TestCase):
         if os.getuid() == 0: command = [self.runuser, "-u", self.user, "--", *command]
         return subprocess.run(command, cwd="/", env={"PATH": "/usr/bin:/bin", "NODE_OPTIONS": "--require=/must-not-load", "DATABASE_URL": "file:/must-not-open", "PYTHONPATH": "/must-not-import", "NODE_ENV": "development"}, capture_output=True, text=True, timeout=20)
 
+    def test_contract_version_is_explicit_and_nonexecuting(self):
+        result = self.launch("--contract-version")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "NUAAFA_STARTUP_CONTRACT=V2.10X-PREBUILT-3")
+
     def test_check_release_is_read_only_and_does_not_execute_entry(self):
         before = (os.readlink(self.current), (self.shared / "prisma/dev.db").read_bytes(),
                   (self.shared / ".env.production").read_bytes())

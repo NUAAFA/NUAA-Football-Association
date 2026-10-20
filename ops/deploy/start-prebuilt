@@ -33,6 +33,9 @@ def trusted(path, owners=TRUSTED_UIDS):
 
 
 def main():
+    if sys.argv[1:] == ["--contract-version"]:
+        print("NUAAFA_STARTUP_CONTRACT=V2.10X-PREBUILT-3")
+        return
     # Same checks for activation/recovery preflight and actual startup. Preflight
     # never executes Node, loads application configuration or switches current.
     check_only = len(sys.argv) == 3 and sys.argv[1] == "--check-release"
