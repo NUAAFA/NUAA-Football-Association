@@ -3,7 +3,8 @@ set -Eeuo pipefail
 
 deployer_version="V2.10X-PREBUILT-3"
 prebuilt_timing=false
-repository="git@github-nuaafa:NUAAFA/NUAA-Football-Association.git"
+# Preserve the canonical HTTPS origin already approved and installed for V2.10.
+repository="https://github.com/NUAAFA/NUAA-Football-Association.git"
 release_root="/srv/nuaafa/releases"
 shared="/srv/nuaafa/shared"
 current_link="/srv/nuaafa/current"
