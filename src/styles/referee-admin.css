@@ -809,6 +809,8 @@
 .admin-advanced-filters { max-width: 100%; }
 .admin-advanced-filters summary { cursor: pointer; padding: .65rem; }
 .admin-advanced-filters .admin-filter-bar { margin-top: .5rem; }
+.admin-referee-filters > .admin-advanced-filters { grid-column: 1 / -1; }
+.admin-referee-filters .admin-advanced-filters .admin-filter-bar { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); align-items: start; margin-bottom: 0; }
 .admin-postmatch-summary { padding: 1rem; border: 1px solid #d3dfeb; border-radius: .75rem; background: #f4f8fc; }
 .admin-postmatch-warning { color: #8c4200; }
 @media (max-width: 600px) {
