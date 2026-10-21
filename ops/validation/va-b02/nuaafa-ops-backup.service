@@ -1,0 +1,42 @@
+# /etc/systemd/system/nuaafa-ops-backup.service
+[Unit]
+Description=NUAAFA online verified database and media backup
+After=local-fs.target
+OnFailure=nuaafa-ops-event@nuaafa-ops-backup.service
+
+[Service]
+Type=oneshot
+User=nuaafa
+Group=nuaafa
+ExecStart=/usr/bin/python3 -I -B /usr/local/lib/nuaafa-post-launch/backup.py
+StateDirectory=nuaafa-ops-backup
+StateDirectoryMode=0700
+UMask=0077
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/srv/nuaafa/shared
+InaccessiblePaths=/srv/nuaafa/shared/.env.production /etc/nuaafa /srv/nuaafa/prebuilt
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectKernelLogs=true
+ProtectClock=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX
+IPAddressDeny=any
+Nice=15
+IOSchedulingClass=idle
+CPUQuota=25%
+MemoryMax=256M
+TasksMax=16
+TimeoutStartSec=90
+Restart=no

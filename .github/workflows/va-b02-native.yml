@@ -1,0 +1,42 @@
+name: VA-B02 native isolated systemd validation
+on:
+  push:
+    branches: [codex/v210x-va-b02-native]
+permissions:
+  contents: read
+concurrency:
+  group: va-b02-native-isolated
+  cancel-in-progress: false
+jobs:
+  va-b02:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Actual x86 Ubuntu systemd and fictional VA-B02 validation only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -sm)" = 'Linux x86_64'
+          test "$(cat /proc/1/comm)" = systemd
+          mkdir -p "$RUNNER_TEMP/va-b02-native"
+          printf '%s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/va-b02-native/test-commit.txt"
+          sudo env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin VA_B02_ISOLATED_RUNNER=github-hosted /usr/bin/python3 -I -B ops/validation/va-b02/native_validation.py "$RUNNER_TEMP/va-b02-native/results"
+      - name: Preserve raw unit journal even on failure
+        if: always()
+        shell: bash
+        run: |
+          sudo journalctl -b --no-pager -u nuaafa-ops-monitor.service -u nuaafa-ops-backup.service > "$RUNNER_TEMP/va-b02-native/native-journal.txt"
+          sudo systemctl show nuaafa-ops-monitor.service > "$RUNNER_TEMP/va-b02-native/native-monitor-final.txt"
+          sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/va-b02-native"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: va-b02-native-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/va-b02-native/
+          retention-days: 1
+          if-no-files-found: error
+          compression-level: 6
+# No production secrets, tools, deploy, migration, browser, PR merge or release job.

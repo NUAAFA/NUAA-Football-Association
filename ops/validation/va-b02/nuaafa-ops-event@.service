@@ -1,0 +1,21 @@
+[Unit]
+Description=NUAAFA local service failure event for %i
+
+[Service]
+Type=oneshot
+User=nuaafa
+Group=nuaafa
+ExecStart=/usr/bin/python3 -I -B /usr/local/lib/nuaafa-post-launch/failure-event.py %i
+StateDirectory=nuaafa-ops-monitor
+StateDirectoryMode=0700
+UMask=0077
+ProtectSystem=strict
+ProtectHome=true
+InaccessiblePaths=/srv/nuaafa /etc/nuaafa
+PrivateNetwork=true
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+CapabilityBoundingSet=
+TimeoutStartSec=10
+Restart=no
