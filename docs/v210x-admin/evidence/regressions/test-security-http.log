@@ -1,0 +1,72 @@
+
+> nuaa-football-association@0.1.0 test:security-http
+> tsx scripts/test-security-http.ts
+
+▲ Next.js 16.3.8
+- Local:         http://127.0.0.1:56024
+- Network:       http://127.0.0.1:56024
+✓ Ready in 54ms
+✓ Running next.config.ts took 14ms
+PASS required member login: 200
+PASS member profile blocked: 403
+PASS member availability create blocked: 403
+PASS member availability delete blocked: 403
+PASS member application create blocked: 403
+PASS member application withdraw blocked: 403
+PASS member appointment acknowledge blocked: 403
+PASS member appointment conflict blocked: 403
+PASS member malformed JSON typed error: 400
+PASS member normal business path after password gate: 200
+PASS referee admin login: 200
+PASS availability detail read permission without Origin: 200
+PASS availability detail filtered read without Origin: 200
+PASS availability detail no session without Origin: 401
+PASS availability detail missing referee: 404
+PASS smoke-content availability fixture login: 200
+PASS availability detail role denied without Origin: 403
+PASS required-referee availability fixture login: 200
+PASS availability detail password-change gate: 403
+PASS other admin content GET still role denied: 403
+PASS POST /api/referees/admin/availability missing Origin blocked: 403
+PASS POST /api/referees/admin/availability foreign Origin blocked: 403
+PASS DELETE /api/referees/admin/availability missing Origin blocked: 403
+PASS DELETE /api/referees/admin/availability foreign Origin blocked: 403
+PASS PATCH /api/referees/admin/accounts/missing-account missing Origin blocked: 403
+PASS PATCH /api/referees/admin/accounts/missing-account foreign Origin blocked: 403
+PASS POST /api/referees/admin/teams missing Origin blocked: 403
+PASS POST /api/referees/admin/teams foreign Origin blocked: 403
+PASS availability detail GET: production-mode no-Origin read, session/RBAC/password gates, unchanged POST/PATCH/DELETE Origin guards and zero rejected writes.
+PASS completed direct draft API blocked: 409
+PASS completed direct publish API blocked: 409
+PASS public admission create: 201
+PASS public admission duplicate: 409
+PASS public admission rate limit: 429
+PASS rotating XFF cannot evade login rate-limit identity: 429
+PASS member logout allow-path: 200
+F-001/F-003/F-007/F-011 direct HTTP security regressions passed.
+▲ Next.js 16.3.8
+- Local:         http://127.0.0.1:56039
+- Network:       http://127.0.0.1:56039
+✓ Ready in 55ms
+✓ Running next.config.ts took 13ms
+[referee-api] unexpected failure {
+  correlationId: 'f7b2cd87-28a4-4910-9bf4-188e3a6d7cee',
+  errorName: 'Error'
+}
+PASS member login database failure: safe 500
+[referee-api] unexpected failure {
+  correlationId: 'c9fbb5ea-c6b9-4cb8-9311-7383efac2f16',
+  errorName: 'Error'
+}
+PASS admin login database failure: safe 500
+[referee-api] unexpected failure {
+  correlationId: '0113f876-0fb9-416b-aff3-bc3cccacedaf',
+  errorName: 'Error'
+}
+PASS public admission database failure: safe 500
+[referee-api] unexpected failure {
+  correlationId: 'cad9332a-9b2c-4809-bb88-47e323397806',
+  errorName: 'Error'
+}
+PASS legacy authorization database failure: safe 500
+F-004 real HTTP database-failure leakage regressions passed.

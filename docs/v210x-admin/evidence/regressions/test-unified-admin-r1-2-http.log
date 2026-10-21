@@ -1,0 +1,15 @@
+
+> nuaa-football-association@0.1.0 test:unified-admin-r1-2:http
+> tsx scripts/test-unified-admin-r1-2-http.ts
+
+TypeError: fetch failed
+    at node:internal/deps/undici/undici:15157:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async main (/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-unified-admin-r1-2-http.ts:499:18) {
+  [cause]: AggregateError [ECONNREFUSED]: 
+      at internalConnectMultiple (node:net:1135:18)
+      at afterConnectMultiple (node:net:1716:7) {
+    code: 'ECONNREFUSED',
+    [errors]: [ [Error], [Error] ]
+  }
+}

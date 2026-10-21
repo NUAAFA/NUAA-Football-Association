@@ -1,45 +1,29 @@
+import { affiliationOptionLabel, sortAffiliationOptions } from "@/lib/referee-affiliation-options";
+import { BeijingDayRefresh } from "@/components/referees/admin/beijing-day-refresh";
 import Link from "next/link";
-
+import { AdminPagination } from "@/components/referees/admin/admin-pagination";
 import { AdminEmptyState, AdminPageHeader, AdminPanel, AdminStatusBadge, assignmentEligibilityLabels, refereeStatusLabels, trainingStatusLabels } from "@/components/referees/admin/admin-ui";
 import { prisma } from "@/lib/prisma";
-import { affiliationOptionLabel, sortAffiliationOptions } from "@/lib/referee-affiliation-options";
-
-export default async function AdminRefereesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+import { getAdminRefereeList, rosterCategories } from "@/lib/admin-referee-query";
+import { queryHref, queryText, type AdminQuery } from "@/lib/admin-match-query";
+import { refereeGrades } from "@/lib/referee-profile-options";
+import { getUnifiedAdminActor, hasUnifiedAdminPermission } from "@/lib/unified-admin-rbac";
+export default async function AdminRefereesPage({ searchParams }: { searchParams: Promise<AdminQuery> }) {
   const query = await searchParams;
-  const q = typeof query.q === "string" ? query.q.trim() : "";
-  const collegeId = typeof query.college === "string" ? query.college : "";
-  const rawStatus = typeof query.status === "string" ? query.status : "";
-  const status = ["PENDING_ACTIVATION", "ACTIVE", "INACTIVE", "ARCHIVED"].includes(rawStatus) ? rawStatus : "";
-  const rawFormat = typeof query.format === "string" ? query.format : "";
-  const format = ["ELEVEN_A_SIDE", "FUTSAL"].includes(rawFormat) ? rawFormat : "";
-  const [colleges, referees] = await Promise.all([
-    prisma.college.findMany({ select: { id: true, name: true, codeMappings: { select: { prefix: true } } } }),
-    prisma.referee.findMany({
-      where: {
-        ...(q ? { OR: [{ name: { contains: q } }, { publicCode: { contains: q } }, { studentId: { contains: q } }] } : {}),
-        ...(collegeId ? { collegeId } : {}),
-        ...(status ? { status: status as "PENDING_ACTIVATION" | "ACTIVE" | "INACTIVE" | "ARCHIVED" } : {}),
-        ...(format ? { capabilities: { some: { format: format as "ELEVEN_A_SIDE" | "FUTSAL", status: { not: "NOT_ASSIGNED" } } } } : {}),
-      },
-      select: { id: true, name: true, publicCode: true, studentId: true, refereeLevel: true, status: true, trainingStatus: true, assignmentEligibility: true, college: { select: { name: true } }, capabilities: { where: { status: { not: "NOT_ASSIGNED" } }, select: { format: true } } },
-      orderBy: { publicCode: "asc" }, take: 300,
-    }),
-  ]);
-  const collegeOptions = sortAffiliationOptions(colleges.map((college) => ({ ...college, type: "COLLEGE" as const, prefixes: college.codeMappings.map((mapping) => mapping.prefix) })));
-  return <>
-    <AdminPageHeader eyebrow="REFEREES" title="裁判员管理" description="名录优先展示；敏感联系方式只在个人详情中查看。" actions={<Link className="admin-button" href="/admin/referees/new">+ 新建裁判员</Link>} />
-    <form className="admin-filter-bar">
-      <label className="admin-filter-search"><span>搜索</span><input defaultValue={q} name="q" placeholder="姓名 / 编号 / 学号" /></label>
-      <label><span>学院</span><select defaultValue={collegeId} name="college"><option value="">全部学院</option>{collegeOptions.map((item) => <option key={item.id} value={item.id}>{affiliationOptionLabel(item)}</option>)}</select></label>
-      <label><span>账号状态</span><select defaultValue={status} name="status"><option value="">全部状态</option>{Object.entries(refereeStatusLabels).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-      <label><span>岗位制式</span><select defaultValue={format} name="format"><option value="">全部制式</option><option value="ELEVEN_A_SIDE">十一人制</option><option value="FUTSAL">五人制</option></select></label>
-      <button className="admin-button admin-button-secondary" type="submit">筛选</button><Link className="admin-filter-reset" href="/admin/referees">清除</Link>
+  const [data, colleges, actor] = await Promise.all([getAdminRefereeList(query), prisma.college.findMany({ select: { id: true, name: true, codeMappings: { select: { prefix: true } } }, orderBy: { name: "asc" } }), getUnifiedAdminActor()]);
+  const collegeOptions = sortAffiliationOptions(colleges.map(c => ({ ...c, type: "COLLEGE" as const, prefixes: c.codeMappings.map(m => m.prefix) })));
+  const canWrite = Boolean(actor && hasUnifiedAdminPermission(actor.roles, "referees:write"));
+  function options(name: string, label: string, values: Record<string, string>) { return <label><span>{label}</span><select name={name} defaultValue={queryText(query, name)}><option value="">全部</option>{Object.entries(values).map(([key, text]) => <option key={key} value={key}>{text}</option>)}</select></label>; }
+  return <><BeijingDayRefresh />
+    <AdminPageHeader eyebrow="REFEREES" title="裁判员管理" description="年级与培养、选派、账号状态分别管理。敏感资料进入个人档案查看。" actions={canWrite ? <Link className="admin-button" href="/admin/referees/new">+ 新建裁判员</Link> : undefined} />
+    <nav className="admin-quick-filters" aria-label="裁判员分类">{Object.entries(rosterCategories).map(([key, label]) => <Link key={key} aria-current={key === data.category ? "page" : undefined} href={queryHref("/admin/referees", query, { category: key, page: undefined })}>{label} {data.counts[key]}</Link>)}</nav><p className="admin-filter-help">分类可交叉计数。可正式选派＝已启用、资格可选派且有培养中 / READY 岗位；培养中＝培训中或有培养中岗位。</p>
+    <form className="admin-filter-bar" key={JSON.stringify(query)}><input type="hidden" name="category" value={data.category} /><label className="admin-filter-search"><span>搜索</span><input name="q" defaultValue={queryText(query, "q")} maxLength={100} placeholder="姓名 / 编号 / 学号" /></label>{options("grade", "当前年级", { ...Object.fromEntries(refereeGrades.map(g => [g, g])), unknown: "学籍待核实 / 未填" })}{options("college", "学院", Object.fromEntries(collegeOptions.map(c => [c.id, affiliationOptionLabel(c)])))}{options("format", "岗位制式", { ELEVEN_A_SIDE: "十一人制", FUTSAL: "五人制" })}
+      <details className="admin-advanced-filters" open={["gradeMode", "enrollment", "status", "eligibility", "training"].some(k => queryText(query, k))}><summary>高级筛选</summary><div className="admin-filter-bar">{options("gradeMode", "年级来源", { AUTO_STUDENT_ID: "自动识别", MANUAL: "人工指定", UNVERIFIED: "待确认", review: "人工异常待核实" })}<label><span>入学年份</span><input name="enrollment" type="number" min="2000" max="2099" defaultValue={queryText(query, "enrollment")} /></label>{options("status", "账号状态", refereeStatusLabels)}{options("eligibility", "选派资格", assignmentEligibilityLabels)}{options("training", "培养状态", trainingStatusLabels)}</div></details><button className="admin-button admin-button-secondary">筛选</button><Link href="/admin/referees">重置筛选</Link>
     </form>
-    <AdminPanel title={`裁判员名录 · ${referees.length}`} description="列表不展示手机、QQ 和内部备注。">
-      {referees.length ? <div className="admin-table-scroll"><table className="admin-data-table"><thead><tr><th>姓名</th><th>裁判员编号</th><th>学院</th><th>培养状态</th><th>正式选派</th><th>十一人制</th><th>五人制</th><th>账号状态</th><th>操作</th></tr></thead><tbody>{referees.map((referee) => {
-        const formats = new Set(referee.capabilities.map((item) => item.format));
-        return <tr key={referee.id}><td><strong>{referee.name}</strong><small>{referee.studentId || "未登记学号"}</small></td><td>{referee.publicCode}</td><td>{referee.college?.name ?? "待确认"}</td><td>{trainingStatusLabels[referee.trainingStatus]}</td><td><AdminStatusBadge status={referee.assignmentEligibility} label={assignmentEligibilityLabels[referee.assignmentEligibility]} /></td><td>{formats.has("ELEVEN_A_SIDE") ? "具备" : "—"}</td><td>{formats.has("FUTSAL") ? "具备" : "—"}</td><td><AdminStatusBadge status={referee.status} label={refereeStatusLabels[referee.status]} /></td><td><div className="admin-table-actions"><Link href={`/admin/referees/${referee.id}`}>查看</Link><Link href={`/admin/referees/${referee.id}#profile`}>编辑</Link></div></td></tr>;
-      })}</tbody></table></div> : <AdminEmptyState title="没有符合条件的裁判员" description="调整筛选条件，或新建裁判员账号。" />}
+    <AdminPanel title={`裁判员名录 · ${data.total}`} description="当前年级按北京时间计算；查询不改写档案，自动升年级不改变组织、账号或选派资格。">
+      <p className="admin-table-scroll-hint">窄屏可在表格内横向滚动查看所有列与操作。</p>
+      {data.referees.length ? <div className="admin-table-scroll" tabIndex={0} role="region" aria-label="裁判员名录，可横向滚动"><table className="admin-data-table"><thead><tr><th>编号 / 姓名</th><th>学院 / 组织</th><th>当前年级</th><th>培养 / 选派状态</th><th>操作</th></tr></thead><tbody>{data.referees.map(r => <tr key={r.id}><td><strong>{r.publicCode} · {r.name}</strong><small>{[...new Set(r.capabilities.map(c => c.format === "FUTSAL" ? "五人制" : "十一人制"))].join(" · ") || "岗位待评估"}</small></td><td>{r.currentAffiliationUnit?.name ?? r.college?.name ?? "待确认"}</td><td>{r.effectiveGrade.needsReview && r.gradeMode === "AUTO_STUDENT_ID" ? "学籍待核实" : r.effectiveGrade.grade ?? "待确认"}<small>{r.effectiveGrade.source}{r.effectiveGrade.enrollmentYear ? ` · ${r.effectiveGrade.enrollmentYear}级` : ""}</small></td><td><AdminStatusBadge status={r.assignmentEligibility} label={assignmentEligibilityLabels[r.assignmentEligibility]} /><small>{trainingStatusLabels[r.trainingStatus]} · {refereeStatusLabels[r.status]}</small></td><td><Link href={`/admin/referees/${r.id}`}>查看{canWrite ? " / 编辑" : ""}</Link></td></tr>)}</tbody></table></div> : <AdminEmptyState title="没有符合条件的裁判员" description="请调整分类或筛选条件。" />}
+      <AdminPagination root="/admin/referees" query={query} page={data.page} pages={data.pages} total={data.total} />
     </AdminPanel>
   </>;
 }

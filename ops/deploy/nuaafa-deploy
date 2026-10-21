@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-deployer_version="V2.10-PREBUILT-2"
+deployer_version="V2.10X-PREBUILT-3"
 prebuilt_timing=false
-repository="git@github-nuaafa:NUAAFA/NUAA-Football-Association.git"
+# Preserve the canonical HTTPS origin already approved and installed for V2.10.
+repository="https://github.com/NUAAFA/NUAA-Football-Association.git"
 release_root="/srv/nuaafa/releases"
 shared="/srv/nuaafa/shared"
 current_link="/srv/nuaafa/current"
@@ -251,9 +252,20 @@ NODE
 }
 
 run_migration() (
-  local release="$1"
+  local release="$1" log status
   cd "$release" || return $?
-  run_as_deploy_user env -i PATH=/usr/bin:/bin NODE_ENV=production DOTENV_CONFIG_PATH="$release/.env.production" DATABASE_URL="file:$shared/prisma/dev.db" "$student_id_preflight_node" "$release/node_modules/prisma/build/index.js" migrate deploy --config "$release/prisma.config.ts"
+  umask 077
+  # Outside release/work directories; create-only logs survive trap cleanup.
+  verify_root_metadata "$(dirname -- "$activation_state")" || return $?
+  log="$(mktemp "${activation_state}.migration.${target_commit}.log.XXXXXXXX")" || return $?
+  echo "Preserved migration log: $log" >&2
+  if run_as_deploy_user env -i PATH=/usr/bin:/bin NODE_ENV=production DOTENV_CONFIG_PATH="$release/.env.production" DATABASE_URL="file:$shared/prisma/dev.db" "$student_id_preflight_node" "$release/node_modules/prisma/build/index.js" migrate deploy --config "$release/prisma.config.ts" 2>&1 | tee "$log"; then
+    status=0
+  else
+    status=$?
+  fi
+  "$prebuilt_python" -I -c 'import os,sys; f=os.open(sys.argv[1],os.O_RDONLY|os.O_NOFOLLOW); os.fsync(f); os.close(f); d=os.open(os.path.dirname(sys.argv[1]),os.O_DIRECTORY); os.fsync(d); os.close(d)' "$log" || return $?
+  return "$status"
 )
 
 restart_service() {
@@ -281,6 +293,7 @@ stop_service() { systemctl stop "$service_name"; }
 verify_service_contract() {
   verify_root_metadata "$prebuilt_start" || return $?
   [ -x "$prebuilt_start" ] || { die "trusted prebuilt start command missing"; return 1; }
+  [ "$(run_as_deploy_user "$prebuilt_python" -I "$prebuilt_start" --contract-version)" = "NUAAFA_STARTUP_CONTRACT=V2.10X-PREBUILT-3" ] || { die "reviewed V2.10.x startup contract must be installed before migration"; return 1; }
   [ "$(systemctl show --value -p User "$service_name")" = "$deploy_user" ] || { die "service identity differs"; return 1; }
   [ "$(systemctl show --value -p WorkingDirectory "$service_name")" = "$current_link" ] || { die "service working directory differs"; return 1; }
   local property configuration
@@ -316,23 +329,27 @@ run_prebuilt_backup() (
   echo "Fresh combined backup created and independently verified: $backup"
 )
 
+activation_database_digest=""
 activation_phase=""
 activation_work=""
 activation_previous=""
 activation_release=""
 record_activation_phase() {
-  run_prebuilt_helper state --path "$activation_state" --commit "$target_commit" --previous "$(basename -- "$activation_previous")" --phase "$1" || return $?
+  local proof_args=()
+  if [ -n "$activation_database_digest" ]; then proof_args=(--database-sha256 "$activation_database_digest"); fi
+  run_prebuilt_helper state --path "$activation_state" --commit "$target_commit" --previous "$(basename -- "$activation_previous")" --phase "$1" "${proof_args[@]}" || return $?
   activation_phase="$1"
 }
 
 recover_activation() {
   # Any uncertain migration state must stay stopped for explicit operator recovery.
   case "$activation_phase" in
-    PREPARED|SERVICE_STOPPING|SERVICE_STOPPED|MIGRATED|SWITCHING|SWITCHED)
-      if validate_recovery_release "$activation_previous" && verify_recovery_startup "$activation_previous" &&
+    PREPARED|SERVICE_STOPPING|SERVICE_STOPPED)
+      if run_prebuilt_helper recovery-ready --path "$activation_state" --previous "$activation_previous" --database "$shared/prisma/dev.db" --commit "$target_commit" --phase "$activation_phase" &&
+         validate_recovery_release "$activation_previous" && verify_recovery_startup "$activation_previous" &&
          run_student_id_preflight && atomic_switch_current "$activation_previous" && restart_service && wait_for_health; then
         if record_activation_phase ROLLED_BACK; then
-          echo "Previous release link AND service health verified; database migrations remain forward-only." >&2
+          echo "Previous release link AND service health verified; durable pre-migration proof and unchanged database verified." >&2
           return 0
         fi
         # Healthy old runtime without a durable recovery journal is not a
@@ -878,6 +895,8 @@ full_deploy() (
   run_db_backup || return $?
   activation_previous="$previous"
   activation_release="$prepared_release"
+  activation_database_digest="$(run_prebuilt_helper database-fingerprint --database "$shared/prisma/dev.db")" || return $?
+  [[ "$activation_database_digest" =~ ^[0-9a-f]{64}$ ]] || { die "missing pre-migration database proof"; return 1; }
   record_activation_phase PREPARED || return $?
   record_activation_phase SERVICE_STOPPING || return $?
   stop_service || return $?
@@ -1130,6 +1149,8 @@ activate_prebuilt() (
   run_prebuilt_backup "$release" || return $?
   activation_previous="$previous"
   activation_release="$release"
+  activation_database_digest="$(run_prebuilt_helper database-fingerprint --database "$shared/prisma/dev.db")" || return $?
+  [[ "$activation_database_digest" =~ ^[0-9a-f]{64}$ ]] || { die "missing pre-migration database proof"; return 1; }
   record_activation_phase PREPARED || return $?
   record_activation_phase SERVICE_STOPPING || return $?
   stop_service || return $?

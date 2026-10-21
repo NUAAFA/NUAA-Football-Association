@@ -280,6 +280,7 @@ model Match {
   @@unique([source, externalMatchId])
   @@unique([competitionId, matchNumber])
   @@index([competitionId, kickoff])
+  @@index([competitionId, stageId, roundId, groupId, kickoff, id], map: "Match_structure_navigation_idx")
   @@index([applicationWindowStatus, applicationDeadline])
 }
 
@@ -291,6 +292,9 @@ model Referee {
   studentId                String?                       @unique
   collegeId                String?
   currentAffiliationUnitId String?
+  gradeMode                String                        @default("UNVERIFIED")
+  enrollmentYear           Int?
+  gradeReason              String?
   grade                    String?
   phone                    String?
   qq                       String?
@@ -328,6 +332,7 @@ model Referee {
 
   @@index([collegeId])
   @@index([currentAffiliationUnitId])
+  @@index([gradeMode, enrollmentYear])
 }
 
 model College {
@@ -505,6 +510,10 @@ model RefereeAdmissionApplication {
 }
 
 model RefereeAppointment {
+  recordSource       String                       @default("PRE_MATCH")
+  recordedAt         DateTime?
+  recordedByAdminId  String?
+  publicHistoryVisible Boolean                    @default(false)
   id                 String                       @id @default(cuid())
   matchId            String                       @unique
   status             AppointmentStatus            @default(DRAFT)
@@ -543,6 +552,7 @@ model AppointmentPosition {
 }
 
 model AppointmentVersion {
+  recordSource     String                       @default("PRE_MATCH")
   id               String                       @id @default(cuid())
   appointmentId    String
   revision         Int

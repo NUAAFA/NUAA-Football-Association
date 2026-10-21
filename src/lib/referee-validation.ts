@@ -1,3 +1,4 @@
+import { parseBeijingDateTime } from "@/lib/beijing-datetime";
 import type { AppointmentPositionKey } from "@/generated/prisma-v29/client";
 import { RefereeApiInputError } from "@/lib/referee-api";
 
@@ -39,19 +40,12 @@ export function readInteger(value: unknown, label: string, minimum: number, maxi
 }
 
 export function readDate(value: unknown, label: string, required = true) {
-  if (typeof value !== "string" || !value.trim()) {
+  if (value === undefined || value === null || value === "") {
     if (!required) return undefined;
     throw new RefereeApiInputError(`请填写${label}。`);
   }
-  const text = value.trim();
-  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(text)
-    ? `${text}T00:00:00+08:00`
-    : /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?$/.test(text)
-      ? `${text}+08:00`
-      : text;
-  const date = new Date(normalized);
-  if (Number.isNaN(date.getTime())) throw new RefereeApiInputError(`${label}格式不正确。`);
-  return date;
+  if (typeof value !== "string" || !value.trim()) throw new RefereeApiInputError(`${label}格式不正确。`);
+  return parseBeijingDateTime(value.trim(), label);
 }
 
 export const positionKeys = [

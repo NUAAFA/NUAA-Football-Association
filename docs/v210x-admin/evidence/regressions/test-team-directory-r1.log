@@ -1,0 +1,5 @@
+
+> nuaa-football-association@0.1.0 test:team-directory-r1
+> tsx scripts/test-team-directory-r1.ts
+
+Team Directory R1 pre-change Prisma migration, no-op redeploy, switching, contact, privacy, deletion, RBAC, and audit: PASS

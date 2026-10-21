@@ -1,0 +1,10 @@
+[
+  {
+    "case": "AUTO mode and Beijing 大二 to 大三 query preserve nonempty organization and all unrelated profile columns",
+    "passed": true
+  },
+  {
+    "case": "legacy actor without durable ID cannot perform new grade mode mutation",
+    "passed": true
+  }
+]

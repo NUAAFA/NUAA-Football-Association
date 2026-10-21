@@ -799,3 +799,27 @@
   .admin-accounts-toolbar > button { width: 100%; }
   .admin-account-dialog-identity { align-items: flex-start; flex-direction: column; }
 }
+
+/* V2.10.x shared navigation and compact lists */
+.admin-structure-nav { padding: 1rem; margin-bottom: 1rem; }
+.admin-structure-nav .admin-quick-filters { margin: .5rem 0; flex-wrap: wrap; }
+.admin-structure-nav .admin-quick-filters > span { min-width: 3rem; font-weight: 700; }
+.admin-pagination { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: 1rem; }
+.admin-filter-help { color: var(--admin-text-muted, #526273); font-size: .85rem; }
+.admin-advanced-filters { max-width: 100%; }
+.admin-advanced-filters summary { cursor: pointer; padding: .65rem; }
+.admin-advanced-filters .admin-filter-bar { margin-top: .5rem; }
+.admin-postmatch-summary { padding: 1rem; border: 1px solid #d3dfeb; border-radius: .75rem; background: #f4f8fc; }
+.admin-postmatch-warning { color: #8c4200; }
+@media (max-width: 600px) {
+  .admin-structure-nav { padding: .75rem; }
+  .admin-pagination { padding: .75rem 0; gap: .5rem; font-size: .85rem; }
+  .admin-filter-bar label, .admin-filter-bar select { max-width: 100%; min-width: 0; }
+  .admin-advanced-filters { width: 100%; }
+}
+
+.admin-form .admin-checkbox-label { display:flex; flex-direction:row; align-items:flex-start; gap:.65rem; }
+.admin-form .admin-checkbox-label input[type="checkbox"] { width:1.1rem; height:1.1rem; min-height:0; flex:0 0 auto; margin-top:.2rem; }
+.admin-table-scroll-hint { display:none; }
+.admin-table-scroll:focus-visible { outline:2px solid #2563eb; outline-offset:3px; }
+@media (max-width:768px) { .admin-table-scroll-hint { display:block; color:#526273; font-size:.85rem; } }

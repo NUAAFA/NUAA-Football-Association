@@ -1,15 +1,12 @@
-const shanghaiInputFormatter = new Intl.DateTimeFormat("sv-SE", {
-  timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit",
-  hour: "2-digit", minute: "2-digit", hour12: false,
-});
+import { formatBeijingDateTimeInput } from "@/lib/beijing-datetime";
 
-export function toShanghaiDateTimeInput(value: Date | null | undefined) {
-  return value ? shanghaiInputFormatter.format(value).replace(" ", "T") : "";
-}
+export const toShanghaiDateTimeInput = formatBeijingDateTimeInput;
 
 export const applicationWindowLabels: Record<string, string> = { OPEN: "报名开放", CLOSED: "报名关闭" };
 
 export const auditActionLabels: Record<string, string> = {
+  APPOINTMENT_POST_MATCH_RECORDED: "赛后补录实际执裁", APPOINTMENT_POST_MATCH_CORRECTED: "更正实际执裁",
+  REFEREE_GRADE_MODE_CHANGED: "调整年级计算方式", REFEREE_GRADE_ID_CHANGED: "核实学号 / 年级",
   APPOINTMENT_CREATED: "创建选派", APPOINTMENT_DRAFT_SAVED: "保存选派草稿",
   APPOINTMENT_PUBLISHED: "发布选派", APPOINTMENT_REPUBLISHED: "重新发布选派",
   APPOINTMENT_WITHDRAWN: "撤回选派", APPOINTMENT_COMPLETED: "完成选派",

@@ -74,6 +74,7 @@ async function main() {
   await applyMigration(raw, "20260929090000_ops_r3_1_1");
   await applyMigration(raw, "20261001090000_ops_r3_1_2");
   await applyMigration(raw, "20261001120000_ops_r3_1_3");
+  await applyMigration(raw, "20261020120000_admin_history_grade");
   raw.close();
 
   const verifier = new PrismaClient({ adapter: new PrismaLibSql({ url }) });

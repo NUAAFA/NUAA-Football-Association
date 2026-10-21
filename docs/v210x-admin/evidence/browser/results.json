@@ -1,0 +1,165 @@
+{
+  "status": "PASS",
+  "browser": "155.0.8059.85",
+  "startedAt": "2026-10-20T12:37:26.886Z",
+  "finishedAt": "2026-10-20T12:37:40.783Z",
+  "checks": [
+    {
+      "name": "roster 1000 / 20 per page / five columns / URL history",
+      "status": "PASS"
+    },
+    {
+      "name": "logical round A+B / group / quick / refresh / back-forward",
+      "status": "PASS"
+    },
+    {
+      "name": "competition switch clears dependent structure / explicit empty state",
+      "status": "PASS"
+    },
+    {
+      "name": "responsive roster 1440",
+      "status": "PASS"
+    },
+    {
+      "name": "responsive appointments 1440",
+      "status": "PASS"
+    },
+    {
+      "name": "responsive matches 1440",
+      "status": "PASS"
+    },
+    {
+      "name": "responsive history 1440",
+      "status": "PASS"
+    },
+    {
+      "name": "responsive grade 1440",
+      "status": "PASS"
+    },
+    {
+      "name": "responsive roster 1024",
+      "status": "PASS"
+    },
+    {
+      "name": "responsive appointments 1024",
+      "status": "PASS"
+    },
+    {
+      "name": "responsive matches 1024",
+      "status": "PASS"
+    },
+    {
+      "name": "responsive history 1024",
+      "status": "PASS"
+    },
+    {
+      "name": "responsive grade 1024",
+      "status": "PASS"
+    },
+    {
+      "name": "responsive roster 768",
+      "status": "PASS"
+    },
+    {
+      "name": "responsive appointments 768",
+      "status": "PASS"
+    },
+    {
+      "name": "responsive matches 768",
+      "status": "PASS"
+    },
+    {
+      "name": "responsive history 768",
+      "status": "PASS"
+    },
+    {
+      "name": "responsive grade 768",
+      "status": "PASS"
+    },
+    {
+      "name": "responsive roster 390",
+      "status": "PASS"
+    },
+    {
+      "name": "responsive appointments 390",
+      "status": "PASS"
+    },
+    {
+      "name": "responsive matches 390",
+      "status": "PASS"
+    },
+    {
+      "name": "responsive history 390",
+      "status": "PASS"
+    },
+    {
+      "name": "responsive grade 390",
+      "status": "PASS"
+    },
+    {
+      "name": "keyboard navigation and accessible filter labels",
+      "status": "PASS"
+    },
+    {
+      "name": "grade AUTO / MANUAL / nonstandard ID refuses AUTO",
+      "status": "PASS"
+    },
+    {
+      "name": "Beijing midnight and visibility resume trigger dynamic refresh",
+      "status": "PASS"
+    },
+    {
+      "name": "london browser create/edit Beijing 15:00 -> UTC07:00",
+      "status": "PASS"
+    },
+    {
+      "name": "london schedule/availability/strict bad date API",
+      "status": "PASS"
+    },
+    {
+      "name": "london browser import preview/commit/display Beijing 15:00",
+      "status": "PASS"
+    },
+    {
+      "name": "london actual officials backfill/correction UI and private public surfaces",
+      "status": "PASS"
+    },
+    {
+      "name": "china browser create/edit Beijing 15:00 -> UTC07:00",
+      "status": "PASS"
+    },
+    {
+      "name": "china schedule/availability/strict bad date API",
+      "status": "PASS"
+    },
+    {
+      "name": "china browser import preview/commit/display Beijing 15:00",
+      "status": "PASS"
+    },
+    {
+      "name": "china actual officials backfill/correction UI and private public surfaces",
+      "status": "PASS"
+    },
+    {
+      "name": "utc browser create/edit Beijing 15:00 -> UTC07:00",
+      "status": "PASS"
+    },
+    {
+      "name": "utc schedule/availability/strict bad date API",
+      "status": "PASS"
+    },
+    {
+      "name": "utc browser import preview/commit/display Beijing 15:00",
+      "status": "PASS"
+    },
+    {
+      "name": "utc actual officials backfill/correction UI and private public surfaces",
+      "status": "PASS"
+    },
+    {
+      "name": "HTTP 401/403/CSRF/409 and input validation",
+      "status": "PASS"
+    }
+  ],
+  "pageErrors": []
+}

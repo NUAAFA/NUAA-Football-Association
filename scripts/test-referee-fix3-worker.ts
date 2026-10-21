@@ -97,6 +97,7 @@ async function main() {
       capabilities: [{ format: "ELEVEN_A_SIDE", positionKey: "REFEREE", status: "READY" }],
     }, refereeAuthorization);
     const baseUpdate = {
+      gradeChangeReason: "虚构人工学籍核实",
       publicCode: directReferee.publicCode, name: directReferee.name, status: "ACTIVE" as const,
       elevenASide: true, futsal: false, trainingStatus: "IN_TRAINING" as const, assignmentEligibility: "ELIGIBLE" as const,
       publicDirectoryEnabled: true, publicBio: "公开简介", internalNote: "内部备注",

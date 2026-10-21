@@ -7,7 +7,8 @@ export type AppointmentWarningCode =
   | "MATCH_OVERLAP"
   | "ADJACENT_MATCH"
   | "CAPABILITY_TRAINING"
-  | "CAPABILITY_NOT_ASSIGNED";
+  | "CAPABILITY_NOT_ASSIGNED"
+  | "HISTORICAL_TIME_UNCERTAIN";
 
 export type AppointmentWarning = {
   code: AppointmentWarningCode;
@@ -38,6 +39,7 @@ export async function detectAppointmentWarnings(
   matchId: string,
   positions: ConflictPositionInput[],
   db: ConflictDb = prisma,
+  mode: "PRE_MATCH" | "POST_MATCH" = "PRE_MATCH",
 ): Promise<AppointmentWarning[]> {
   const refereeIds = [...new Set(positions.flatMap((item) => item.refereeId ? [item.refereeId] : []))];
   if (!refereeIds.length) return [];
@@ -66,7 +68,7 @@ export async function detectAppointmentWarnings(
       },
     },
   });
-  if (!match?.kickoff || !match.venue?.trim()) return [];
+  if (!match?.kickoff || (mode === "PRE_MATCH" && !match.venue?.trim())) return [];
 
   const targetEndForAvailability = match.endAt ?? match.kickoff;
   const [referees, existingAssignments] = await Promise.all([
@@ -229,13 +231,16 @@ export async function detectAppointmentWarnings(
       });
     }
 
+    // Missing historical durations cannot be interpreted as evidence of no conflict.
+    const unknownIntervals = mode === "POST_MATCH" && (!match.endAt || existingAssignments.some(item => item.refereeId === referee.id && item.appointment.match.kickoff && !item.appointment.match.endAt));
+    if (unknownIntervals) warnings.push({ code: "HISTORICAL_TIME_UNCERTAIN", refereeId: referee.id, refereeName: referee.name, message: "历史时间区间不完整，无法确认有无重叠；须核实实际执裁报告。", severity: "ADVISORY", overridable: false, details: {} });
     // Match gaps and overlaps require both planned end times. No duration is inferred.
     if (!match.endAt) continue;
     const otherAssignments = existingAssignments.filter((item) => item.refereeId === referee.id);
     let nearestAdjacent: { gapMinutes: number; matchId: string; matchup: string; direction: "上一场" | "下一场" } | null = null;
     for (const item of otherAssignments) {
       const other = item.appointment.match;
-      if (!other.kickoff || !other.venue?.trim() || !other.endAt) continue;
+      if (!other.kickoff || (mode === "PRE_MATCH" && !other.venue?.trim()) || !other.endAt) continue;
       const matchup = `${other.homeTeam.name} vs ${other.awayTeam.name}`;
       if (intervalsOverlap(match.kickoff, match.endAt, other.kickoff, other.endAt)) {
         const overlapMs = Math.min(match.endAt.getTime(), other.endAt.getTime()) - Math.max(match.kickoff.getTime(), other.kickoff.getTime());

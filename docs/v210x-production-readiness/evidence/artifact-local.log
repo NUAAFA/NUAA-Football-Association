@@ -1,0 +1,725 @@
+test_all_environment_and_extra_paths_rejected (__main__.ArtifactTests) ... ok
+test_bad_links_and_types (__main__.ArtifactTests) ... ok
+test_bad_paths (__main__.ArtifactTests) ... ok
+test_bash_real_validation_functions_in_conditions (__main__.ArtifactTests) ... ok
+test_bounded_snapshot_and_disk_reserve (__main__.ArtifactTests) ... ok
+test_case_evidence_preserves_repeated_names_and_failures (__main__.ArtifactTests) ... Test failure diagnostic: {"case": "timeout-case", "evidence_path": "/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/log-regression-x5c5tge1/timeout-case-0qdsrceh", "command": ["/Library/Developer/CommandLineTools/usr/bin/python3", "-u", "-c", "import time; print('partial-output'); time.sleep(5)"], "exit_code": -15, "cleanup": "process group removed and children reaped", "cleanup_exception": "None", "lifecycle": {"leader_pid": 20301, "leader_pgid": 20301, "leader_ppid": 19690, "leader_exit_observed": false, "before_cleanup": [], "reaped": [], "signals": [{"signal": "SIGTERM", "outcome": "sent"}, {"signal": "SIGKILL", "outcome": "empty Darwin group"}], "cleanup_complete": true, "completed_descendants_proven": false}, "stdout": "partial-output\n", "stderr": "\nTimeoutExpired: Command '['/Library/Developer/CommandLineTools/usr/bin/python3', '-u', '-c', \"import time; print('partial-output'); time.sleep(5)\"]' timed out after 0.2 seconds"}
+ok
+test_commit_source_omission_rejected_through_import_entry (__main__.ArtifactTests) ... Synthetic case evidence retained: /var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-case-evidence-2zvxm276
+ok
+test_corruption (__main__.ArtifactTests) ... ok
+test_decompressed_extensions_bounded_and_partial_copy_removed (__main__.ArtifactTests) ... ok
+test_deployer_approved_activation_and_rollback (__main__.ArtifactTests) ... test_deployer_dry_run_and_release_collision (__main__.ArtifactTests) ... ok
+test_deployer_import_repeat_failures_and_activation_block (__main__.ArtifactTests) ... ok
+test_deployer_invalid_archives_and_late_failure_cleanup (__main__.ArtifactTests) ... ok
+test_dirty_source_and_wrong_installed_version (__main__.ArtifactTests) ... ok
+test_duplicate_member_and_json_key (__main__.ArtifactTests) ... ok
+test_failed_pack_cleanup_and_existing_output_preserved (__main__.ArtifactTests) ... Verified Next directory aliases: []
+Pack preflight: {"commit": "e21f852b900bbd84d5f6b6859b063724012c70dd", "files": 46, "bytes": 107415, "max_file_bytes": 28420, "file_links": [{"path": "node_modules/.bin/prisma", "target": "../prisma/build/index.js"}, {"path": "node_modules/.bin/tsx", "target": "../tsx/dist/cli.mjs"}], "hardlink_pair": [], "native_files": ["node_modules/@libsql/linux-x64-gnu/index.node", "node_modules/@prisma/engines/schema-engine-debian-openssl-3.0.x"], "manifest_bytes": 9286, "manifest_sha256": "63bdc61b99638c15c8665266181306ca85798044398779ad2910738f3f5c4a40"}
+ok
+test_git_metadata_snapshot_rejects_escaping_links (__main__.ArtifactTests) ... ok
+test_historical_recovery_receipt_and_current_source_omission_rejected (__main__.ArtifactTests) ... ok
+test_historical_sealed_own_chain_and_candidate_helper_requirement (__main__.ArtifactTests) ... ok
+test_import_collision_cleanup_preserves_unknown_paths (__main__.ArtifactTests) ... ok
+test_import_ignores_inherited_git_configuration (__main__.ArtifactTests) ... ok
+test_independent_checksum_required (__main__.ArtifactTests) ... ok
+test_manifest_release_claim_and_native_inventory (__main__.ArtifactTests) ... ok
+test_migration_inventory_and_history_fail_closed (__main__.ArtifactTests) ... ok
+test_missing_file (__main__.ArtifactTests) ... ok
+test_old_release_precheck_before_backup_stop_migrate_switch (__main__.ArtifactTests) ... test_platform_and_approval_fail_closed (__main__.ArtifactTests) ... ok
+test_prebuilt_legacy_and_startup_incompatibility_rejected_before_mutation (__main__.ArtifactTests) ... ok
+test_privileged_modes (__main__.ArtifactTests) ... ok
+test_real_journal_incomplete_manual_mismatch_and_legacy_absent (__main__.ArtifactTests) ... test_real_journal_link_only_sequence (__main__.ArtifactTests) ... FAIL
+test_recovery_final_state_and_failure_matrix (__main__.ArtifactTests) ... test_repeat_import_preserves_shared_metadata_receipt_and_links (__main__.ArtifactTests) ... ok
+test_repeat_import_rejects_source_environment_origin_head_and_ref (__main__.ArtifactTests) ... ok
+test_symlink_parent_and_escape (__main__.ArtifactTests) ... ok
+test_timeout_cleanup_failure_is_visible (__main__.ArtifactTests) ... Test failure diagnostic: {"case": "cleanup-failure", "evidence_path": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-case-evidence-2zvxm276/cleanup-failure-mj04f55g", "command": ["/Library/Developer/CommandLineTools/usr/bin/python3", "-c", "import time; time.sleep(10)"], "exit_code": -15, "cleanup": "FAILED: injected cleanup failure", "cleanup_exception": "RuntimeError: injected cleanup failure", "lifecycle": {"leader_pid": 32509, "leader_pgid": 32509, "leader_ppid": 19690, "leader_exit_observed": false, "before_cleanup": [], "reaped": [], "signals": [{"signal": "SIGTERM", "outcome": "sent"}, {"signal": "SIGKILL", "outcome": "empty Darwin group"}], "cleanup_complete": true, "completed_descendants_proven": false}, "stdout": "", "stderr": "\nTimeoutExpired: Command '['/Library/Developer/CommandLineTools/usr/bin/python3', '-c', 'import time; time.sleep(10)']' timed out after 0.1 seconds\ncleanup failed: RuntimeError: injected cleanup failure"}
+ok
+test_timeout_reaps_descendant_process_tree (__main__.ArtifactTests) ... Test failure diagnostic: {"case": "descendant-timeout", "evidence_path": "/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/process-tree-_w6uv9rg/descendant-timeout-gok_0t2g", "command": ["/Library/Developer/CommandLineTools/usr/bin/python3", "-u", "/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/process-tree-_w6uv9rg/tree.py", "/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/process-tree-_w6uv9rg", "0"], "exit_code": -9, "cleanup": "process group removed and children reaped", "cleanup_exception": "None", "lifecycle": {"leader_pid": 32512, "leader_pgid": 32512, "leader_ppid": 19690, "leader_exit_observed": false, "before_cleanup": [], "reaped": [], "signals": [{"signal": "SIGTERM", "outcome": "sent"}, {"signal": "SIGKILL", "outcome": "sent"}], "cleanup_complete": true, "completed_descendants_proven": false}, "stdout": "partial stdout 0\npartial stdout 1\npartial stdout 2\n", "stderr": "partial stderr 0\npartial stderr 1\npartial stderr 2\n\nTimeoutExpired: Command '['/Library/Developer/CommandLineTools/usr/bin/python3', '-u', '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/process-tree-_w6uv9rg/tree.py', '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/process-tree-_w6uv9rg', '0']' timed out after 1 seconds"}
+ok
+test_trimmed_layout_actual_import_and_repeat (__main__.ArtifactTests) ... ok
+test_trimmed_previous_recovery_uses_its_own_receipt (__main__.ArtifactTests) ... FAIL
+test_valid_extract_and_locked_source (__main__.ArtifactTests) ... ok
+test_wrong_sha (__main__.ArtifactTests) ... ok
+test_env_git_preserves_actual_nonzero_status_and_stderr (__main__.ProcessLifecycleTests) ... ok
+test_failure_diagnostic_is_bounded_redacted_and_keeps_raw_evidence (__main__.ProcessLifecycleTests) ... ok
+test_final_signal_precedes_reaping_even_after_leader_exits (__main__.ProcessLifecycleTests) ... ok
+test_fixture_readiness_failures_are_not_timeouts_and_still_clean_up (__main__.ProcessLifecycleTests) ... Test failure diagnostic: {"case": "readiness-missing", "evidence_path": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/lifecycle-claqnrr6/evidence/readiness-missing-zrbzo5a7", "command": ["/Library/Developer/CommandLineTools/usr/bin/python3", "-c", "import time; time.sleep(30)"], "exit_code": -15, "cleanup": "process group removed and children reaped", "cleanup_exception": "None", "lifecycle": {"leader_pid": 32994, "leader_pgid": 32994, "leader_ppid": 19690, "leader_exit_observed": false, "before_cleanup": [], "reaped": [], "signals": [{"signal": "SIGTERM", "outcome": "sent"}, {"signal": "SIGKILL", "outcome": "empty Darwin group"}], "cleanup_complete": true, "completed_descendants_proven": false}, "stdout": "", "stderr": "\nRuntimeError: fixture readiness timeout"}
+Test failure diagnostic: {"case": "readiness-early-exit", "evidence_path": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/lifecycle-claqnrr6/evidence/readiness-early-exit-xgu19cde", "command": ["/Library/Developer/CommandLineTools/usr/bin/python3", "-c", "pass"], "exit_code": 0, "cleanup": "process group removed and children reaped", "cleanup_exception": "None", "lifecycle": {"leader_pid": 32998, "leader_pgid": 32998, "leader_ppid": 19690, "leader_exit_observed": true, "before_cleanup": [], "reaped": [], "signals": [{"signal": "SIGTERM", "outcome": "empty Darwin group"}, {"signal": "SIGKILL", "outcome": "empty Darwin group"}], "cleanup_complete": true, "completed_descendants_proven": false}, "stdout": "", "stderr": "\nRuntimeError: fixture exited before readiness"}
+ok
+test_fixture_readiness_preserves_the_requested_timeout (__main__.ProcessLifecycleTests) ... Test failure diagnostic: {"case": "readiness-then-timeout", "evidence_path": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/lifecycle-772a_shk/evidence/readiness-then-timeout-3afg9lay", "command": ["/Library/Developer/CommandLineTools/usr/bin/python3", "-u", "-c", "import time; from pathlib import Path; time.sleep(0.2); print('initialized',flush=True); Path('/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/lifecycle-772a_s"], "exit_code": -15, "cleanup": "process group removed and children reaped", "cleanup_exception": "None", "lifecycle": {"leader_pid": 33005, "leader_pgid": 33005, "leader_ppid": 19690, "leader_exit_observed": false, "before_cleanup": [], "reaped": [], "signals": [{"signal": "SIGTERM", "outcome": "sent"}, {"signal": "SIGKILL", "outcome": "empty Darwin group"}], "cleanup_complete": true, "completed_descendants_proven": false}, "stdout": "initialized\n", "stderr": "\nTimeoutExpired: Command '['/Library/Developer/CommandLineTools/usr/bin/python3', '-u', '-c', \"import time; from pathlib import Path; time.sleep(0.2); print('initialized',flush=True); Path('/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/lifecycle-772a_shk/delayed.ready').write_text('ready'); time.sleep(30)\"]' timed out after 0.1 seconds"}
+ok
+test_git_bundle_ref_validation_with_isolated_same_uid_repositories (__main__.ProcessLifecycleTests) ... ok
+test_keyboard_interrupt_cleans_only_owned_group (__main__.ProcessLifecycleTests) ... Test failure diagnostic: {"case": "injected", "evidence_path": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/lifecycle-7aa2id4m/evidence/injected-kkgx8jya", "command": ["/Library/Developer/CommandLineTools/usr/bin/python3", "-u", "-c", "import sys,time; from pathlib import Path; print('kept stdout',flush=True); print('kept stderr',file=sys.stderr,flush=True); Path('/var/folders/s_/k059lw011992b"], "exit_code": -15, "cleanup": "process group removed and children reaped", "cleanup_exception": "None", "lifecycle": {"leader_pid": 33102, "leader_pgid": 33102, "leader_ppid": 19690, "leader_exit_observed": false, "before_cleanup": [], "reaped": [], "signals": [{"signal": "SIGTERM", "outcome": "sent"}, {"signal": "SIGKILL", "outcome": "empty Darwin group"}], "cleanup_complete": true, "completed_descendants_proven": false}, "stdout": "kept stdout\n", "stderr": "kept stderr\n\nKeyboardInterrupt: injected KeyboardInterrupt"}
+ok
+test_large_failure_diagnostic_remains_valid_bounded_json (__main__.ProcessLifecycleTests) ... ok
+test_large_output_does_not_block_leader_wait (__main__.ProcessLifecycleTests) ... ok
+test_linux_adoption_reaps_only_owned_children_before_leader (__main__.ProcessLifecycleTests) ... skipped 'NOT RUN: native Linux WNOWAIT/subreaper required'
+test_linux_already_exited_adopted_child_preserves_original_status (__main__.ProcessLifecycleTests) ... skipped 'NOT RUN: native Linux zombie adoption required'
+test_linux_child_metadata_parser_checks_pid_parent_and_group (__main__.ProcessLifecycleTests) ... ok
+test_linux_waitid_contract_portable_simulation (__main__.ProcessLifecycleTests) ... ok
+test_normal_exit_and_nonzero_exit_preserve_output (__main__.ProcessLifecycleTests) ... ok
+test_normal_exit_with_descendants_fails_after_cleanup (__main__.ProcessLifecycleTests) ... Test failure diagnostic: {"case": "normal-descendants", "evidence_path": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/lifecycle-4rl9go_3/evidence/normal-descendants-gl5g0b6l", "command": ["/Library/Developer/CommandLineTools/usr/bin/python3", "-c", "import subprocess,sys; subprocess.Popen([sys.executable,'-c','import time; time.sleep(30)'])"], "exit_code": 0, "cleanup": "process group removed and children reaped", "cleanup_exception": "None", "lifecycle": {"leader_pid": 33131, "leader_pgid": 33131, "leader_ppid": 19690, "leader_exit_observed": true, "before_cleanup": [], "reaped": [], "signals": [{"signal": "SIGTERM", "outcome": "sent"}, {"signal": "SIGKILL", "outcome": "empty Darwin group"}], "cleanup_complete": true, "completed_descendants_proven": false}, "stdout": "", "stderr": "\nRuntimeError: command left descendants after exit"}
+ok
+test_ordinary_exception_cleans_only_owned_group (__main__.ProcessLifecycleTests) ... Test failure diagnostic: {"case": "injected", "evidence_path": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/lifecycle-dic8ptr7/evidence/injected-6l9xyegb", "command": ["/Library/Developer/CommandLineTools/usr/bin/python3", "-u", "-c", "import sys,time; from pathlib import Path; print('kept stdout',flush=True); print('kept stderr',file=sys.stderr,flush=True); Path('/var/folders/s_/k059lw011992b"], "exit_code": -15, "cleanup": "process group removed and children reaped", "cleanup_exception": "None", "lifecycle": {"leader_pid": 33138, "leader_pgid": 33138, "leader_ppid": 19690, "leader_exit_observed": false, "before_cleanup": [], "reaped": [], "signals": [{"signal": "SIGTERM", "outcome": "sent"}, {"signal": "SIGKILL", "outcome": "empty Darwin group"}], "cleanup_complete": true, "completed_descendants_proven": false}, "stdout": "kept stdout\n", "stderr": "kept stderr\n\nValueError: injected ordinary exception"}
+ok
+test_original_exception_and_cleanup_failure_both_survive (__main__.ProcessLifecycleTests) ... Test failure diagnostic: {"case": "injected", "evidence_path": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/lifecycle-t09hw0ya/evidence/injected-t_sbod72", "command": ["/Library/Developer/CommandLineTools/usr/bin/python3", "-u", "-c", "import sys,time; from pathlib import Path; print('kept stdout',flush=True); print('kept stderr',file=sys.stderr,flush=True); Path('/var/folders/s_/k059lw011992b"], "exit_code": -15, "cleanup": "FAILED: injected cleanup failure", "cleanup_exception": "RuntimeError: injected cleanup failure", "lifecycle": {"leader_pid": 33143, "leader_pgid": 33143, "leader_ppid": 19690, "leader_exit_observed": false, "before_cleanup": [], "reaped": [], "signals": [{"signal": "SIGTERM", "outcome": "sent"}, {"signal": "SIGKILL", "outcome": "empty Darwin group"}], "cleanup_complete": true, "completed_descendants_proven": false}, "stdout": "kept stdout\n", "stderr": "kept stderr\n\nKeyboardInterrupt: original interrupt\ncleanup failed: RuntimeError: injected cleanup failure"}
+ok
+test_reaped_leader_refuses_all_signals (__main__.ProcessLifecycleTests) ... ok
+test_repeated_cleanup_refuses_further_signals (__main__.ProcessLifecycleTests) ... ok
+test_simulated_linux_completed_zombie_is_reaped_without_false_leak (__main__.ProcessLifecycleTests) ... ok
+test_simulated_linux_live_descendant_still_fails_after_cleanup (__main__.ProcessLifecycleTests) ... Test failure diagnostic: {"case": "failed-probe", "evidence_path": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/lifecycle-grafe6dc/evidence/failed-probe-vmpy8xqq", "command": ["synthetic-runuser", "env", "git", "clone"], "exit_code": 128, "cleanup": "process group removed and children reaped", "cleanup_exception": "None", "lifecycle": {"leader_pid": 12345, "leader_pgid": 12345, "leader_ppid": 19690, "leader_exit_observed": true, "before_cleanup": [{"pid": 12346, "name": "git", "state": "S", "ppid": 19690, "pgid": 12345, "start_ticks": 77}], "reaped": [{"pid": 12346, "name": "git", "state": "S", "ppid": 19690, "pgid": 12345, "start_ticks": 77, "wait_status": 0}], "signals": [{"signal": "SIGTERM", "outcome": "sent"}, {"signal": "SIGKILL", "outcome": "sent"}], "cleanup_complete": true, "completed_descendants_proven": false}, "stdout": "original Git stdout\n", "stderr": "fatal: repository owned by different users\n\nRuntimeError: command left descendants after exit"}
+ok
+test_simulated_linux_new_child_cannot_use_zombie_exception (__main__.ProcessLifecycleTests) ... Test failure diagnostic: {"case": "failed-probe", "evidence_path": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/lifecycle-kkowqqkm/evidence/failed-probe-so6fquqi", "command": ["synthetic-runuser", "env", "git", "clone"], "exit_code": 128, "cleanup": "process group removed and children reaped", "cleanup_exception": "None", "lifecycle": {"leader_pid": 12345, "leader_pgid": 12345, "leader_ppid": 19690, "leader_exit_observed": true, "before_cleanup": [{"pid": 12346, "name": "git", "state": "Z", "ppid": 19690, "pgid": 12345, "start_ticks": 77}], "reaped": [{"pid": 12347, "name": "git", "state": "Z", "ppid": 19690, "pgid": 12345, "start_ticks": 78, "wait_status": 0}], "signals": [{"signal": "SIGTERM", "outcome": "sent"}, {"signal": "SIGKILL", "outcome": "sent"}], "cleanup_complete": true, "completed_descendants_proven": false}, "stdout": "original Git stdout\n", "stderr": "fatal: repository owned by different users\n\nRuntimeError: command left descendants after exit"}
+ok
+test_simulated_linux_unreaped_descendant_keeps_cleanup_failure (__main__.ProcessLifecycleTests) ... Test failure diagnostic: {"case": "failed-probe", "evidence_path": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/lifecycle-op0e8gx5/evidence/failed-probe-3d8sjypl", "command": ["synthetic-runuser", "env", "git", "clone"], "exit_code": null, "cleanup": "FAILED: owned descendants remain after group KILL", "cleanup_exception": "RuntimeError: owned descendants remain after group KILL", "lifecycle": {"leader_pid": 12345, "leader_pgid": 12345, "leader_ppid": 19690, "leader_exit_observed": true, "before_cleanup": [{"pid": 12346, "name": "git", "state": "Z", "ppid": 19690, "pgid": 12345, "start_ticks": 77}], "reaped": [], "signals": [{"signal": "SIGTERM", "outcome": "sent"}, {"signal": "SIGKILL", "outcome": "sent"}], "cleanup_complete": false, "completed_descendants_proven": false}, "stdout": "original Git stdout\n", "stderr": "fatal: repository owned by different users\n\nRuntimeError: owned descendants remain after group KILL\ncleanup failed: RuntimeError: owned descendants remain after group KILL"}
+ok
+test_stale_returncode_cannot_bypass_child_identity (__main__.ProcessLifecycleTests) ... ok
+test_system_exit_cleans_only_owned_group (__main__.ProcessLifecycleTests) ... Test failure diagnostic: {"case": "injected", "evidence_path": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/lifecycle-jng087sm/evidence/injected-g81ums56", "command": ["/Library/Developer/CommandLineTools/usr/bin/python3", "-u", "-c", "import sys,time; from pathlib import Path; print('kept stdout',flush=True); print('kept stderr',file=sys.stderr,flush=True); Path('/var/folders/s_/k059lw011992b"], "exit_code": -15, "cleanup": "process group removed and children reaped", "cleanup_exception": "None", "lifecycle": {"leader_pid": 33160, "leader_pgid": 33160, "leader_ppid": 19690, "leader_exit_observed": false, "before_cleanup": [], "reaped": [], "signals": [{"signal": "SIGTERM", "outcome": "sent"}, {"signal": "SIGKILL", "outcome": "empty Darwin group"}], "cleanup_complete": true, "completed_descendants_proven": false}, "stdout": "kept stdout\n", "stderr": "kept stderr\n\nSystemExit: injected SystemExit"}
+ok
+test_term_failure_still_kills_and_returns_failure (__main__.ProcessLifecycleTests) ... Test failure diagnostic: {"case": "term-failure", "evidence_path": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/lifecycle-y27asos3/evidence/term-failure-00hit4v8", "command": ["/Library/Developer/CommandLineTools/usr/bin/python3", "-u", "-c", "import sys,time; from pathlib import Path; print('kept stdout',flush=True); print('kept stderr',file=sys.stderr,flush=True); Path('/var/folders/s_/k059lw011992b"], "exit_code": -9, "cleanup": "FAILED: process cleanup failed: injected TERM failure", "cleanup_exception": "RuntimeError: process cleanup failed: injected TERM failure", "lifecycle": {"leader_pid": 33165, "leader_pgid": 33165, "leader_ppid": 19690, "leader_exit_observed": false, "before_cleanup": [], "reaped": [], "signals": [{"signal": "SIGTERM", "outcome": "failed"}, {"signal": "SIGKILL", "outcome": "sent"}], "cleanup_complete": false, "completed_descendants_proven": false}, "stdout": "kept stdout\n", "stderr": "kept stderr\n\nTimeoutExpired: Command '['/Library/Developer/CommandLineTools/usr/bin/python3', '-u', '-c', \"import sys,time; from pathlib import Path; print('kept stdout',flush=True); print('kept stderr',file=sys.stderr,flush=True); Path('/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/lifecycle-y27asos3/ready').write_text('ready'); time.sleep(30)\"]' timed out after 0.2 seconds\ncleanup failed: RuntimeError: process cleanup failed: injected TERM failure"}
+ok
+test_timeout_kills_descendant_after_leader_exits_on_term (__main__.ProcessLifecycleTests) ... Test failure diagnostic: {"case": "leader-term-exit", "evidence_path": "/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/lifecycle-hw2is273/evidence/leader-term-exit-mn2av9c0", "command": ["/Library/Developer/CommandLineTools/usr/bin/python3", "-u", "-c", "import os,subprocess,sys,time; from pathlib import Path; Path('/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/lifecycle-hw2is273/parent.pid').write_text(str(o"], "exit_code": -15, "cleanup": "process group removed and children reaped", "cleanup_exception": "None", "lifecycle": {"leader_pid": 33170, "leader_pgid": 33170, "leader_ppid": 19690, "leader_exit_observed": false, "before_cleanup": [], "reaped": [], "signals": [{"signal": "SIGTERM", "outcome": "sent"}, {"signal": "SIGKILL", "outcome": "sent"}], "cleanup_complete": true, "completed_descendants_proven": false}, "stdout": "descendant stdout\n", "stderr": "\nTimeoutExpired: Command '['/Library/Developer/CommandLineTools/usr/bin/python3', '-u', '-c', 'import os,subprocess,sys,time; from pathlib import Path; Path(\\'/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/lifecycle-hw2is273/parent.pid\\').write_text(str(os.getpid())); subprocess.Popen([sys.executable,\\'-u\\',\\'-c\\',\"import os,signal,time; from pathlib import Path; signal.signal(signal.SIGTERM,signal.SIG_IGN); Path(\\'/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/lifecycle-hw2is273/child.pid\\').write_text(str(os.getpid())); print(\\'descendant stdout\\',flush=True); Path(\\'/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/lifecycle-hw2is273/child.ready\\').write_text(\\'ready\\'); time.sleep(30)\"]); time.sleep(30)']' timed out after 0.5 seconds"}
+ok
+test_waited_child_preserves_status_and_output (__main__.ProcessLifecycleTests) ... ok
+
+======================================================================
+ERROR: test_recovery_final_state_and_failure_matrix (__main__.ArtifactTests) (kind='backup')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 1346, in test_recovery_final_state_and_failure_matrix
+    events = (case / "events").read_text().splitlines()
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/pathlib.py", line 1256, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/pathlib.py", line 1242, in open
+    return io.open(self, mode, buffering, encoding, errors, newline,
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/pathlib.py", line 1110, in _opener
+    return self._accessor.open(self, flags, mode)
+FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-backup-oavlstig/events'
+
+======================================================================
+FAIL: test_deployer_approved_activation_and_rollback (__main__.ArtifactTests) (kind='success')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 1304, in test_deployer_approved_activation_and_rollback
+    case = self.deploy_case("activation-" + kind, extra, changed_fixture=kind == "identity")
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 821, in deploy_case
+    self.execute_case(case_name, case, extra, initial_import, deployer, helper, expected_status,
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 902, in execute_case
+    self.assertEqual(result.returncode, expected_status, result.stdout + result.stderr)
+AssertionError: 1 != 0 : Imported candidate: e21f852b900bbd84d5f6b6859b063724012c70dd; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Imported candidate: e88e6964d42daf7fe4dd00ab7ff894dd206025fa; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/activation-success-zjjfs5ne/releases/.prebuilt-source-e21f852b900bbd84d5f6b6859b063724012c70dd-20377'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e21f852 synthetic candidate
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/activation-success-zjjfs5ne/releases/.prebuilt-source-e88e6964d42daf7fe4dd00ab7ff894dd206025fa-20377'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e88e696 synthetic old release
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/activation-success-zjjfs5ne/releases/.reachability.yaYuidtY'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+STOP: student ID release preflight blocked release
+
+
+======================================================================
+FAIL: test_deployer_approved_activation_and_rollback (__main__.ArtifactTests) (kind='restart')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 1304, in test_deployer_approved_activation_and_rollback
+    case = self.deploy_case("activation-" + kind, extra, changed_fixture=kind == "identity")
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 821, in deploy_case
+    self.execute_case(case_name, case, extra, initial_import, deployer, helper, expected_status,
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 902, in execute_case
+    self.assertEqual(result.returncode, expected_status, result.stdout + result.stderr)
+AssertionError: 1 != 0 : Imported candidate: e21f852b900bbd84d5f6b6859b063724012c70dd; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Imported candidate: e88e6964d42daf7fe4dd00ab7ff894dd206025fa; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/activation-restart-0wbktwyy/releases/.prebuilt-source-e21f852b900bbd84d5f6b6859b063724012c70dd-20662'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e21f852 synthetic candidate
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/activation-restart-0wbktwyy/releases/.prebuilt-source-e88e6964d42daf7fe4dd00ab7ff894dd206025fa-20662'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e88e696 synthetic old release
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/activation-restart-0wbktwyy/releases/.reachability.hRnfUOu2'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+STOP: student ID release preflight blocked release
+
+
+======================================================================
+FAIL: test_deployer_approved_activation_and_rollback (__main__.ArtifactTests) (kind='health')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 1304, in test_deployer_approved_activation_and_rollback
+    case = self.deploy_case("activation-" + kind, extra, changed_fixture=kind == "identity")
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 821, in deploy_case
+    self.execute_case(case_name, case, extra, initial_import, deployer, helper, expected_status,
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 902, in execute_case
+    self.assertEqual(result.returncode, expected_status, result.stdout + result.stderr)
+AssertionError: 1 != 0 : Imported candidate: e21f852b900bbd84d5f6b6859b063724012c70dd; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Imported candidate: e88e6964d42daf7fe4dd00ab7ff894dd206025fa; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/activation-health-tg4b0njc/releases/.prebuilt-source-e21f852b900bbd84d5f6b6859b063724012c70dd-20950'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e21f852 synthetic candidate
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/activation-health-tg4b0njc/releases/.prebuilt-source-e88e6964d42daf7fe4dd00ab7ff894dd206025fa-20950'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e88e696 synthetic old release
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/activation-health-tg4b0njc/releases/.reachability.OpzWBErv'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+STOP: student ID release preflight blocked release
+
+
+======================================================================
+FAIL: test_deployer_approved_activation_and_rollback (__main__.ArtifactTests) (kind='identity')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 1304, in test_deployer_approved_activation_and_rollback
+    case = self.deploy_case("activation-" + kind, extra, changed_fixture=kind == "identity")
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 821, in deploy_case
+    self.execute_case(case_name, case, extra, initial_import, deployer, helper, expected_status,
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 902, in execute_case
+    self.assertEqual(result.returncode, expected_status, result.stdout + result.stderr)
+AssertionError: 1 != 0 : Imported candidate: e21f852b900bbd84d5f6b6859b063724012c70dd; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Imported candidate: e88e6964d42daf7fe4dd00ab7ff894dd206025fa; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/activation-identity-yo68n422/releases/.prebuilt-source-e21f852b900bbd84d5f6b6859b063724012c70dd-21238'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e21f852 synthetic candidate
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/activation-identity-yo68n422/releases/.prebuilt-source-e88e6964d42daf7fe4dd00ab7ff894dd206025fa-21238'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e88e696 synthetic old release
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/activation-identity-yo68n422/releases/.reachability.mQUyHeV9'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+STOP: student ID release preflight blocked release
+
+
+======================================================================
+FAIL: test_deployer_approved_activation_and_rollback (__main__.ArtifactTests) (kind='approval-fail')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 1304, in test_deployer_approved_activation_and_rollback
+    case = self.deploy_case("activation-" + kind, extra, changed_fixture=kind == "identity")
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 821, in deploy_case
+    self.execute_case(case_name, case, extra, initial_import, deployer, helper, expected_status,
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 902, in execute_case
+    self.assertEqual(result.returncode, expected_status, result.stdout + result.stderr)
+AssertionError: 1 != 0 : Imported candidate: e21f852b900bbd84d5f6b6859b063724012c70dd; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Imported candidate: e88e6964d42daf7fe4dd00ab7ff894dd206025fa; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/activation-approval-fail-ik9llrc6/releases/.prebuilt-source-e21f852b900bbd84d5f6b6859b063724012c70dd-21528'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e21f852 synthetic candidate
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/activation-approval-fail-ik9llrc6/releases/.prebuilt-source-e88e6964d42daf7fe4dd00ab7ff894dd206025fa-21528'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e88e696 synthetic old release
+Traceback (most recent call last):
+  File "<stdin>", line 12, in <module>
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/ops/deploy/prebuilt-artifact.py", line 1228, in main
+    validate_approval(approval, args.commit, args.sha256, args.allowed_ref)
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/ops/deploy/prebuilt-artifact.py", line 1107, in validate_approval
+    require(type(approval.get("format")) is int and approval == expected, "independent security/Linux/Human Review approval missing or blocked")
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/ops/deploy/prebuilt-artifact.py", line 116, in require
+    raise ValueError(message)
+ValueError: independent security/Linux/Human Review approval missing or blocked
+
+
+======================================================================
+FAIL: test_old_release_precheck_before_backup_stop_migrate_switch (__main__.ArtifactTests) (mode='prebuilt', kind='healthy')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 1147, in test_old_release_precheck_before_backup_stop_migrate_switch
+    self.deploy_case("old-precheck-" + mode + "-" + kind, extra, initial_import=mode == "prebuilt")
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 821, in deploy_case
+    self.execute_case(case_name, case, extra, initial_import, deployer, helper, expected_status,
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 902, in execute_case
+    self.assertEqual(result.returncode, expected_status, result.stdout + result.stderr)
+AssertionError: 1 != 0 : Imported candidate: e21f852b900bbd84d5f6b6859b063724012c70dd; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Imported candidate: e88e6964d42daf7fe4dd00ab7ff894dd206025fa; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/old-precheck-prebuilt-healthy-lcjmf3e5/releases/.prebuilt-source-e21f852b900bbd84d5f6b6859b063724012c70dd-25438'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e21f852 synthetic candidate
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/old-precheck-prebuilt-healthy-lcjmf3e5/releases/.prebuilt-source-e88e6964d42daf7fe4dd00ab7ff894dd206025fa-25438'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e88e696 synthetic old release
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/old-precheck-prebuilt-healthy-lcjmf3e5/releases/.reachability.4U7mZbqd'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+STOP: student ID release preflight blocked release
+
+
+======================================================================
+FAIL: test_old_release_precheck_before_backup_stop_migrate_switch (__main__.ArtifactTests) (mode='full', kind='healthy')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 1147, in test_old_release_precheck_before_backup_stop_migrate_switch
+    self.deploy_case("old-precheck-" + mode + "-" + kind, extra, initial_import=mode == "prebuilt")
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 821, in deploy_case
+    self.execute_case(case_name, case, extra, initial_import, deployer, helper, expected_status,
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 902, in execute_case
+    self.assertEqual(result.returncode, expected_status, result.stdout + result.stderr)
+AssertionError: 1 != 0 : Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/old-precheck-full-healthy-hfm5bya2/releases/.staging-e21f852b900bbd84d5f6b6859b063724012c70dd-26516'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e21f852 synthetic candidate
+STOP: student ID release preflight blocked release
+
+
+======================================================================
+FAIL: test_real_journal_incomplete_manual_mismatch_and_legacy_absent (__main__.ArtifactTests) (phase='absent')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 1116, in test_real_journal_incomplete_manual_mismatch_and_legacy_absent
+    self.deploy_case("journal-contract-" + phase, extra, initial_import=False)
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 821, in deploy_case
+    self.execute_case(case_name, case, extra, initial_import, deployer, helper, expected_status,
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 902, in execute_case
+    self.assertEqual(result.returncode, expected_status, result.stdout + result.stderr)
+AssertionError: 1 != 0 : Staged and verified: e21f852b900bbd84d5f6b6859b063724012c70dd
+Release: /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/journal-contract-absent-u4z41xlg/releases/e21f852b900bbd84d5f6b6859b063724012c70dd
+Allowed ref: refs/heads/main
+Current and service were not changed.
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/journal-contract-absent-u4z41xlg/releases/.staging-e21f852b900bbd84d5f6b6859b063724012c70dd-27719'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e21f852 synthetic candidate
+STOP: student ID release preflight blocked release
+
+
+======================================================================
+FAIL: test_real_journal_link_only_sequence (__main__.ArtifactTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 1103, in test_real_journal_link_only_sequence
+    self.deploy_case("journal-link-only-entry", extra, initial_import=False, previous_commit=self.prior)
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 821, in deploy_case
+    self.execute_case(case_name, case, extra, initial_import, deployer, helper, expected_status,
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 902, in execute_case
+    self.assertEqual(result.returncode, expected_status, result.stdout + result.stderr)
+AssertionError: 1 != 0 : Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/journal-link-only-entry-edlha2kk/releases/.staging-e88e6964d42daf7fe4dd00ab7ff894dd206025fa-27954'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e88e696 synthetic old release
+STOP: student ID release preflight blocked release
+
+
+======================================================================
+FAIL: test_recovery_final_state_and_failure_matrix (__main__.ArtifactTests) (kind='new-restart')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 1345, in test_recovery_final_state_and_failure_matrix
+    case = self.deploy_case("recovery-final-" + kind, self.sealed_previous_setup() + extra)
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 821, in deploy_case
+    self.execute_case(case_name, case, extra, initial_import, deployer, helper, expected_status,
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 902, in execute_case
+    self.assertEqual(result.returncode, expected_status, result.stdout + result.stderr)
+AssertionError: 1 != 0 : Imported candidate: e21f852b900bbd84d5f6b6859b063724012c70dd; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Imported candidate: e88e6964d42daf7fe4dd00ab7ff894dd206025fa; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-new-restart-bov89e1y/releases/.prebuilt-source-e21f852b900bbd84d5f6b6859b063724012c70dd-28063'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e21f852 synthetic candidate
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-new-restart-bov89e1y/releases/.prebuilt-source-e88e6964d42daf7fe4dd00ab7ff894dd206025fa-28063'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e88e696 synthetic old release
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-new-restart-bov89e1y/releases/.reachability.hVfMAlg3'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+STOP: student ID release preflight blocked release
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-new-restart-bov89e1y/activation.json'
+
+
+======================================================================
+FAIL: test_recovery_final_state_and_failure_matrix (__main__.ArtifactTests) (kind='new-health')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 1345, in test_recovery_final_state_and_failure_matrix
+    case = self.deploy_case("recovery-final-" + kind, self.sealed_previous_setup() + extra)
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 821, in deploy_case
+    self.execute_case(case_name, case, extra, initial_import, deployer, helper, expected_status,
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 902, in execute_case
+    self.assertEqual(result.returncode, expected_status, result.stdout + result.stderr)
+AssertionError: 1 != 0 : Imported candidate: e21f852b900bbd84d5f6b6859b063724012c70dd; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Imported candidate: e88e6964d42daf7fe4dd00ab7ff894dd206025fa; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-new-health-thw94ii3/releases/.prebuilt-source-e21f852b900bbd84d5f6b6859b063724012c70dd-28350'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e21f852 synthetic candidate
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-new-health-thw94ii3/releases/.prebuilt-source-e88e6964d42daf7fe4dd00ab7ff894dd206025fa-28350'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e88e696 synthetic old release
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-new-health-thw94ii3/releases/.reachability.HUbAHFie'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+STOP: student ID release preflight blocked release
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-new-health-thw94ii3/activation.json'
+
+
+======================================================================
+FAIL: test_recovery_final_state_and_failure_matrix (__main__.ArtifactTests) (kind='old-restart')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 1345, in test_recovery_final_state_and_failure_matrix
+    case = self.deploy_case("recovery-final-" + kind, self.sealed_previous_setup() + extra)
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 821, in deploy_case
+    self.execute_case(case_name, case, extra, initial_import, deployer, helper, expected_status,
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 902, in execute_case
+    self.assertEqual(result.returncode, expected_status, result.stdout + result.stderr)
+AssertionError: 1 != 0 : Imported candidate: e21f852b900bbd84d5f6b6859b063724012c70dd; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Imported candidate: e88e6964d42daf7fe4dd00ab7ff894dd206025fa; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-old-restart-vsgggtz4/releases/.prebuilt-source-e21f852b900bbd84d5f6b6859b063724012c70dd-28643'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e21f852 synthetic candidate
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-old-restart-vsgggtz4/releases/.prebuilt-source-e88e6964d42daf7fe4dd00ab7ff894dd206025fa-28643'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e88e696 synthetic old release
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-old-restart-vsgggtz4/releases/.reachability.uRzUN3ej'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+STOP: student ID release preflight blocked release
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-old-restart-vsgggtz4/activation.json'
+
+
+======================================================================
+FAIL: test_recovery_final_state_and_failure_matrix (__main__.ArtifactTests) (kind='old-health')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 1345, in test_recovery_final_state_and_failure_matrix
+    case = self.deploy_case("recovery-final-" + kind, self.sealed_previous_setup() + extra)
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 821, in deploy_case
+    self.execute_case(case_name, case, extra, initial_import, deployer, helper, expected_status,
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 902, in execute_case
+    self.assertEqual(result.returncode, expected_status, result.stdout + result.stderr)
+AssertionError: 1 != 0 : Imported candidate: e21f852b900bbd84d5f6b6859b063724012c70dd; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Imported candidate: e88e6964d42daf7fe4dd00ab7ff894dd206025fa; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-old-health-s3pabl91/releases/.prebuilt-source-e21f852b900bbd84d5f6b6859b063724012c70dd-28930'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e21f852 synthetic candidate
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-old-health-s3pabl91/releases/.prebuilt-source-e88e6964d42daf7fe4dd00ab7ff894dd206025fa-28930'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e88e696 synthetic old release
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-old-health-s3pabl91/releases/.reachability.v8kclTNb'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+STOP: student ID release preflight blocked release
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-old-health-s3pabl91/activation.json'
+
+
+======================================================================
+FAIL: test_recovery_final_state_and_failure_matrix (__main__.ArtifactTests) (kind='old-link')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 1345, in test_recovery_final_state_and_failure_matrix
+    case = self.deploy_case("recovery-final-" + kind, self.sealed_previous_setup() + extra)
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 821, in deploy_case
+    self.execute_case(case_name, case, extra, initial_import, deployer, helper, expected_status,
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 902, in execute_case
+    self.assertEqual(result.returncode, expected_status, result.stdout + result.stderr)
+AssertionError: 1 != 0 : Imported candidate: e21f852b900bbd84d5f6b6859b063724012c70dd; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Imported candidate: e88e6964d42daf7fe4dd00ab7ff894dd206025fa; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-old-link-fyflyy__/releases/.prebuilt-source-e21f852b900bbd84d5f6b6859b063724012c70dd-29223'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e21f852 synthetic candidate
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-old-link-fyflyy__/releases/.prebuilt-source-e88e6964d42daf7fe4dd00ab7ff894dd206025fa-29223'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e88e696 synthetic old release
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-old-link-fyflyy__/releases/.reachability.pILmnMTB'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+STOP: student ID release preflight blocked release
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-old-link-fyflyy__/activation.json'
+
+
+======================================================================
+FAIL: test_recovery_final_state_and_failure_matrix (__main__.ArtifactTests) (kind='migration')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 1345, in test_recovery_final_state_and_failure_matrix
+    case = self.deploy_case("recovery-final-" + kind, self.sealed_previous_setup() + extra)
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 821, in deploy_case
+    self.execute_case(case_name, case, extra, initial_import, deployer, helper, expected_status,
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 902, in execute_case
+    self.assertEqual(result.returncode, expected_status, result.stdout + result.stderr)
+AssertionError: 1 != 0 : Imported candidate: e21f852b900bbd84d5f6b6859b063724012c70dd; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Imported candidate: e88e6964d42daf7fe4dd00ab7ff894dd206025fa; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-migration-n0v0uo5d/releases/.prebuilt-source-e21f852b900bbd84d5f6b6859b063724012c70dd-29519'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e21f852 synthetic candidate
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-migration-n0v0uo5d/releases/.prebuilt-source-e88e6964d42daf7fe4dd00ab7ff894dd206025fa-29519'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e88e696 synthetic old release
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-migration-n0v0uo5d/releases/.reachability.KEAwMs5Q'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+STOP: student ID release preflight blocked release
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-migration-n0v0uo5d/activation.json'
+
+
+======================================================================
+FAIL: test_recovery_final_state_and_failure_matrix (__main__.ArtifactTests) (kind='stop')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 1345, in test_recovery_final_state_and_failure_matrix
+    case = self.deploy_case("recovery-final-" + kind, self.sealed_previous_setup() + extra)
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 821, in deploy_case
+    self.execute_case(case_name, case, extra, initial_import, deployer, helper, expected_status,
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 902, in execute_case
+    self.assertEqual(result.returncode, expected_status, result.stdout + result.stderr)
+AssertionError: 1 != 0 : Imported candidate: e21f852b900bbd84d5f6b6859b063724012c70dd; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Imported candidate: e88e6964d42daf7fe4dd00ab7ff894dd206025fa; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-stop-1anmhyfe/releases/.prebuilt-source-e21f852b900bbd84d5f6b6859b063724012c70dd-30099'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e21f852 synthetic candidate
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-stop-1anmhyfe/releases/.prebuilt-source-e88e6964d42daf7fe4dd00ab7ff894dd206025fa-30099'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e88e696 synthetic old release
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-stop-1anmhyfe/releases/.reachability.Sg552vPa'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+STOP: student ID release preflight blocked release
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-stop-1anmhyfe/activation.json'
+
+
+======================================================================
+FAIL: test_recovery_final_state_and_failure_matrix (__main__.ArtifactTests) (kind='interrupt')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 1345, in test_recovery_final_state_and_failure_matrix
+    case = self.deploy_case("recovery-final-" + kind, self.sealed_previous_setup() + extra)
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 821, in deploy_case
+    self.execute_case(case_name, case, extra, initial_import, deployer, helper, expected_status,
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 902, in execute_case
+    self.assertEqual(result.returncode, expected_status, result.stdout + result.stderr)
+AssertionError: 1 != 0 : Imported candidate: e21f852b900bbd84d5f6b6859b063724012c70dd; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Imported candidate: e88e6964d42daf7fe4dd00ab7ff894dd206025fa; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-interrupt-ylm3frov/releases/.prebuilt-source-e21f852b900bbd84d5f6b6859b063724012c70dd-30388'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e21f852 synthetic candidate
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-interrupt-ylm3frov/releases/.prebuilt-source-e88e6964d42daf7fe4dd00ab7ff894dd206025fa-30388'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e88e696 synthetic old release
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-interrupt-ylm3frov/releases/.reachability.Y9qNVQnd'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+STOP: student ID release preflight blocked release
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-interrupt-ylm3frov/activation.json'
+
+
+======================================================================
+FAIL: test_recovery_final_state_and_failure_matrix (__main__.ArtifactTests) (kind='ordinary-error')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 1345, in test_recovery_final_state_and_failure_matrix
+    case = self.deploy_case("recovery-final-" + kind, self.sealed_previous_setup() + extra)
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 821, in deploy_case
+    self.execute_case(case_name, case, extra, initial_import, deployer, helper, expected_status,
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 902, in execute_case
+    self.assertEqual(result.returncode, expected_status, result.stdout + result.stderr)
+AssertionError: 1 != 0 : Imported candidate: e21f852b900bbd84d5f6b6859b063724012c70dd; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Imported candidate: e88e6964d42daf7fe4dd00ab7ff894dd206025fa; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-ordinary-error-zz949uoa/releases/.prebuilt-source-e21f852b900bbd84d5f6b6859b063724012c70dd-30675'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e21f852 synthetic candidate
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-ordinary-error-zz949uoa/releases/.prebuilt-source-e88e6964d42daf7fe4dd00ab7ff894dd206025fa-30675'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e88e696 synthetic old release
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-ordinary-error-zz949uoa/releases/.reachability.K2CFOiYE'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+STOP: student ID release preflight blocked release
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-ordinary-error-zz949uoa/activation.json'
+
+
+======================================================================
+FAIL: test_recovery_final_state_and_failure_matrix (__main__.ArtifactTests) (kind='rollback-journal')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 1345, in test_recovery_final_state_and_failure_matrix
+    case = self.deploy_case("recovery-final-" + kind, self.sealed_previous_setup() + extra)
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 821, in deploy_case
+    self.execute_case(case_name, case, extra, initial_import, deployer, helper, expected_status,
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 902, in execute_case
+    self.assertEqual(result.returncode, expected_status, result.stdout + result.stderr)
+AssertionError: 1 != 0 : Imported candidate: e21f852b900bbd84d5f6b6859b063724012c70dd; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Imported candidate: e88e6964d42daf7fe4dd00ab7ff894dd206025fa; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-rollback-journal-924qv0sl/releases/.prebuilt-source-e21f852b900bbd84d5f6b6859b063724012c70dd-30962'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e21f852 synthetic candidate
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-rollback-journal-924qv0sl/releases/.prebuilt-source-e88e6964d42daf7fe4dd00ab7ff894dd206025fa-30962'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e88e696 synthetic old release
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-rollback-journal-924qv0sl/releases/.reachability.5q4I7AZr'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+STOP: student ID release preflight blocked release
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/recovery-final-rollback-journal-924qv0sl/activation.json'
+
+
+======================================================================
+FAIL: test_trimmed_previous_recovery_uses_its_own_receipt (__main__.ArtifactTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 1077, in test_trimmed_previous_recovery_uses_its_own_receipt
+    self.deploy_case("trimmed-old-recovery", extra)
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 821, in deploy_case
+    self.execute_case(case_name, case, extra, initial_import, deployer, helper, expected_status,
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 902, in execute_case
+    self.assertEqual(result.returncode, expected_status, result.stdout + result.stderr)
+AssertionError: 1 != 0 : Imported candidate: e21f852b900bbd84d5f6b6859b063724012c70dd; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Imported candidate: e88e6964d42daf7fe4dd00ab7ff894dd206025fa; allowed ref HEAD: e21f852b900bbd84d5f6b6859b063724012c70dd
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/trimmed-old-recovery-yhj_ff__/releases/.prebuilt-source-e21f852b900bbd84d5f6b6859b063724012c70dd-32668'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e21f852 synthetic candidate
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/trimmed-old-recovery-yhj_ff__/releases/.prebuilt-source-e88e6964d42daf7fe4dd00ab7ff894dd206025fa-32668'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at e88e696 synthetic old release
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/trimmed-old-recovery-yhj_ff__/releases/.reachability.7MGiMhwA'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/source
+ * branch            main       -> FETCH_HEAD
+STOP: student ID release preflight blocked release
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-75on3e84/trimmed-old-recovery-yhj_ff__/activation.json'
+
+
+----------------------------------------------------------------------
+Ran 69 tests in 94.314s
+
+FAILED (failures=20, errors=1, skipped=2)

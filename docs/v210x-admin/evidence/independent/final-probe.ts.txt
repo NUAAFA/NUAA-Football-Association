@@ -1,0 +1,67 @@
+import Module from "node:module";
+const originalLoad=Module._load;
+Module._load=function(name,...rest){if(name==="server-only")return {};return originalLoad.call(this,name,...rest);};
+import assert from "node:assert/strict";
+import { writeFile } from "node:fs/promises";
+process.env.DATABASE_URL="file:/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-v210x-independent-final-6e7fi5n_/audit.db";
+process.env.NUAAFA_ISOLATED_SECURITY_TEST="1";
+async function main() {
+ const {prisma}=await import("/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/src/lib/prisma.ts");
+ const {getPublicCompetition}=await import("/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/src/lib/public-competition-service.ts");
+ const {getPublicAppointmentById,getPublicHistoricalAppointments}=await import("/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/src/lib/referee-public.ts");
+ const {recordCompletedOfficials}=await import("/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/src/lib/completed-officials-service.ts");
+ const {issueTestAdminServiceAuthorization:grant,testUnifiedAdminActor:actor}=await import("/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/security-r4a-test-capabilities.ts");
+ const results=[];
+ try {
+  const apt=await prisma.refereeAppointment.findUniqueOrThrow({where:{matchId:"v210x-backfill"}});
+  await prisma.refereeAppointment.update({where:{id:apt.id},data:{publicHistoryVisible:false}});
+  const own=await getPublicAppointmentById(apt.id);
+  const history=await getPublicHistoricalAppointments();
+  const comp=await getPublicCompetition("v210x-comp-0");
+  const match=comp?.matches.find(m=>m.id==="v210x-backfill");
+  results.push({case:"private post-match public competition leak",directPrintBlocked:own===null,historyBlocked:!history.some(a=>a.id===apt.id),competitionExposesPositions:!!match?.appointment?.positions.length,source:match?.appointment});
+  assert.equal(own,null);assert(!history.some(a=>a.id===apt.id));assert.equal(match?.appointment,null);
+  const missingVenue=await prisma.refereeAppointment.findUniqueOrThrow({where:{matchId:"v210x-no-venue-overlap"},include:{match:true}});
+  assert.equal(missingVenue.match.venue,null);
+  await prisma.refereeAppointment.update({where:{id:missingVenue.id},data:{publicHistoryVisible:true}});
+  assert(await getPublicAppointmentById(missingVenue.id));
+  assert((await getPublicHistoricalAppointments()).some(a=>a.id===missingVenue.id));
+  results.push({case:"visible post-match with missing historical venue remains printable and historical",passed:true});
+  const beforeMatch=await prisma.match.findUniqueOrThrow({where:{id:"v210x-backfill"}});
+  const priorVersions=await prisma.appointmentVersion.findMany({where:{appointmentId:apt.id},orderBy:{revision:"asc"}});
+  await prisma.refereeAppointment.update({where:{id:apt.id},data:{publicHistoryVisible:true}});
+  const visible=await getPublicCompetition("v210x-comp-0");
+  assert.equal(visible?.matches.find(m=>m.id==="v210x-backfill")?.appointment?.recordSource,"POST_MATCH_ENTRY");
+  assert(await getPublicAppointmentById(apt.id));
+  results.push({case:"visible post-match source",source:"POST_MATCH_ENTRY",directPrintAllowed:true});
+  await prisma.refereeAppointment.update({where:{id:apt.id},data:{recordSource:"UNKNOWN"}});
+  assert.equal(await getPublicAppointmentById(apt.id),null);
+  assert.equal((await getPublicCompetition("v210x-comp-0"))?.matches.find(m=>m.id==="v210x-backfill")?.appointment,null);
+  results.push({case:"unknown source fails closed",passed:true});
+  await prisma.refereeAppointment.update({where:{id:apt.id},data:{recordSource:"POST_MATCH_ENTRY",publicHistoryVisible:false}});
+  const admin=await prisma.adminAccount.findUniqueOrThrow({where:{username:"v210x-super"}});
+  const auth=grant("referees:write",actor({id:admin.id}));
+  for(let i=0;i<5;i++) {
+   const current=await prisma.refereeAppointment.findUniqueOrThrow({where:{id:apt.id}});
+   const input={matchId:"v210x-backfill",action:"correct" as const,expectedAppointmentRevision:current.revision,expectedResultVersion:1,reason:"Independent synthetic concurrent correction",verificationReason:"Synthetic signed record",publicHistoryVisible:false,positions:[{key:"REFEREE" as const,slot:1,refereeId:"v210x-ref-1"}]};
+   const race=await Promise.allSettled([recordCompletedOfficials(input,auth),recordCompletedOfficials(input,auth)]);
+   const statuses=race.map(r=>r.status==="fulfilled"?200:(r.reason.status??String(r.reason)));
+   results.push({case:"CAS race "+i,statuses});
+   assert.deepEqual(statuses.slice().sort(),[200,409]);
+  }
+  const currentBeforeFailure=await prisma.refereeAppointment.findUniqueOrThrow({where:{id:apt.id},include:{positions:{orderBy:{id:"asc"}},versions:{orderBy:{revision:"asc"}}}});
+  const failedInput={matchId:"v210x-backfill",action:"correct" as const,expectedAppointmentRevision:currentBeforeFailure.revision,expectedResultVersion:1,reason:"Independent synthetic failure",verificationReason:"Synthetic evidence",publicHistoryVisible:false,positions:[{key:"REFEREE" as const,slot:1,refereeId:"v210x-ref-2"}]};
+  await assert.rejects(()=>recordCompletedOfficials(failedInput,grant("referees:write",actor({id:"independent-nonexistent-admin"}))));
+  assert.deepEqual(await prisma.refereeAppointment.findUniqueOrThrow({where:{id:apt.id},include:{positions:{orderBy:{id:"asc"}},versions:{orderBy:{revision:"asc"}}}}),currentBeforeFailure);
+  results.push({case:"late version foreign-key failure rolls back appointment and positions",passed:true});
+  await assert.rejects(()=>recordCompletedOfficials({...failedInput,expectedResultVersion:999},auth),e=>e.status===409);
+  assert.deepEqual(await prisma.refereeAppointment.findUniqueOrThrow({where:{id:apt.id},include:{positions:{orderBy:{id:"asc"}},versions:{orderBy:{revision:"asc"}}}}),currentBeforeFailure);
+  results.push({case:"stale result version rejects with no writes",passed:true});
+  assert.deepEqual(await prisma.match.findUniqueOrThrow({where:{id:"v210x-backfill"}}),beforeMatch);
+  assert.deepEqual(await prisma.appointmentVersion.findMany({where:{id:{in:priorVersions.map(v=>v.id)}},orderBy:{revision:"asc"}}),priorVersions);
+  results.push({case:"full Match row and prior version rows unchanged",passed:true});
+  console.log(JSON.stringify(results,null,2));
+  await writeFile("/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-v210x-independent-final-6e7fi5n_/probe-results.json",JSON.stringify(results,null,2));
+ }finally{await prisma.$disconnect();}
+}
+main().catch(e=>{console.error(e);process.exitCode=1});

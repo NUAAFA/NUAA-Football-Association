@@ -1,0 +1,21 @@
+test_absolute_target_rejected_even_inside_checkout (__main__.SafePackTests) ... ok
+test_alias_and_target_replacement_rejected (__main__.SafePackTests) ... ok
+test_count_single_file_total_size_and_ustar_limits (__main__.SafePackTests) ... ok
+test_cycle_and_dangling_target_rejected (__main__.SafePackTests) ... ok
+test_esbuild_external_extra_mismatched_and_replaced_hardlinks_rejected (__main__.SafePackTests) ... ok
+test_external_directory_and_relative_escape_rejected_without_read (__main__.SafePackTests) ... ok
+test_hardlink_fifo_and_socket_rejected (__main__.SafePackTests) ... ok
+test_manifest_hash_and_content_tampering_still_fail (__main__.SafePackTests) ... ok
+test_materialized_files_sha_manifest_extract_and_next_resolution (__main__.SafePackTests) ... ok
+test_midstream_failure_interrupt_and_replaced_output_cleanup (__main__.SafePackTests) ... ok
+test_nested_directory_file_cycle_and_dangling_links_rejected (__main__.SafePackTests) ... ok
+test_output_and_sidecar_conflicts_preserve_unknown_files (__main__.SafePackTests) ... ok
+test_sensitive_paths_and_sensitive_links_rejected_without_read (__main__.SafePackTests) ... ok
+test_target_parent_link_rejected (__main__.SafePackTests) ... ok
+test_unapproved_directory_and_file_alias_rejected (__main__.SafePackTests) ... ok
+test_verified_esbuild_pair_materializes_as_two_regular_files (__main__.SafePackTests) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 5.456s
+
+OK

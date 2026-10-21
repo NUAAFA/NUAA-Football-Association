@@ -1,0 +1,58 @@
+test_deployer_approved_activation_and_rollback (__main__.ArtifactTests) ... Synthetic case evidence retained: /var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-case-evidence-jgri96aj
+ok
+test_recovery_final_state_and_failure_matrix (__main__.ArtifactTests) ... ok
+test_migration_inventory_and_history_fail_closed (__main__.ArtifactTests) ... ok
+test_trimmed_previous_recovery_uses_its_own_receipt (__main__.ArtifactTests) ... FAIL
+
+======================================================================
+FAIL: test_trimmed_previous_recovery_uses_its_own_receipt (__main__.ArtifactTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 1077, in test_trimmed_previous_recovery_uses_its_own_receipt
+    self.deploy_case("trimmed-old-recovery", extra)
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 821, in deploy_case
+    self.execute_case(case_name, case, extra, initial_import, deployer, helper, expected_status,
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/scripts/test-prebuilt-artifact.py", line 902, in execute_case
+    self.assertEqual(result.returncode, expected_status, result.stdout + result.stderr)
+AssertionError: 1 != 0 : Imported candidate: 26e232272f9f965e1b35d07a4012f245853482e1; allowed ref HEAD: 26e232272f9f965e1b35d07a4012f245853482e1
+Current, service, environment, uploads and database unchanged. Release approval still required.
+Imported candidate: efcf67587618f9728631f8013e29ef561b79b8cb; allowed ref HEAD: 26e232272f9f965e1b35d07a4012f245853482e1
+Current, service, environment, uploads and database unchanged. Release approval still required.
+{"totalReferees":1,"totalActiveAccounts":1,"missingStudentId":0,"activeMissingStudentId":0,"activeNonNormalizedStudentId":0,"duplicateStudentIdGroups":0,"unsafeLoginMigrationBlockers":0,"scanComplete":1,"readOnlyVerified":1,"releaseAllowed":1}
+{"totalReferees":1,"totalActiveAccounts":1,"missingStudentId":0,"activeMissingStudentId":0,"activeNonNormalizedStudentId":0,"duplicateStudentIdGroups":0,"unsafeLoginMigrationBlockers":0,"scanComplete":1,"readOnlyVerified":1,"releaseAllowed":1}
+Current link replacement prepared: previous=/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-o4czm43r/trimmed-old-recovery-skdh_d45/releases/efcf67587618f9728631f8013e29ef561b79b8cb target=/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-o4czm43r/trimmed-old-recovery-skdh_d45/releases/26e232272f9f965e1b35d07a4012f245853482e1
+Current link replacement executed: previous=/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-o4czm43r/trimmed-old-recovery-skdh_d45/releases/efcf67587618f9728631f8013e29ef561b79b8cb target=/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-o4czm43r/trimmed-old-recovery-skdh_d45/releases/26e232272f9f965e1b35d07a4012f245853482e1
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-o4czm43r/trimmed-old-recovery-skdh_d45/releases/.prebuilt-source-26e232272f9f965e1b35d07a4012f245853482e1-39716'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-o4czm43r/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at 26e2322 synthetic candidate
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-o4czm43r/trimmed-old-recovery-skdh_d45/releases/.prebuilt-source-efcf67587618f9728631f8013e29ef561b79b8cb-39716'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-o4czm43r/source
+ * branch            main       -> FETCH_HEAD
+HEAD is now at efcf675 synthetic old release
+Cloning into '/private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-o4czm43r/trimmed-old-recovery-skdh_d45/releases/.reachability.ZHl4hoQN'...
+done.
+From /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-o4czm43r/source
+ * branch            main       -> FETCH_HEAD
+(node:39992) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:40060) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+STOP: manual recovery required. Keep service stopped; inspect /private/var/folders/s_/k059lw011992bc1q1dcjscwr0000gn/T/nuaafa-artifact-test-o4czm43r/trimmed-old-recovery-skdh_d45/activation.json, current, migration history and verified backup. Do not reverse migrations or restore a database automatically.
+Traceback (most recent call last):
+  File "<stdin>", line 12, in <module>
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/ops/deploy/prebuilt-artifact.py", line 1257, in main
+    check_state(args.path, args.current, args.target)
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/ops/deploy/prebuilt-artifact.py", line 1087, in check_state
+    require(value["phase"] in ("HEALTHY", "ROLLED_BACK"), "unfinished activation: inspect root state, database migration history, current and service before manual recovery")
+  File "/Users/xianghanwang/.codex/worktrees/v210x-admin-optimization/NUAAFA/ops/deploy/prebuilt-artifact.py", line 116, in require
+    raise ValueError(message)
+ValueError: unfinished activation: inspect root state, database migration history, current and service before manual recovery
+
+
+----------------------------------------------------------------------
+Ran 4 tests in 44.384s
+
+FAILED (failures=1)

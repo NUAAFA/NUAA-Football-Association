@@ -1,10 +1,11 @@
+import { AdminCompletedOfficials } from "@/components/referees/admin/admin-completed-officials";
+import { getUnifiedAdminActor, hasUnifiedAdminPermission } from "@/lib/unified-admin-rbac";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { AdminAppointmentEditor, type AppointmentMatchView } from "@/components/referees/admin/admin-appointment-editor";
 import { AdminMatchDangerActions } from "@/components/referees/admin/admin-match-danger-actions";
 import { AdminEmptyState, AdminStatusBadge, appointmentStatusLabels, matchStatusLabels } from "@/components/referees/admin/admin-ui";
-import { adminRefereeSelect } from "@/lib/referee-dto";
 import { detectAppointmentWarnings } from "@/lib/referee-conflicts";
 import { applicationStatusLabels, formatRefereeDateTime, parsePreferredPositions } from "@/lib/referee-presenters";
 import { getBeijingDayBounds, resolveMatchAvailability } from "@/lib/referee-availability";
@@ -30,11 +31,11 @@ export default async function AdminMatchDetailPage({ params, appointmentOnly = f
         },
       },
     }),
-    prisma.referee.findMany({ select: adminRefereeSelect, orderBy: { publicCode: "asc" }, take: 300 }),
+    prisma.referee.findMany({ select: { id: true, publicCode: true, name: true, status: true, assignmentEligibility: true, capabilities: { select: { format: true, positionKey: true, status: true } } }, orderBy: { publicCode: "asc" } }),
     getCompletedRefereeStatistics(),
   ]);
   if (!match) notFound();
-  if (!match.kickoff || !match.venue?.trim()) return <><h1>{match.homeTeam.name} vs {match.awayTeam.name} · 待排期</h1><p>比赛时间 / 场地待安排。安排后才能开放报名、发布选派和进入正式任务。</p><Link href={`/admin/matches/${match.id}`}>查看比赛 / 安排比赛</Link></>;
+  if (!match.kickoff || (match.status === "SCHEDULED" && !match.venue?.trim())) return <><h1>{match.homeTeam.name} vs {match.awayTeam.name} · 待排期</h1><p>比赛时间 / 场地待安排。安排后才能开放报名、发布选派和进入正式任务。</p><Link href={`/admin/matches/${match.id}`}>查看比赛 / 安排比赛</Link></>;
   const templateConfigured = hasPositionTemplate(match.competition.format);
   const targetEnd = match.endAt ?? new Date(match.kickoff.getTime() + 60_000);
   const matchDay = getBeijingDayBounds(match.kickoff);
@@ -80,25 +81,28 @@ export default async function AdminMatchDetailPage({ params, appointmentOnly = f
     : [];
   const template = configured.flatMap((position) => Array.from({ length: position.count }, (_, index) => ({ key: position.key, label: position.label, slot: index + 1 })));
   const currentPositions = match.appointment?.positions.map(({ key, slot, refereeId }) => ({ key, slot, refereeId })) ?? [];
-  const initialWarnings = templateConfigured && currentPositions.length ? await detectAppointmentWarnings(match.id, currentPositions) : [];
+  const initialWarnings = templateConfigured && currentPositions.length ? await detectAppointmentWarnings(match.id, currentPositions, prisma, match.status === "COMPLETED" ? "POST_MATCH" : "PRE_MATCH") : [];
   const completedCounts = new Map(statistics.map((item) => [item.refereeId, item.totalMatches]));
   const appointmentView: AppointmentMatchView = {
     canComplete: match.status === "COMPLETED" && match.kickoff <= new Date() && match.homeScore !== null && match.awayScore !== null, id: match.id, appointmentId: match.appointment?.id ?? null, statusKey: match.appointment?.status ?? "NONE",
     format: match.competition.format, publicationNote: match.appointment?.publicationNote ?? "", template, positions: currentPositions,
   };
+  const actor = await getUnifiedAdminActor();
+  const canWriteReferees = Boolean(actor && hasUnifiedAdminPermission(actor.roles, "referees:write"));
   const deletionProtected = match.status !== "SCHEDULED" || match.applications.length > 0 || Boolean(match.appointment);
   const matchLabel = `${match.homeTeam.name} vs ${match.awayTeam.name}`;
   return <>
     <section className="admin-detail-hero">
       <div><span>{match.competition.name}</span><h1>{match.homeTeam.name} vs {match.awayTeam.name}</h1><p>{match.round ? `${match.round} · ` : ""}{match.stage}</p>
-        <dl className="admin-detail-meta"><div><dt>开球时间</dt><dd>{formatRefereeDateTime(match.kickoff)}</dd></div><div><dt>比赛场地</dt><dd>{match.venue}</dd></div><div><dt>比赛状态</dt><dd>{matchStatusLabels[match.status]}</dd></div><div><dt>当前选派</dt><dd>{appointmentStatusLabels[match.appointment?.status ?? "NONE"]}</dd></div></dl>
+        <dl className="admin-detail-meta"><div><dt>开球时间</dt><dd>{formatRefereeDateTime(match.kickoff)}</dd></div><div><dt>比赛场地</dt><dd>{match.venue}</dd></div><div><dt>比赛状态</dt><dd>{matchStatusLabels[match.status]}</dd></div><div><dt>最终比分 / 确认</dt><dd>{match.homeScore ?? "—"}:{match.awayScore ?? "—"} · {match.resultConfirmedAt ? "已确认" : "待核实"}</dd></div><div><dt>当前选派</dt><dd>{appointmentStatusLabels[match.appointment?.status ?? "NONE"]}</dd></div></dl>
       </div>
       {!appointmentOnly ? <div className="admin-detail-actions">
         <Link className="admin-button admin-button-secondary" href={`/admin/matches/${match.id}/edit`}>编辑比赛</Link>
         <AdminMatchDangerActions matchId={match.id} matchLabel={matchLabel} protectedReason={deletionProtected ? "该比赛已有报名意向、选派或正式历史记录，不能直接删除。请使用“取消比赛”保留业务历史。" : undefined} />
       </div> : null}
     </section>
-    {templateConfigured ? <AdminAppointmentEditor
+    {match.status === "COMPLETED" ? <AdminCompletedOfficials key={match.appointment?.revision ?? 0} canWrite={canWriteReferees && Boolean(actor?.id)} match={{ id: match.id, resultVersion: match.resultVersion, revision: match.appointment?.revision ?? 0, action: match.appointment?.status === "COMPLETED" ? "correct" : "record", eligible: Boolean(match.resultConfirmedAt && match.resultVersion > 0 && match.kickoff && match.kickoff <= new Date() && (!match.endAt || match.endAt <= new Date()) && match.homeScore !== null && match.awayScore !== null && templateConfigured && match.appointment?.status !== "PUBLISHED"), summary: `${match.competition.name} · ${match.stage} · ${match.round ?? "未归轮次"} · ${matchLabel} · ${match.homeScore ?? "—"}:${match.awayScore ?? "—"} · ${formatRefereeDateTime(match.kickoff)} · ${match.venue}`, recordedAt: match.appointment?.recordedAt ? formatRefereeDateTime(match.appointment.recordedAt) : "", publicHistoryVisible: match.appointment?.publicHistoryVisible ?? false, template: template.map(p => ({ ...p, refereeId: currentPositions.find(c => c.key === p.key && c.slot === p.slot)?.refereeId ?? null })) }} referees={referees.map(r => ({ id: r.id, label: `${r.publicCode} · ${r.name}`, warning: r.status !== "ACTIVE" || r.assignmentEligibility !== "ELIGIBLE" ? "当前资格 / 账号需核实历史依据" : "" }))} /> : null}
+    {templateConfigured && canWriteReferees && (match.status === "SCHEDULED" || match.appointment?.status === "PUBLISHED") ? <AdminAppointmentEditor
       applications={match.applications.map((item) => ({ id: item.id, referee: `${item.referee.publicCode} · ${item.referee.name}`, status: item.status, statusLabel: applicationStatusLabels[item.status], preferred: parsePreferredPositions(item.preferredPositions).map((key) => getPositionTemplate(match.competition.format).find((position) => position.key === key)?.label ?? key).join(" / "), note: item.note, createdAt: formatRefereeDateTime(item.createdAt) }))}
       initialWarnings={initialWarnings.map((warning) => ({ code: warning.code, refereeId: warning.refereeId, refereeName: warning.refereeName, message: warning.message, severity: warning.severity, overridable: warning.overridable }))}
       match={appointmentView}
@@ -113,9 +117,9 @@ export default async function AdminMatchDetailPage({ params, appointmentOnly = f
         overlap: overlappingReferees.has(item.id),
         interested: interestedReferees.has(item.id),
       }))}
-    /> : <section className="admin-panel"><AdminEmptyState title="该赛事暂未配置对应的裁判岗位模板" description="球队、比赛及公开赛事页面可正常使用；配置专用岗位模板前，裁判报名与自动选派保持关闭。" /></section>}
-    <section className="admin-panel admin-history-panel"><details className="admin-history-details"><summary><div><h2>版本历史（{match.appointment?.versions.length ?? 0}）</h2><p>确认知悉绑定具体发布版本，重新发布后须重新确认。</p></div><span aria-hidden="true" className="admin-history-action" /></summary><div className="admin-history-content">
-      {match.appointment?.versions.length ? <div className="admin-table-scroll"><table className="admin-data-table"><thead><tr><th>版本</th><th>状态</th><th>操作人</th><th>修改原因</th><th>冲突覆盖原因</th><th>确认人数</th><th>时间</th></tr></thead><tbody>{match.appointment.versions.map((version) => <tr key={version.id}><td><strong>R{version.revision}</strong></td><td><AdminStatusBadge status={version.status} label={appointmentStatusLabels[version.status]} /></td><td>{version.createdByAdmin ? `${version.createdByAdmin.displayName} (${version.createdByAdmin.username})` : "Legacy / 未记录"}</td><td>{version.reason || "—"}</td><td>{version.overrideReason || "—"}</td><td>{version.acknowledgements.length}</td><td>{formatRefereeDateTime(version.createdAt)}</td></tr>)}</tbody></table></div> : <div className="admin-empty-state"><strong>暂无版本记录</strong><p>首次保存或发布后会形成版本留痕。</p></div>}
+    /> : !templateConfigured ? <section className="admin-panel"><AdminEmptyState title="该赛事暂未配置对应的裁判岗位模板" description="球队、比赛及公开赛事页面可正常使用；配置专用岗位模板前，裁判报名与自动选派保持关闭。" /></section> : null}
+    <section className="admin-panel admin-history-panel"><details className="admin-history-details"><summary><div><h2>版本历史（{match.appointment?.versions.length ?? 0}）</h2><p>赛前公示与赛后补录分别留痕；赛后记录不产生赛前裁判确认。</p></div><span aria-hidden="true" className="admin-history-action" /></summary><div className="admin-history-content">
+      {match.appointment?.versions.length ? <div className="admin-table-scroll"><table className="admin-data-table"><thead><tr><th>版本</th><th>状态 / 来源</th><th>操作人</th><th>修改原因</th><th>冲突覆盖原因</th><th>确认人数</th><th>时间</th></tr></thead><tbody>{match.appointment.versions.map((version) => <tr key={version.id}><td><strong>R{version.revision}</strong></td><td>{version.recordSource === "POST_MATCH_ENTRY" ? <small>赛后记录 / 更正</small> : <small>赛前流程</small>}<AdminStatusBadge status={version.status} label={appointmentStatusLabels[version.status]} /></td><td>{version.createdByAdmin ? `${version.createdByAdmin.displayName} (${version.createdByAdmin.username})` : "Legacy / 未记录"}</td><td>{version.reason || "—"}</td><td>{version.overrideReason || "—"}</td><td>{version.acknowledgements.length}</td><td>{formatRefereeDateTime(version.createdAt)}</td></tr>)}</tbody></table></div> : <div className="admin-empty-state"><strong>暂无版本记录</strong><p>首次保存或发布后会形成版本留痕。</p></div>}
     </div></details></section>
   </>;
 }

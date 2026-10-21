@@ -43,6 +43,8 @@ export { RefereeServiceError } from "@/lib/referee-service-error";
 export type AdminActor = {
   id: string | null;
   role: AdminRole;
+  displayName?: string;
+  isLegacy?: boolean;
 };
 
 const missingPositionTemplateMessage = "该赛事暂未配置对应的裁判岗位模板。";
@@ -60,6 +62,7 @@ function authorizedAdminActor<P extends UnifiedAdminPermission>(
   const actor = requireAdminServiceAuthorization(authorization, permission);
   return {
     id: actor.id,
+    displayName: actor.displayName, isLegacy: actor.isLegacy,
     role: actor.roles.includes("SUPER_ADMIN") ? "SUPER_ADMIN" : "REFEREE_MANAGER",
   };
 }
@@ -207,6 +210,7 @@ export async function updateRefereeAccount(
     studentId?: string;
     collegeId?: string;
     grade?: string;
+    gradeChangeReason?: string;
     phone?: string;
     qq?: string;
     refereeLevel?: string;
@@ -220,6 +224,9 @@ export async function updateRefereeAccount(
   const actor = authorizedAdminActor(authorization, "referees:write");
   const existing = await prisma.referee.findUnique({ where: { id } });
   if (!existing) throw new RefereeServiceError("裁判员账号不存在。", 404);
+  const gradeChanged = input.grade !== undefined && (existing.grade ?? "") !== (input.grade ?? "");
+  const studentChanged = input.studentId !== undefined && (existing.studentId ?? "") !== (input.studentId ?? "");
+  if ((gradeChanged || studentChanged) && (!input.gradeChangeReason?.trim() || input.gradeChangeReason.length > 500)) throw new RefereeServiceError("修改学号或原年级须填写核实原因（最多 500 字）。");
   const capabilities = normalizeCapabilities(input);
   if (input.refereeLevel && !isRefereeQualification(input.refereeLevel)) {
     throw new RefereeServiceError("裁判资质不在允许范围内。");
@@ -242,16 +249,17 @@ export async function updateRefereeAccount(
       );
       await tx.refereePositionCapability.deleteMany({ where: { refereeId: id } });
       const updated = await tx.referee.update({
-        where: { id },
+        where: { id, updatedAt: existing.updatedAt },
         data: {
           publicCode: input.publicCode,
           name: input.name,
           status: input.status,
           assignmentEligibility: input.assignmentEligibility,
-          studentId: input.studentId || null,
+          studentId: input.studentId === undefined ? existing.studentId : input.studentId || null,
           collegeId: input.collegeId || null,
           currentAffiliationUnitId,
-          grade: input.grade || null,
+          ...(gradeChanged || studentChanged ? { gradeMode: studentChanged ? "UNVERIFIED" : "MANUAL", enrollmentYear: null, gradeReason: input.gradeChangeReason!.trim() } : {}),
+          grade: input.grade === undefined ? existing.grade : input.grade || null,
           phone: input.phone || null,
           qq: input.qq || null,
           refereeLevel: normalizeRefereeQualification(input.refereeLevel),
@@ -282,6 +290,7 @@ export async function updateRefereeAccount(
         summary: `更新裁判员账号 ${updated.publicCode}（${updated.status}）`,
         actorId: actor?.id ?? undefined,
       }, tx);
+      if (gradeChanged || studentChanged) await writeAudit({ action: "REFEREE_GRADE_ID_CHANGED", actorId: actor.id ?? undefined, entityType: "Referee", entityId: id, summary: "核实并修改学号 / 年级", metadata: { actor: { id: actor.id, displayName: actor.displayName, isLegacy: actor.isLegacy, role: actor.role }, before: { studentId: existing.studentId, grade: existing.grade, mode: existing.gradeMode }, after: { studentId: updated.studentId, grade: updated.grade, mode: updated.gradeMode }, reason: input.gradeChangeReason } }, tx);
       if (existing.status !== updated.status) {
         const action = updated.status === "INACTIVE"
           ? "REFEREE_ACCOUNT_DISABLED"

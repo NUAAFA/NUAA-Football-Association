@@ -107,7 +107,7 @@ export function CoreCompetitionPreviewPage({
           <div className="core-competition-section-intro">
             <div>
             <p>SCHEDULE & RESULTS</p>
-            <h2 id={`${competition.id}-schedule-title`}>赛程与赛果</h2>
+            <h2 id={`${competition.id}-schedule-title`}>赛程与赛果</h2><p>本页业务时间均为北京时间（UTC+8）。</p>
             </div>
             <p>{schedule.summary}</p>
           </div>
@@ -156,7 +156,7 @@ export function CoreCompetitionPreviewPage({
           </div>
           {appointmentMatches.length ? (
             <div className="core-competition-record-list">
-              {appointmentMatches.map((match) => <article key={match.id}><header><span>{match.homeTeam.name} vs {match.awayTeam.name}</span><strong>{match.dateLabel}</strong></header><ul>{match.appointment!.positions.map((position) => <li key={position.key}><span>{position.label}</span><b>{position.refereeName}</b></li>)}</ul></article>)}
+              {appointmentMatches.map((match) => <article key={match.id}><header><span>{match.homeTeam.name} vs {match.awayTeam.name}</span><strong>{match.dateLabel} · {match.appointment?.recordSource === "POST_MATCH_ENTRY" ? "赛后执裁记录" : "正式选派"}</strong></header><ul>{match.appointment!.positions.map((position) => <li key={position.key}><span>{position.label}</span><b>{position.refereeName}</b></li>)}</ul></article>)}
             </div>
           ) : <div className="core-competition-empty"><strong>当前暂无已发布选派</strong><p>正式安排以裁判中心公开记录为准。</p></div>}
           <Link className="text-link core-competition-section-link" href="/referees/assignments">查看全部裁判员选派公示 →</Link>

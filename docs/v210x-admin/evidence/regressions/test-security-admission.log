@@ -1,0 +1,17 @@
+
+> nuaa-football-association@0.1.0 test:security-admission
+> tsx scripts/test-security-admission.ts
+
+{
+  "trustedAddressIgnoresSpoofedXff": true,
+  "duplicateStatus": 409,
+  "duplicateCreatedRows": 0,
+  "sharedNatMultipleApplicants": true,
+  "concurrentDuplicateSerialized": true,
+  "addressLimit": 30,
+  "addressWindowMinutes": 15,
+  "rateStatus": 429,
+  "rateLimitedCreatedRows": 0,
+  "expiredFixedWindowReset": true,
+  "duplicateCooldownDays": 7
+}

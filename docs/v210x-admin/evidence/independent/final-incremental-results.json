@@ -1,0 +1,20 @@
+{
+  "recordedAt": "2026-10-20T12:41:16.757527+00:00",
+  "codeCommit": "73da7dd7aa60b3eb027fbaf3e124f8e6bc070515",
+  "node": "v24.21.0",
+  "checks": [
+    {
+      "command": "TZ=UTC npm run test:v210x-admin",
+      "exitCode": 0,
+      "evidence": "final-incremental-admin-utc.log",
+      "sha256": "6e95afb4697c6764ac62fde5cc8cecae623739c18903c19312eb293a9048ce0c"
+    },
+    {
+      "command": "Independent date URL query on own synthetic clone",
+      "exitCode": 0,
+      "evidence": "final-date-filter-probe.json",
+      "sha256": "d582acd2e1ea1080f51193a8a431e5463caa7f19d038fa239b050f7797603dad"
+    }
+  ],
+  "status": "PASS"
+}

@@ -415,6 +415,17 @@ def shared_snapshot(case):
     return result
 
 
+def initialize_legacy_database(db, source):
+    for name in A.BASELINE_MIGRATIONS:
+        db.executescript((source / "prisma/migrations" / name / "migration.sql").read_text())
+    db.execute("CREATE TABLE _prisma_migrations (migration_name TEXT, checksum TEXT, started_at INTEGER, finished_at TEXT, rolled_back_at TEXT)")
+    values = dict(id="synthetic-ref", name="Synthetic", publicCode="SYNTHETIC001", status="ACTIVE", studentId="SYNTHETIC001")
+    for _,name,typ,required,default,pk in db.execute('PRAGMA table_info("Referee")'):
+        if name not in values and required and default is None:
+            values[name] = 0 if "INT" in typ or "BOOL" in typ else "synthetic"
+    db.execute('INSERT INTO Referee (' + ','.join('"'+k+'"' for k in values) + ') VALUES (' + ','.join('?' for _ in values) + ')', list(values.values()))
+
+
 class ArtifactTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -433,10 +444,14 @@ class ArtifactTests(unittest.TestCase):
         packages = {"node_modules/" + n: {"version": v, "integrity": "synthetic-locked"} for n, v in (("next", "16.3.8"), ("prisma", "7.9.1"), ("@prisma/client", "7.9.1"))}
         (cls.source / "package-lock.json").write_bytes(A.json_bytes({"packages": packages}))
         (cls.source / "package.json").write_text('{"name":"synthetic","private":true}\n')
-        for i in range(17):
-            p = cls.source / f"prisma/migrations/202600{i:02}_synthetic/migration.sql"
+        # Real immutable SQL/schema, with wholly synthetic business rows.
+        for name in A.BASELINE_MIGRATIONS:
+            rel = "prisma/migrations/" + name + "/migration.sql"
+            p = cls.source / rel
             p.parent.mkdir(parents=True)
-            p.write_text("-- synthetic immutable migration\n")
+            p.write_bytes(subprocess.check_output(["git", "-C", str(REPO), "show", A.BASELINE_COMMIT + ":" + rel]))
+        for rel in ("prisma/schema.prisma", "prisma/migrations/migration_lock.toml"):
+            (cls.source / rel).write_bytes(subprocess.check_output(["git", "-C", str(REPO), "show", A.BASELINE_COMMIT + ":" + rel]))
         # Real repositories also track files deliberately excluded from runtime.
         for name in ("README.md", "AGENTS.md", "docs/operations/example.md", ".github/workflows/example.yml", "ops/deploy/example"):
             p = cls.source / name
@@ -699,6 +714,14 @@ if validate_canonical_shared_file "$UNTRUSTED_LINK" unsafe; then exit 84; fi
 if verify_build_artifact "$MISSING"; then exit 85; fi
 if fetch_and_verify_reachability "$MISSING" bad refs/heads/main; then exit 86; fi
 prebuilt_start=/usr/bin/env; current_link=/synthetic/current; deploy_user=synthetic
+# This metadata test has no synthetic OS account. Isolate only the process
+# invocation for the public contract marker; root metadata checks remain real.
+# The installed-old-contract test exercises rejection by the actual deployer.
+run_as_deploy_user() {
+ [ "$#" = 4 ] && [ "$1" = "$prebuilt_python" ] && [ "$2" = -I ] &&
+ [ "$3" = "$prebuilt_start" ] && [ "$4" = --contract-version ] || return 1
+ echo NUAAFA_STARTUP_CONTRACT=V2.10X-PREBUILT-3
+}
 systemctl() {
  case "$4" in
   User) echo "$deploy_user";;
@@ -768,8 +791,8 @@ if verify_service_contract; then exit 90; fi
         dest = self.extracted_checkout("migration-readiness")
         dbpath = self.root / "migration-readiness.db"
         with sqlite3.connect(dbpath) as db:
-            db.execute("CREATE TABLE _prisma_migrations (migration_name TEXT, checksum TEXT, started_at INTEGER, finished_at TEXT, rolled_back_at TEXT)")
-        A.migration_ready(dest, self.source, dbpath)
+            initialize_legacy_database(db, self.source)
+        with self.assertRaises(ValueError): A.migration_ready(dest, self.source, dbpath)
         with self.assertRaises(ValueError): A.migration_ready(dest, self.source, dbpath, complete=True)
         with sqlite3.connect(dbpath) as db:
             for i, (name, sha) in enumerate(A.migration_inventory(dest).items()):
@@ -790,7 +813,7 @@ if verify_service_contract; then exit 90; fi
         (case / "shared/.env.production").write_text("SYNTHETIC=1\n")
         (case / "shared/.env.production").chmod(0o600)
         with sqlite3.connect(case / "shared/prisma/dev.db") as db:
-            db.executescript("CREATE TABLE Referee (status TEXT, studentId TEXT); INSERT INTO Referee VALUES ('ACTIVE','SYNTHETIC001'); CREATE TABLE _prisma_migrations (migration_name TEXT, checksum TEXT, started_at INTEGER, finished_at TEXT, rolled_back_at TEXT);")
+            initialize_legacy_database(db, self.source)
             for i, (migration_name, checksum) in enumerate(A.migration_inventory(self.source).items()):
                 db.execute("INSERT INTO _prisma_migrations VALUES (?,?,?,'synthetic',NULL)", (migration_name, checksum, i))
         previous_commit = previous_commit or self.old
@@ -1051,12 +1074,12 @@ test ! -e "$CASE/events"
         extra += r'''
 wait_for_health() { echo health >> "$CASE/events"; test "$(readlink "$current_link")" = "$release_root/$OLD"; }
 expect_fail --activate-prebuilt --artifact-sha256 "$DIGEST" "$COMMIT"
-run_prebuilt_helper check-state --path "$activation_state" --current "$current_link"
+if run_prebuilt_helper check-state --path "$activation_state" --current "$current_link"; then exit 90; fi
 "$prebuilt_python" - "$activation_state" <<'PY'
 import json,sys
-assert json.load(open(sys.argv[1]))['phase'] == 'ROLLED_BACK'
+assert json.load(open(sys.argv[1]))['phase'] == 'MANUAL_REQUIRED'
 PY
-test "$(readlink "$current_link")" = "$release_root/$OLD"
+test "$(readlink "$current_link")" = "$release_root/$COMMIT"
 main --import-artifact "$ARCHIVE" --artifact-sha256 "$DIGEST" "$COMMIT"
 '''
         self.deploy_case("trimmed-old-recovery", extra)
@@ -1113,7 +1136,7 @@ cmp "$CASE/events" "$CASE/events-B"
                     "build": 'rm "$release_root/$OLD/.next/BUILD_ID"',
                     "shared-link": 'rm "$release_root/$OLD/.env.production"; ln -s "$shared/prisma/dev.db" "$release_root/$OLD/.env.production"',
                     "shared-mode": 'chmod 0666 "$shared/.env.production"',
-                    "migration": 'printf tamper >> "$release_root/$OLD/prisma/migrations/20260000_synthetic/migration.sql"',
+                    "migration": 'printf tamper >> "$release_root/$OLD/prisma/migrations/20260722013757_init_referee_center/migration.sql"',
                     "origin": 'git -C "$release_root/$OLD" remote set-url origin /untrusted',
                     "healthy": ':',
                 }
@@ -1283,7 +1306,8 @@ test ! -e "$activation_state"
                 if kind == "success":
                     extra += 'main --activate-prebuilt --artifact-sha256 "$DIGEST" "$COMMIT"\ntest "$(readlink "$current_link")" = "$release_root/$COMMIT"\n'
                 else:
-                    extra += 'expect_fail --activate-prebuilt --artifact-sha256 "$DIGEST" "$COMMIT"\ntest "$(readlink "$current_link")" = "$release_root/$OLD"\n'
+                    expected_link = "$OLD" if kind in ("identity", "approval-fail") else "$COMMIT"
+                    extra += 'expect_fail --activate-prebuilt --artifact-sha256 "$DIGEST" "$COMMIT"\ntest "$(readlink "$current_link")" = "$release_root/' + expected_link + '"\n'
                 extra += restore
                 extra = self.sealed_previous_setup() + extra
                 case = self.deploy_case("activation-" + kind, extra, changed_fixture=kind == "identity")
@@ -1294,7 +1318,7 @@ test ! -e "$activation_state"
                     self.assertEqual(events[:3], ["backup", "stop", "migrate"])
                     self.assertEqual(events.count("migrate"), 1)
                     self.assertNotIn("forbidden-build", events)
-                    self.assertEqual(events[3:5], ["restart", "health"] if kind == "success" else (["restart", "restart"] if kind == "restart" else ["restart", "health"]))
+                    self.assertEqual(events[3:5], ["restart", "health"] if kind == "success" else (["restart", "stop"] if kind == "restart" else ["restart", "health"]))
 
     def test_recovery_final_state_and_failure_matrix(self):
         for kind in ("new-restart", "new-health", "old-restart", "old-health", "old-link", "migration", "backup", "stop", "interrupt", "ordinary-error", "rollback-journal"):
@@ -1319,16 +1343,18 @@ test ! -e "$activation_state"
                 if kind == "ordinary-error": extra += 'atomic_switch_current() { return 7; }\n'
                 extra += 'expect_fail --activate-prebuilt --artifact-sha256 "$DIGEST" "$COMMIT"\n'
                 if kind != "backup":
-                    phase = "ROLLED_BACK" if kind in ("new-restart", "new-health", "stop") else "MANUAL_REQUIRED"
+                    phase = "ROLLED_BACK" if kind == "stop" else "MANUAL_REQUIRED"
                     extra += '"$prebuilt_python" - "$activation_state" <<\'PY\'\nimport json,sys\nassert json.load(open(sys.argv[1]))["phase"] == ' + repr(phase) + '\nPY\n'
-                if kind not in ("old-link", "ordinary-error"):
+                if kind not in ("backup", "stop", "migration", "interrupt", "ordinary-error"):
+                    extra += 'test "$(readlink "$current_link")" = "$release_root/$COMMIT"\n'
+                if kind in ("backup", "stop", "migration", "interrupt", "ordinary-error"):
                     extra += 'test "$(readlink "$current_link")" = "$release_root/$OLD"\n'
-                if kind not in ("backup", "new-restart", "new-health", "stop"):
+                if kind not in ("backup", "stop"):
                     extra += 'expect_fail --activate-prebuilt --artifact-sha256 "$DIGEST" "$COMMIT"\n'
                 case = self.deploy_case("recovery-final-" + kind, self.sealed_previous_setup() + extra)
                 events = (case / "events").read_text().splitlines()
                 self.assertLessEqual(events.count("migrate"), 1)
-                if kind in ("new-restart", "new-health", "stop"):
+                if kind == "stop":
                     self.assertEqual(events[-1], "health")
                 elif kind != "backup": self.assertEqual(events[-1], "stop")
 

@@ -1,0 +1,17 @@
+
+> nuaa-football-association@0.1.0 test:admin-operations-r2.1
+> tsx scripts/test-admin-operations-r2.1.ts
+
+{
+  "foundingYearCorrectedAndHistoricalYearsPreserved": true,
+  "availabilityStatesAndAppointmentSignal": true,
+  "competitionSafeDeleteRbacConflictAudit": true,
+  "matchSafeDeletePreservesApplicationsAndParents": true,
+  "houseCrudRelationsSafeDeleteRbacAudit": true,
+  "sharedOrganizationSelectorContracts": true,
+  "refereeWorkspaceAccountHierarchy": true,
+  "competitionFormAndAdminTabsPolished": true,
+  "sessionAwareOpenMatchWorkspaceShell": true,
+  "sqliteIntegrityCheck": "ok",
+  "foreignKeyViolations": 0
+}

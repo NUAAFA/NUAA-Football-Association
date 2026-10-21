@@ -50,7 +50,7 @@ run_main_failure() {
 repo_root="$(pwd -P)"
 source "$repo_root/ops/deploy/nuaafa-deploy"
 # Synthetic legacy authorization and migration model only.
-run_prebuilt_helper() { [ "$1" = legacy ] || [ "$1" = migration-ready ] || [ "$1" = check-state ] || [ "$1" = state ] || [ "$1" = shared-links ]; }
+run_prebuilt_helper() { if [ "$1" = database-fingerprint ]; then printf '%064d\n' 0; return; fi; [ "$1" = recovery-ready ] || [ "$1" = legacy ] || [ "$1" = migration-ready ] || [ "$1" = check-state ] || [ "$1" = state ] || [ "$1" = shared-links ]; }
 student_id_preflight_command="$repo_root/scripts/student-id-release-preflight.mjs"
 student_id_preflight_node="$(command -v node)"
 
@@ -387,7 +387,7 @@ for rollback_case in restart-failure health-failure; do
     wait_for_health() { printf 'health\n' >>"$events"; return 1; }
   fi
   run_main_failure "$rollback_case" --allowed-ref refs/heads/main "$reviewed_sha"
-  assert_equal "$(read_symlink_target "$current_link")" "$previous_current" "$rollback_case restored previous release"
+  assert_equal "$(read_symlink_target "$current_link")" "$release_root/$reviewed_sha" "$rollback_case retains candidate link and stops"
   assert_equal "$(sed -n '/^migrate$/p' "$events" | wc -l | tr -d ' ')" "1" "$rollback_case no reverse migration"
 done
 restart_service() { printf 'restart\n' >>"$events"; }

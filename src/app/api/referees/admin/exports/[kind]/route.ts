@@ -1,3 +1,4 @@
+import { getEffectiveRefereeGrade } from "@/lib/referee-grade";
 import { NextResponse } from "next/server";
 
 import { authorizeLegacyAdminRequest } from "@/lib/legacy-admin-authorization";
@@ -30,6 +31,7 @@ export async function GET(
     if (kind === "referees") {
       const referees = await prisma.referee.findMany({
       select: {
+        grade: true, gradeMode: true, studentId: true, enrollmentYear: true,
         publicCode: true,
         name: true,
         status: true,
@@ -41,7 +43,7 @@ export async function GET(
       orderBy: { publicCode: "asc" },
     });
       return csvResponse("referees.csv", [
-      ["裁判员编号", "姓名", "账号状态", "十一人制", "五人制", "培训状态", "公开名录授权"],
+      ["裁判员编号", "姓名", "账号状态", "十一人制", "五人制", "培训状态", "公开名录授权", "当前年级", "年级来源"],
       ...referees.map((item) => [
         item.publicCode,
         item.name,
@@ -50,6 +52,7 @@ export async function GET(
         item.futsal ? "是" : "否",
         item.trainingStatus,
         item.publicDirectoryEnabled ? "是" : "否",
+        getEffectiveRefereeGrade(new Date(), item).grade ?? "学籍待核实", getEffectiveRefereeGrade(new Date(), item).source,
       ]),
       ]);
     }

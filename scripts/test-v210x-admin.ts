@@ -1,0 +1,143 @@
+import assert from "node:assert/strict";
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import os from "node:os";
+import path from "node:path";
+async function main() {
+  const root = await mkdtemp(path.join(os.tmpdir(), "nuaafa-v210x-"));
+  process.env.DATABASE_URL = `file:${path.join(root, "synthetic.db")}`; process.env.NUAAFA_UPLOAD_DIR = path.join(root, "uploads"); process.env.NUAAFA_ISOLATED_SECURITY_TEST = "1";
+  await writeFile(path.join(root, "synthetic.db"), "");
+  const migrated = spawnSync(process.execPath, ["node_modules/prisma/build/index.js", "migrate", "deploy"], { env: process.env, encoding: "utf8" }); assert.equal(migrated.status, 0, migrated.stdout + migrated.stderr);
+  const { prisma } = await import("../src/lib/prisma");
+  const { getAdminMatchList, logicalRounds } = await import("../src/lib/admin-match-query");
+  const { getAdminRefereeList } = await import("../src/lib/admin-referee-query");
+  const { recordCompletedOfficials: record } = await import("../src/lib/completed-officials-service");
+  const { setRefereeGrade } = await import("../src/lib/referee-grade-service");
+  const { getEffectiveRefereeGrade: grade, inferEnrollmentYear } = await import("../src/lib/referee-grade");
+  const { parseBeijingDateTime: parse, formatBeijingDateTimeInput: input } = await import("../src/lib/beijing-datetime");
+  const { readDate } = await import("../src/lib/referee-validation");
+  const { parseCompetitionImportDate: importDate } = await import("../src/lib/competition-import-service");
+  const { getPublicHistoricalAppointments, getPublicAppointmentById, getPublicUpcomingAppointments } = await import("../src/lib/referee-public");
+  const { getCompletedRefereeStatistics } = await import("../src/lib/referee-r1-service");
+  const { issueTestAdminServiceAuthorization: grant, testUnifiedAdminActor: actor } = await import("./security-r4a-test-capabilities");
+  const { hashPassword } = await import("../src/lib/referee-security");
+  const now = new Date(); const asOf = new Date("2026-10-20T00:00Z");
+  try {
+    for (const value of ["2026-10-27T15:00", "2026-10-27T15:00:00+08:00", "2026-10-27T07:00:00Z"]) { assert.equal(parse(value, "时间")!.toISOString(), "2026-10-27T07:00:00.000Z"); assert.equal(input(readDate(value, "时间")), "2026-10-27T15:00"); }
+    for (const value of ["2026-02-30T15:00", "2026-02-30T15:00:00Z", "2026-10-27T25:00", "2026-10-27T15:00+15:00", "2026-10-27T15:00+08:60", "2026-10-27 15:00Z", "10/27/2026", "2026-10-27T15:00 Europe/London"]) assert.throws(() => parse(value, "时间"), Error, value);
+    for (const value of ["2026-10-27 15:00", "2026-10-27T15:00+08:00", new Date("2026-10-27T15:00Z")]) { const errors: never[] = []; assert.equal(importDate(value, "kickoff", "时间", errors)?.toISOString(), "2026-10-27T07:00:00.000Z"); assert.equal(errors.length, 0); }
+    for (const value of ["2026-02-30T15:00Z", "2026-10-27T25:00+08:00", 46322]) { const errors: never[] = []; assert.equal(importDate(value, "kickoff", "时间", errors), null); assert(errors.length); }
+    for (const value of ["2026-03-29T01:30", "2026-10-25T01:30"]) assert.equal(input(parse(value, "时间")), value);
+    assert.equal(parse("2026-10-27", "日期")!.toISOString(), "2026-10-26T16:00:00.000Z");
+    const auto = { studentId: "102610018", grade: "原记录", gradeMode: "AUTO_STUDENT_ID", enrollmentYear: 2026 };
+    for (const [at, expected] of [["2027-08-31T15:59:59Z", "大一"], ["2027-08-31T16:00:00Z", "大二"], ["2028-08-31T16:00Z", "大三"], ["2029-08-31T16:00Z", "大四"]]) assert.equal(grade(new Date(at), auto).grade, expected);
+    assert.equal(grade(new Date("2030-08-31T16:00Z"), auto).needsReview, true);
+    for (const id of ["CG0123010189", "", "10261001", "1026100180", "109910018", "102810018", "１０２６１００１８"]) assert.equal(inferEnrollmentYear(id, asOf), null, id);
+    assert.equal(grade(now, { ...auto, gradeMode: "MANUAL", grade: "大二" }).grade, "大二");
+    assert.equal(grade(now, { ...auto, gradeMode: "UNVERIFIED", grade: "大三" }).source, "待确认");
+    const calendar = await import("../src/lib/referee-availability-calendar");
+    assert.throws(() => calendar.calendarDayBounds("2026-02-30"));
+    assert.throws(() => calendar.beijingCalendarDateTime("2026-02-30", "15:00"));
+    assert.throws(() => calendar.beijingCalendarDateTime("2026-10-27", "25:00"));
+    assert.equal(calendar.beijingCalendarDateTime("2026-10-27", "15:00"), "2026-10-27T07:00:00.000Z");
+    console.log(`PASS E/F strict calendars, explicit offsets, import, BST/GMT, Beijing academic boundary; TZ=${process.env.TZ}`);
+    const admin = await prisma.adminAccount.create({ data: { username: "v210x-super", displayName: "虚构验收管理员", passwordHash: await hashPassword("Synthetic-Only-v210x-Verify!"), role: "SUPER_ADMIN" } });
+    const refadmin = await prisma.adminAccount.create({ data: { username: "v210x-referee", displayName: "虚构裁判管理员", passwordHash: await hashPassword("Synthetic-Only-v210x-Verify!"), role: "REFEREE_MANAGER", unifiedRoles: { create: { role: "REFEREE_ADMIN" } } } });
+    const compadmin = await prisma.adminAccount.create({ data: { username: "v210x-competition", displayName: "虚构赛事管理员", passwordHash: await hashPassword("Synthetic-Only-v210x-Verify!"), role: "REFEREE_MANAGER", unifiedRoles: { create: { role: "COMPETITION_ADMIN" } } } });
+    const authorization = grant("referees:write", actor({ id: admin.id }));
+    const onlyRef = grant("referees:write", actor({ id: refadmin.id, roles: ["REFEREE_ADMIN"] }));
+    const onlyComp = grant("competitions:write", actor({ id: compadmin.id, roles: ["COMPETITION_ADMIN"] }));
+    const competitions = await Promise.all(["虚构2026新生杯", "虚构男子五人制", "虚构女子五人制"].map((name, i) => prisma.competition.create({ data: { id: `v210x-comp-${i}`, slug: `v210x-comp-${i}`, name, campus: "隔离验收", format: "FUTSAL", status: "ONGOING", year: 2026, publicPublished: true } })));
+    const c = competitions[0];
+    const teams = await Promise.all(competitions.flatMap((co, i) => [0, 1].map(n => prisma.team.create({ data: { id: `v210x-team-${i}-${n}`, competitionId: co.id, name: `虚构${i}-${n}队` } }))));
+    const stage = await prisma.competitionStage.create({ data: { competitionId: c.id, name: "小组赛", type: "GROUP" } });
+    const knockout = await prisma.competitionStage.create({ data: { competitionId: c.id, name: "淘汰赛", type: "KNOCKOUT", sortOrder: 1 } });
+    const groups = await Promise.all(["A组", "B组"].map((name, i) => prisma.competitionGroup.create({ data: { stageId: stage.id, name, sortOrder: i } })));
+    const rounds = await Promise.all(groups.flatMap(g => [1, 2].map(n => prisma.competitionRound.create({ data: { stageId: stage.id, groupId: g.id, name: n === 1 ? "第一轮" : "第二轮", sortOrder: n } }))));
+    const final = await prisma.competitionRound.create({ data: { stageId: knockout.id, name: "决赛", sortOrder: 1 } });
+    const secondGroupTeams = await Promise.all([0, 1].map(i => prisma.team.create({ data: { competitionId: c.id, name: `虚构B组${i}队` } })));
+    const groupTeams = [[teams[0], teams[1]], secondGroupTeams];
+    for (const [i, group] of groups.entries()) for (const team of groupTeams[i]) await prisma.teamGroupMembership.create({ data: { teamId: team.id, stageId: stage.id, groupId: group.id } });
+    await prisma.match.createMany({ data: Array.from({ length: 600 }, (_, i) => ({ id: `v210x-match-${i}`, slug: `v210x-match-${i}`, competitionId: c.id, stage: "小组赛", stageId: stage.id, groupId: groups[i % 2].id, roundId: rounds[(i % 2) * 2 + (Math.floor(i / 2) % 2)].id, round: Math.floor(i / 2) % 2 ? "第二轮" : "第一轮", kickoff: new Date("2026-10-27T07:00Z"), venue: "虚构球场", homeTeamId: groupTeams[i % 2][0].id, awayTeamId: groupTeams[i % 2][1].id, status: "SCHEDULED" })) });
+    const makeMatch = (id: string, extra = {}) => prisma.match.create({ data: { id, slug: id, competitionId: c.id, stage: "旧文字阶段", homeTeamId: teams[0].id, awayTeamId: teams[1].id, status: "SCHEDULED", ...extra } });
+    await makeMatch("v210x-legacy"); await makeMatch("v210x-final", { stage: "淘汰赛", stageId: knockout.id, roundId: final.id, venue: "虚构球场", kickoff: new Date("2026-10-27T15:59:59Z") });
+    await prisma.match.create({ data: { slug: "v210x-other", competitionId: competitions[1].id, stage: "小组赛", homeTeamId: teams[2].id, awayTeamId: teams[3].id, status: "SCHEDULED" } });
+    const logical = logicalRounds(rounds); assert.equal(logical.length, 2); assert.equal(logical[0].ids.length, 2);
+    const q = { competition: c.id, stage: stage.id, round: logical[0].key, quick: "pending" };
+    const l = await getAdminMatchList(q, "appointments", asOf); assert.equal(l.total, 300); assert.equal(l.matches.length, 20); assert.equal(l.pages, 15); assert.equal(l.counts.pending, 300);
+    assert.equal((await getAdminMatchList({ ...q, group: groups[0].id }, "appointments", asOf)).total, 150);
+    assert.equal((await getAdminMatchList({ ...q, page: "15" }, "appointments", asOf)).matches.length, 20);
+    assert.equal((await getAdminMatchList({ competition: c.id, stage: stage.id, quick: "incomplete" }, "appointments", asOf)).total, 600);
+    assert.equal((await getAdminMatchList({ ...q, stage: knockout.id }, "matches", asOf)).round, "");
+    assert.equal((await getAdminMatchList({ competition: c.id, stage: "legacy" }, "matches", asOf)).total, 1);
+    assert.equal((await getAdminMatchList({ competition: c.id, date: "2026-10-27" }, "matches", asOf)).total, 601);
+    const invalidDay = await getAdminMatchList({ competition: c.id, date: "2026-10-27T16:00" }, "matches", asOf); assert.equal(invalidDay.total, 0); assert(invalidDay.dateError);
+    assert.equal((await getAdminMatchList({ competition: c.id, date: "2026-02-30" }, "matches", asOf)).total, 0);
+    assert.equal((await getAdminMatchList({ competition: competitions[2].id }, "matches", asOf)).total, 0);
+    console.log("PASS B/C 600 matches, 300 per logical round, A/B distinct IDs, server pagination/count, stage switch, legacy, Beijing natural day, separate real competitions");
+    await prisma.referee.createMany({ data: Array.from({ length: 1000 }, (_, i) => ({ id: `v210x-ref-${i}`, publicCode: `V${String(i).padStart(4, "0")}`, name: `虚构裁判${String(i).padStart(4, "0")}`, studentId: `1026${String(i).padStart(5, "0")}`, status: "ACTIVE", assignmentEligibility: "ELIGIBLE", grade: "大三" })) });
+    const list = await getAdminRefereeList({}, asOf); assert.equal(list.total, 1000); assert.equal(list.referees.length, 20); assert(!JSON.stringify(list.referees).includes("studentId"));
+    assert.equal((await getAdminRefereeList({ page: "50" }, asOf)).referees.length, 20);
+    const r0 = await prisma.referee.findUniqueOrThrow({ where: { id: "v210x-ref-0" } });
+    const changed = await setRefereeGrade(r0.id, { mode: "AUTO_STUDENT_ID", grade: "", reason: "虚构学籍核验", expectedUpdatedAt: r0.updatedAt.toISOString() }, authorization);
+    assert.equal(changed.grade, "大三"); assert.equal(changed.enrollmentYear, 2026);
+    assert.equal((await getAdminRefereeList({ grade: "大一" }, asOf)).total, 1);
+    assert.equal((await getAdminRefereeList({ grade: "大二" }, new Date("2027-09-01T00:00Z"))).total, 1);
+    assert.equal((await getAdminRefereeList({ enrollment: "2026" }, asOf)).total, 1000);
+    assert.equal((await getAdminRefereeList({ gradeMode: "UNVERIFIED" }, asOf)).total, 999);
+    for (const key of ["status", "assignmentEligibility", "currentAffiliationUnitId", "passwordHash", "collegeId", "studentId"] as const) assert.equal(changed[key], r0[key]);
+    await assert.rejects(() => setRefereeGrade(r0.id, { mode: "MANUAL", grade: "大二", reason: "", expectedUpdatedAt: changed.updatedAt.toISOString() }, authorization));
+    await assert.rejects(() => setRefereeGrade(r0.id, { mode: "MANUAL", grade: "大二", reason: "核实", expectedUpdatedAt: r0.updatedAt.toISOString() }, authorization));
+    assert.equal((await prisma.referee.findUniqueOrThrow({ where: { id: r0.id } })).gradeMode, "AUTO_STUDENT_ID");
+    console.log("PASS A/F 1000 profiles, 50 pages, grade/source/enrollment filters, opt-in preview, legacy grade preserved, affiliation/account/credentials unchanged, audit and stale update");
+    const past = { status: "COMPLETED" as const, kickoff: new Date("2026-10-01T07:00Z"), endAt: new Date("2026-10-01T08:00Z"), venue: "虚构球场", homeScore: 2, awayScore: 1, resultVersion: 1, resultConfirmedAt: new Date("2026-10-01T08:01Z") };
+    const match = await makeMatch("v210x-backfill", past);
+    const base = { matchId: match.id, action: "record" as const, expectedAppointmentRevision: 0, expectedResultVersion: 1, reason: "虚构执裁报告补录（内部）", verificationReason: "虚构报告与签字核实依据", publicHistoryVisible: false, positions: [{ key: "REFEREE" as const, slot: 1, refereeId: r0.id }] };
+    await assert.rejects(() => record(base, onlyComp as unknown as typeof authorization));
+    const beforeMatch = await prisma.match.findUniqueOrThrow({ where: { id: match.id } });
+    const result = await record(base, authorization);
+    assert.equal(result.appointment.status, "COMPLETED"); assert.equal(result.appointment.publishedAt, null); assert.equal(result.appointment.revision, 1); assert.equal(result.appointment.recordSource, "POST_MATCH_ENTRY"); assert.equal(result.version.createdByAdminId, admin.id); assert(result.appointment.recordedAt! <= new Date());
+    assert.deepEqual(await prisma.match.findUniqueOrThrow({ where: { id: match.id } }), beforeMatch);
+    assert.equal(await prisma.refereeApplication.count(), 0); assert.equal(await prisma.appointmentAcknowledgement.count(), 0);
+    assert.equal(await getPublicAppointmentById(result.appointment.id), null);
+    // Old 704 public readers match every COMPLETED row: code-only rollback is unsafe after private backfills.
+    assert.equal(await prisma.refereeAppointment.count({ where: { id: result.appointment.id, status: "COMPLETED", match: { status: "COMPLETED" } } }), 1); assert.equal((await getPublicHistoricalAppointments()).length, 0); assert.equal((await getPublicUpcomingAppointments()).length, 0);
+    assert.equal((await getCompletedRefereeStatistics()).find(r => r.refereeId === r0.id)?.totalMatches, 1);
+    await assert.rejects(() => record(base, authorization), e => (e as { status: number }).status === 409);
+    const corrected = await record({ ...base, action: "correct", expectedAppointmentRevision: 1, publicHistoryVisible: true, positions: [{ key: "REFEREE", slot: 1, refereeId: "v210x-ref-1" }] }, authorization);
+    assert.equal(corrected.appointment.revision, 2); assert.equal(await prisma.refereeAppointment.count({ where: { matchId: match.id } }), 1);
+    assert.equal((await getCompletedRefereeStatistics()).find(r => r.refereeId === r0.id), undefined); assert.equal((await getCompletedRefereeStatistics()).find(r => r.refereeId === "v210x-ref-1")?.totalMatches, 1);
+    const publicRecord = await getPublicAppointmentById(corrected.appointment.id); assert(publicRecord); assert.equal(publicRecord.recordSource, "POST_MATCH_ENTRY"); assert(!JSON.stringify(publicRecord).includes(base.reason)); assert(!JSON.stringify(publicRecord).includes("studentId")); assert.equal((await getPublicHistoricalAppointments()).length, 1);
+    assert.equal(await prisma.appointmentVersion.count({ where: { appointmentId: corrected.appointment.id } }), 2); assert.equal(await prisma.auditLog.count({ where: { action: { in: ["APPOINTMENT_POST_MATCH_RECORDED", "APPOINTMENT_POST_MATCH_CORRECTED"] } } }), 2);
+    assert.deepEqual(await prisma.match.findUniqueOrThrow({ where: { id: match.id } }), beforeMatch);
+    for (const [id, extra] of [["v210x-noscore", { homeScore: null }], ["v210x-unconfirmed", { resultConfirmedAt: null }], ["v210x-future", { kickoff: new Date("2099-01-01Z") }], ["v210x-cancelled", { status: "CANCELLED" }], ["v210x-unended", { status: "SCHEDULED" }]] as const) { await makeMatch(id, { ...past, ...extra }); await assert.rejects(() => record({ ...base, matchId: id }, authorization)); assert.equal(await prisma.refereeAppointment.count({ where: { matchId: id } }), 0); }
+    for (const [id, state] of [["v210x-draft", "DRAFT"], ["v210x-withdrawn", "WITHDRAWN"]] as const) { await makeMatch(id, past); await prisma.refereeAppointment.create({ data: { matchId: id, status: state } }); await record({ ...base, matchId: id }, authorization); }
+    await makeMatch("v210x-invalid-input", past);
+    for (const positions of [[{ key: "REFEREE", slot: 2, refereeId: r0.id }], [{ key: "SECOND_REFEREE", slot: 1, refereeId: "missing" }], [{ key: "REFEREE", slot: 1, refereeId: r0.id }, { key: "SECOND_REFEREE", slot: 1, refereeId: r0.id }]] as typeof base.positions[]) await assert.rejects(() => record({ ...base, matchId: "v210x-invalid-input", positions }, authorization));
+    await prisma.referee.update({ where: { id: "v210x-ref-3" }, data: { status: "INACTIVE", assignmentEligibility: "SUSPENDED" } });
+    await assert.rejects(() => record({ ...base, matchId: "v210x-invalid-input", verificationReason: "", positions: [{ key: "REFEREE", slot: 1, refereeId: "v210x-ref-3" }] }, authorization));
+    await record({ ...base, matchId: "v210x-invalid-input", positions: [{ key: "REFEREE", slot: 1, refereeId: "v210x-ref-3" }] }, onlyRef);
+    // Two administrators with the same revision cannot both update history.
+    const race = await Promise.allSettled([record({ ...base, matchId: "v210x-invalid-input", action: "correct", expectedAppointmentRevision: 1 }, authorization), record({ ...base, matchId: "v210x-invalid-input", action: "correct", expectedAppointmentRevision: 1 }, onlyRef)]);
+    assert.equal(race.filter(r => r.status === "fulfilled").length, 1); assert.equal(await prisma.refereeAppointment.count({ where: { matchId: "v210x-invalid-input" } }), 1);
+    assert.equal(await prisma.appointmentVersion.count({ where: { appointment: { matchId: "v210x-invalid-input" } } }), 2);
+    // Missing venue must never bypass historical conflict detection or the super-admin gate.
+    const legacyTriggers = await prisma.$queryRaw<{ name: string; sql: string }[]>`SELECT name,sql FROM sqlite_master WHERE type='trigger' AND tbl_name='Match' AND sql LIKE '%OPS_MATCH_PENDING_SCHEDULE%'`;
+    // A legacy invalid schedule can only be fabricated before reinstating the exact current guards.
+    for (const trigger of legacyTriggers) await prisma.$executeRawUnsafe(`DROP TRIGGER "${trigger.name}"`);
+    await makeMatch("v210x-no-venue-overlap", { ...past, venue: null });
+    await makeMatch("v210x-unknown-interval", { ...past, endAt: null, venue: null });
+    for (const trigger of legacyTriggers) await prisma.$executeRawUnsafe(trigger.sql);
+    const historyOverlap = { ...base, matchId: "v210x-no-venue-overlap", positions: [{ key: "REFEREE" as const, slot: 1, refereeId: "v210x-ref-1" }] };
+    await assert.rejects(() => record({ ...historyOverlap, verificationReason: "" }, authorization), e => (e as { status: number }).status === 409);
+    await assert.rejects(() => record(historyOverlap, onlyRef), e => (e as { status: number }).status === 403);
+    const verifiedOverlap = await record(historyOverlap, authorization);
+    assert(verifiedOverlap.warnings.some(w => w.code === "MATCH_OVERLAP"));
+    await assert.rejects(() => record({ ...base, matchId: "v210x-unknown-interval", verificationReason: "" }, authorization), e => (e as { status: number }).status === 409);
+    assert((await record({ ...base, matchId: "v210x-unknown-interval" }, authorization)).warnings.some(w => w.code === "HISTORICAL_TIME_UNCERTAIN"));
+    console.log("PASS D completed backfill/correction, CAS/race/duplicate, full Match immutability, audit/version, partial slots, inactive historical facts, role separation, statistics and public privacy");
+    await writeFile(path.join(root, "fixture.json"), JSON.stringify({ root, databaseUrl: process.env.DATABASE_URL, competitionId: c.id, stageId: stage.id, groupId: groups[0].id, round: logical[0].key, backfillId: match.id, pendingBackfillId: "v210x-noscore", finalId: "v210x-final", refereeId: r0.id, adminId: admin.id }, null, 2));
+    console.log(`ISOLATED_FIXTURE=${root}`);
+  } finally { await prisma.$disconnect(); }
+}
+main().catch(error => { console.error(String(error).replace(/scrypt\$[^\s"\x27]+/g, "[synthetic hash redacted]")); process.exitCode = 1; });

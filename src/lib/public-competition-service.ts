@@ -1,3 +1,4 @@
+import { isPublicAppointmentRecord } from "@/lib/referee-record-publicity";
 import "server-only";
 
 import type { CompetitionStatus, Prisma } from "@/generated/prisma-v29/client";
@@ -62,7 +63,7 @@ const publicCompetitionSelect = {
       appointment: {
         select: {
           id: true,
-          status: true,
+          status: true, recordSource: true, publicHistoryVisible: true,
           positions: {
             orderBy: [{ sortOrder: "asc" }, { slot: "asc" }],
             select: {
@@ -106,9 +107,10 @@ function legacyPlayingFormat(format: PublicCompetitionRow["format"]) {
 
 function publicMatch(match: PublicCompetitionRow["matches"][number]): PublicCompetitionMatch {
   const kickoff = formatBeijingDateTime(match.kickoff);
-  const appointment = match.kickoff && match.venue?.trim() && match.appointment && ["PUBLISHED", "COMPLETED"].includes(match.appointment.status)
+  const appointment = match.kickoff && match.appointment && isPublicAppointmentRecord(match.appointment) && (match.appointment.recordSource === "POST_MATCH_ENTRY" || match.venue?.trim())
     ? {
         id: match.appointment.id,
+        recordSource: match.appointment.recordSource,
         positions: match.appointment.positions.flatMap((position) => position.referee
           ? [{ key: `${position.key}-${position.slot}`, label: `${position.label}${position.slot > 1 ? ` ${position.slot}` : ""}`, refereeName: position.referee.name }]
           : []),

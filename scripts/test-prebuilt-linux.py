@@ -408,7 +408,7 @@ class LinuxPermissions(unittest.TestCase):
             os.chown(envfile, 0, self.account.pw_gid)
             database = case / "shared/prisma/dev.db"
             with sqlite3.connect(database) as db:
-                db.executescript("CREATE TABLE Referee (status TEXT, studentId TEXT); INSERT INTO Referee VALUES ('ACTIVE','SYNTHETIC001'); CREATE TABLE _prisma_migrations (migration_name TEXT, checksum TEXT, started_at INTEGER, finished_at TEXT, rolled_back_at TEXT);")
+                F.initialize_legacy_database(db, F.ArtifactTests.source)
                 for i, (migration_name, digest) in enumerate(A.migration_inventory(F.ArtifactTests.source).items()):
                     db.execute("INSERT INTO _prisma_migrations VALUES (?,?,?,'synthetic',NULL)", (migration_name, digest, i))
             database.chmod(0o600); os.chown(database, self.account.pw_uid, self.account.pw_gid)
@@ -671,7 +671,9 @@ test ! -e "$release_root/$COMMIT/prisma/dev.db"
         contract = self.root / "service-contract"
         contract.mkdir()
         for name in ("start", "unit", "dropin"):
-            (contract / name).write_text("synthetic trusted metadata\n")
+            # Execute the real public version marker as the real app identity.
+            # Unit/drop-in values remain synthetic metadata for this boundary.
+            (contract / name).write_text((REPO / "ops/deploy/start-prebuilt").read_text() if name == "start" else "synthetic trusted metadata\n")
             (contract / name).chmod(0o755 if name == "start" else 0o644)
         script = r'''source "$TEST_REPO/ops/deploy/nuaafa-deploy"
 prebuilt_start="$CONTRACT/start"; current_link="$CONTRACT/current"; deploy_user="$APP_USER"
@@ -1084,7 +1086,7 @@ test ! -e "$prebuilt_approvals"
         for p in (shared / "prisma", shared / "work", database):
             os.chown(p, LinuxPermissions.account.pw_uid, LinuxPermissions.account.pw_gid)
         environment = shared / ".env.production"
-        environment.write_text("DATABASE_URL=file:" + str(database) + "\nNUAAFA_UPLOAD_DIR=" + str(shared / "work/uploads") + "\nREFEREE_ADMIN_SESSION_SECRET=Synthetic-Wrapper-Admin-Only-2026\nREFEREE_MEMBER_SESSION_SECRET=Synthetic-Wrapper-Member-Only-2026\n")
+        environment.write_text("NUAAFA_CONTENT_SOURCE=database\nDATABASE_URL=file:" + str(database) + "\nNUAAFA_UPLOAD_DIR=" + str(shared / "work/uploads") + "\nREFEREE_ADMIN_SESSION_SECRET=Synthetic-Wrapper-Admin-Only-2026\nREFEREE_MEMBER_SESSION_SECRET=Synthetic-Wrapper-Member-Only-2026\n")
         environment.chmod(0o640); os.chown(environment, 0, LinuxPermissions.account.pw_gid)
         for name in (".env.production", "prisma/dev.db"): (runtime / name).symlink_to(shared / name)
         start_current = case / "startup-current"

@@ -28,7 +28,7 @@ REPO = Path(__file__).resolve().parents[1]
 def adapt_wrapper(destination, current, releases, shared, node, user, port=3001):
     source = (REPO / "ops/deploy/start-prebuilt").read_text()
     replacements = {"CURRENT": str(current), "RELEASES": str(releases), "SHARED": str(shared),
-                    "NODE": str(node), "APP_USER": user, "PORT": str(port)}
+                    "NODE": str(node), "APP_USER": user, "PORT": str(port), "HELPER": str(destination.parent / "prebuilt-artifact.py"), "ACTIVATION_STATE": str(destination.parent / "activation.json")}
     if "CURRENT = " in source:
         for key, value in replacements.items():
             source, count = re.subn(r"^" + key + r" = .+$", key + " = " + repr(value), source, flags=re.M)
@@ -39,6 +39,15 @@ def adapt_wrapper(destination, current, releases, shared, node, user, port=3001)
     else:
         # Original minimal wrapper, retained for the before-fix regression.
         source = source.replace("/srv/nuaafa/current", str(current)).replace("/usr/bin/node", str(node)).replace('"3001"', repr(str(port)))
+    # Only synthetic fixture state. Production journal identities are never fabricated.
+    state = destination.parent / "activation.json"
+    state.write_text(json.dumps(dict(format=1, commit=Path(current).resolve().name, previous=Path(current).resolve().name, phase="HEALTHY")))
+    state.chmod(0o644)
+    helper = (REPO / "ops/deploy/prebuilt-artifact.py").read_text()
+    if sys.platform != "linux":
+        # Same fixture-only ownership adaptation as this wrapper's trusted().
+        helper = helper.replace("s.st_uid == 0", "s.st_uid in {0, " + str(os.getuid()) + "}")
+    (destination.parent / "prebuilt-artifact.py").write_text(helper)
     destination.write_text(source)
     destination.chmod(0o755)
     return dict(source_sha256=hashlib.sha256((REPO / "ops/deploy/start-prebuilt").read_bytes()).hexdigest(),
@@ -67,7 +76,22 @@ class StartupTests(unittest.TestCase):
         (self.shared / "prisma").mkdir(parents=True)
         (self.shared / ".env.production").write_text("SYNTHETIC=1\n")
         (self.shared / ".env.production").chmod(0o640)
-        (self.shared / "prisma/dev.db").write_text("synthetic metadata only")
+        import sqlite3
+        baseline = "704bf0af9e9b7f538cfbf6d3a76ec5f4148190e8"
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("startup_artifact", REPO / "ops/deploy/prebuilt-artifact.py")
+        helper = importlib.util.module_from_spec(spec); spec.loader.exec_module(helper)
+        with sqlite3.connect(self.shared / "prisma/dev.db") as db:
+            db.execute("CREATE TABLE _prisma_migrations (migration_name TEXT,checksum TEXT,started_at INTEGER,finished_at TEXT,rolled_back_at TEXT)")
+            for i,(name,digest) in enumerate(helper.BASELINE_MIGRATIONS.items()):
+                rel = "prisma/migrations/" + name + "/migration.sql"
+                data = subprocess.check_output(["git", "-C", str(REPO), "show", baseline + ":" + rel])
+                path = self.release / rel; path.parent.mkdir(parents=True, exist_ok=True); path.write_bytes(data)
+                db.executescript(data.decode())
+                db.execute("INSERT INTO _prisma_migrations VALUES (?,?,?, 'synthetic',NULL)", (name,digest,i))
+            db.commit()
+        for rel in ("prisma/schema.prisma", "prisma/migrations/migration_lock.toml"):
+            (self.release / rel).write_bytes(subprocess.check_output(["git", "-C", str(REPO), "show", baseline + ":" + rel]))
         if os.getuid() == 0: os.chown(self.shared / ".env.production", 0, self.account.pw_gid)
         for name in (".env.production", "prisma/dev.db"):
             (self.release / name).symlink_to(self.shared / name)
@@ -97,6 +121,11 @@ class StartupTests(unittest.TestCase):
         command = [sys.executable, "-I", str(self.wrapper), *arguments]
         if os.getuid() == 0: command = [self.runuser, "-u", self.user, "--", *command]
         return subprocess.run(command, cwd="/", env={"PATH": "/usr/bin:/bin", "NODE_OPTIONS": "--require=/must-not-load", "DATABASE_URL": "file:/must-not-open", "PYTHONPATH": "/must-not-import", "NODE_ENV": "development"}, capture_output=True, text=True, timeout=20)
+
+    def test_contract_version_is_explicit_and_nonexecuting(self):
+        result = self.launch("--contract-version")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "NUAAFA_STARTUP_CONTRACT=V2.10X-PREBUILT-3")
 
     def test_check_release_is_read_only_and_does_not_execute_entry(self):
         before = (os.readlink(self.current), (self.shared / "prisma/dev.db").read_bytes(),

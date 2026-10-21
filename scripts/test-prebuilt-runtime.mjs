@@ -42,6 +42,7 @@ const env = {
   // Prisma's TypeScript config loader must not add relocated cache executables
   // beneath the verified dependency tree, even in a writable macOS fixture.
   JITI_FS_CACHE: "false",
+  NUAAFA_CONTENT_SOURCE: "database",
   DATABASE_URL: `file:${startup ? path.join(startup, "prisma/dev.db") : path.join(root, "synthetic.db")}`, NUAAFA_UPLOAD_DIR: uploads,
   REFEREE_ADMIN_SESSION_SECRET: `Synthetic-Prebuilt-Admin-${randomUUID()}`,
   REFEREE_MEMBER_SESSION_SECRET: `Synthetic-Prebuilt-Member-${randomUUID()}`,
@@ -86,12 +87,21 @@ try {
   assert((await sharp({ create: { width: 2, height: 2, channels: 3, background: "white" } }).png().toBuffer()).length > 0);
   recordEvent("sharp native image operation PASS");
   await run([path.join(runtime, "node_modules/prisma/build/index.js"), "migrate", "deploy"]);
-  recordEvent("all 17 synthetic migrations via packaged Prisma CLI PASS");
+  recordEvent("complete reviewed migration inventory via packaged Prisma CLI PASS");
   const probe = path.join(root, "probe.cjs");
   await writeFile(probe, `const { PrismaClient } = require(${JSON.stringify(path.join(runtime, "src/generated/prisma-v29"))});
 const { PrismaLibSql } = require(${JSON.stringify(path.join(runtime, "node_modules/@prisma/adapter-libsql"))});
 const p = new PrismaClient({adapter: new PrismaLibSql({url: process.env.DATABASE_URL})});
-(async () => { if (await p.referee.count() !== 0) throw Error('synthetic database not empty'); await p.$disconnect(); })().catch(e=>{console.error(e);process.exitCode=1});`);
+(async () => {
+ if (await p.referee.count() !== 0) throw Error('synthetic database not empty');
+ const crypto = require('node:crypto'), salt=Buffer.alloc(16,115), hash='scrypt$'+salt.toString('base64url')+'$'+crypto.scryptSync('Synthetic-Runtime-Only-2026!',salt,64).toString('base64url');
+ for (const [id,role] of [['runtime-super','SUPER_ADMIN'],['runtime-competition','COMPETITION_ADMIN']]) await p.adminAccount.create({data:{id,username:id,displayName:'Synthetic Runtime',passwordHash:hash,role:'REFEREE_MANAGER',unifiedRoles:{create:{role}}}});
+ await p.competition.create({data:{id:'runtime-comp',slug:'readiness-runtime',name:'Synthetic Runtime Competition',campus:'Synthetic',format:'FUTSAL',status:'COMPLETED',publicPublished:true}});
+ for (let i=0;i<2;i++) await p.team.create({data:{id:'runtime-team'+i,competitionId:'runtime-comp',name:'Synthetic Team'+i}});
+ await p.referee.create({data:{id:'runtime-official',publicCode:'RUNTIME-PRIVATE',name:'Synthetic-Private-Official-R2',status:'ACTIVE',assignmentEligibility:'ELIGIBLE',trainingStatus:'IN_TRAINING',futsal:true}});
+ await p.match.create({data:{id:'runtime-match',slug:'readiness-runtime-match',competitionId:'runtime-comp',homeTeamId:'runtime-team0',awayTeamId:'runtime-team1',stage:'Synthetic',kickoff:new Date(Date.now()-86400000),endAt:new Date(Date.now()-82800000),venue:'Synthetic',status:'COMPLETED',homeScore:2,awayScore:1,resultVersion:1,resultConfirmedAt:new Date(Date.now()-80000000)}});
+ require('node:fs').writeFileSync(${JSON.stringify(path.join(root,'match-before.json'))},JSON.stringify(await p.match.findUnique({where:{id:'runtime-match'}})));
+ await p.$disconnect(); })().catch(e=>{console.error(e);process.exitCode=1});`);
   await run([probe]);
   recordEvent("relocated generated Prisma client and native libSQL query PASS");
   const aliasRoot = path.join(runtime, ".next/node_modules/@libsql");
@@ -148,6 +158,34 @@ const p = new PrismaClient({adapter: new PrismaLibSql({url: process.env.DATABASE
   const served = Buffer.from(await (await fetch(origin + publicPath, { signal: AbortSignal.timeout(10000) })).arrayBuffer());
   assert.equal(createHash("sha256").update(served).digest("hex"), createHash("sha256").update(await readFile(path.join(runtime, "public", publicPath))).digest("hex"));
   recordEvent("cold start, Prisma-backed health, two HTTP pages, static and public assets PASS");
+  const call = (url,body,cookie="",requestOrigin="https://nuaafa.cn") => fetch(origin+url,{method:"POST",headers:{"content-type":"application/json",origin:requestOrigin,cookie},body:JSON.stringify(body)});
+  async function login(username) {
+    const response=await call("/api/referees/admin/login",{username,password:"Synthetic-Runtime-Only-2026!"});
+    assert.equal(response.status,200,await response.text());
+    const cookie=response.headers.getSetCookie().find(value=>value.startsWith("nuaa_referee_admin="))?.split(";")[0];
+    assert(cookie,"real login must issue session");return cookie;
+  }
+  const endpoint="/api/referees/admin/appointments/runtime-match/completed-officials";
+  const payload={action:"record",expectedAppointmentRevision:0,expectedResultVersion:1,reason:"Synthetic-Internal-Reason-R2",verificationReason:"Synthetic signed record",publicHistoryVisible:false,positions:[{key:"REFEREE",slot:1,refereeId:"runtime-official"}]};
+  assert.equal((await call(endpoint,payload)).status,401);
+  const limited=await login("runtime-competition");assert.equal((await call(endpoint,payload,limited)).status,403);
+  const admin=await login("runtime-super");assert.equal((await call(endpoint,payload,admin,"https://evil.invalid")).status,403);
+  const recorded=await call(endpoint,payload,admin);assert.equal(recorded.status,200,await recorded.text());
+  assert.equal((await call(endpoint,payload,admin)).status,409);
+  const inspect=path.join(root,"inspect.cjs");
+  await writeFile(inspect,`const assert=require('node:assert/strict'),fs=require('node:fs');
+const {PrismaClient}=require(${JSON.stringify(path.join(runtime,"src/generated/prisma-v29"))});
+const {PrismaLibSql}=require(${JSON.stringify(path.join(runtime,"node_modules/@prisma/adapter-libsql"))});
+const p=new PrismaClient({adapter:new PrismaLibSql({url:process.env.DATABASE_URL})});
+(async()=>{assert.equal(JSON.stringify(await p.match.findUnique({where:{id:'runtime-match'}})),fs.readFileSync(${JSON.stringify(path.join(root,"match-before.json"))},'utf8'));const a=await p.refereeAppointment.findUniqueOrThrow({where:{matchId:'runtime-match'}});assert.equal(a.recordSource,'POST_MATCH_ENTRY');assert.equal(a.publicHistoryVisible,false);assert.equal(a.publishedAt,null);fs.writeFileSync(${JSON.stringify(path.join(root,"private-appointment.txt"))},a.id);await p.$disconnect()})().catch(e=>{console.error(e);process.exitCode=1});`);
+  await run([inspect]);
+  const appointment=(await readFile(path.join(root,"private-appointment.txt"),"utf8")).trim();
+  assert.equal((await fetch(origin+`/referees/assignments/${appointment}/print`)).status,404);
+  for (const url of ["/referees/history","/competitions/readiness-runtime"]) {
+    const response=await fetch(origin+url);assert.equal(response.status,200);
+    const body=await response.text();assert(!body.includes("Synthetic-Private-Official-R2")&&!body.includes("Synthetic-Internal-Reason-R2"));
+  }
+  recordEvent("packaged actual login, permission/CSRF 401/403, post-match record 200/stale409, whole Match invariance and private public surfaces PASS");
   await stopServer();
   // Existing backup/verify/restore scripts use packaged tsx and Git metadata.
   const backup = path.join(root, "backup");

@@ -1,0 +1,35 @@
+
+> nuaa-football-association@0.1.0 test:security-dependencies
+> node tests/security-dependencies.mjs
+
+PASS deepmerge: recursive object graph does not exhaust the stack
+PASS deepmergeInto: recursive object graph does not exhaust the stack
+PASS Prisma plain-record configuration merge is preserved
+PASS GHSA-3f6p-5ww8-9rcr: default cleartext downgrade is rejected before writing credentials
+PASS GHSA-rgwj-5xj2-c3m3: inflation exceeding the declared packet length is rejected
+PASS Next default root and all existing official rules retained; custom-root profile fails closed; external braces/micromatch absent
+PASS Unicode: approved path and digest accept the real tarball
+PASS Unicode: changed tarball digest fails
+PASS Unicode: plain text at the approved path fails its digest
+PASS Unicode: symlink at the approved path fails
+PASS Unicode: same tarball outside the approved path fails UTF-8
+PASS Unicode: unknown tar.gz is not exempt
+PASS Unicode: ordinary mjs, ts and tsx text passes
+PASS Unicode: mjs invalid UTF-8 fails
+PASS Unicode: mjs UTF-8 BOM fails
+PASS Unicode: mjs hidden U+200b fails
+PASS Unicode: mjs hidden U+202e fails
+PASS Unicode: mjs hidden U+2066 fails
+PASS Unicode: ts invalid UTF-8 fails
+PASS Unicode: ts UTF-8 BOM fails
+PASS Unicode: ts hidden U+200b fails
+PASS Unicode: ts hidden U+202e fails
+PASS Unicode: ts hidden U+2066 fails
+PASS Unicode: tsx invalid UTF-8 fails
+PASS Unicode: tsx UTF-8 BOM fails
+PASS Unicode: tsx hidden U+200b fails
+PASS Unicode: tsx hidden U+202e fails
+PASS Unicode: tsx hidden U+2066 fails
+PASS Unicode: UTF-16 BOM fails
+PASS Unicode: vendor text is not exempt
+PASS Unicode safety regression: 24 cases
