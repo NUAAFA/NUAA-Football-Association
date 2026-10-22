@@ -42,6 +42,11 @@ def main():
         for key,value in {'prebuilt_helper':str(toolroot/'helper-transition.py'),'prebuilt_start':str(toolroot/'start-transition'),'student_id_preflight_node':str(slot/'node'),'student_id_preflight_command':str(slot/'student-id-release-preflight.mjs')}.items():
             deployer,count=re.subn(r'^'+key+r'="[^"]+"$',key+'="'+value+'"',deployer,flags=re.M);assert count==1
         put(slot/'deployer',deployer,0o755)
+        if commit==OLD:
+            # Fresh isolated recovery imports the old archive using its own
+            # original strict helper. The activation path uses the router.
+            importer=deployer.replace('prebuilt_helper="'+str(toolroot/'helper-transition.py')+'"','prebuilt_helper="'+str(slot/'prebuilt-artifact.py')+'"')
+            put(slot/'deployer-import-old',importer,0o755)
         contracts[commit]=dict(sha256=ARCHIVES[commit])
         for name,filename in [('node','node'),('helper','prebuilt-artifact.py'),('start','start-prebuilt')]:
             contracts[commit][name]=str(slot/filename);contracts[commit][name+'_sha256']=digest(payload/str(slot/filename).lstrip('/'))

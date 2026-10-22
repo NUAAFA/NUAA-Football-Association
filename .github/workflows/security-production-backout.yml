@@ -26,6 +26,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           path: driver
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -46,12 +47,18 @@ jobs:
           python3 driver/scripts/fetch-transition-inputs.py
           mkdir -p "$RUNNER_TEMP/backout-output"
           cp "$RUNNER_TEMP/transition-inputs/input-identities.json" "$RUNNER_TEMP/backout-output/"
+      - name: Prepare and verify the concrete local review payload
+        run: |
+          python3 driver/scripts/prepare-security-transition-bundle.py --repository="$GITHUB_WORKSPACE/driver" --old-node="$RUNNER_TEMP/transition-inputs/node-22.23.2/node" --new-node="$RUNNER_TEMP/transition-inputs/node-22.23.4/node" --old-archive="$RUNNER_TEMP/transition-inputs/$OLD.tar.gz" --output="$RUNNER_TEMP/prepared-review-bundle"
+          cp "$RUNNER_TEMP/prepared-review-bundle/payload-manifest.json" "$RUNNER_TEMP/backout-output/prepared-payload-manifest.json"
+          find "$RUNNER_TEMP/prepared-review-bundle/payload/opt" -type f -name 'deployer*' -exec bash -n {} \;
       - name: Real old-version restore, exact archive activation and data-preserving backout
         run: |
           test "$(cat /proc/1/comm)" = systemd
           test "$(uname -sm)" = 'Linux x86_64'
           sudo env "PATH=$RUNNER_TEMP/transition-inputs/node-22.23.4:$PATH" GITHUB_ACTIONS=true "RUNNER_TEMP=$RUNNER_TEMP" PYTHONDONTWRITEBYTECODE=1 "NUAAFA_TEST_EVIDENCE=$RUNNER_TEMP/backout-output/case-logs" python3 driver/scripts/test-production-backout.py --source="$GITHUB_WORKSPACE/candidate" --previous-source="$GITHUB_WORKSPACE/previous" --old-node="$RUNNER_TEMP/transition-inputs/node-22.23.2/node" --new-node="$RUNNER_TEMP/transition-inputs/node-22.23.4/node" --old-archive="$RUNNER_TEMP/transition-inputs/$OLD.tar.gz" --new-archive="$RUNNER_TEMP/transition-inputs/$NEW.tar.gz" --output="$RUNNER_TEMP/backout-output"
       - name: Actual private Nginx rate, payload and proxy identity checks
+        if: always()
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends nginx
