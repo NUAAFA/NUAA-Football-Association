@@ -1,7 +1,6 @@
 name: Security candidate isolated release and backout rehearsal
 on:
-  push:
-    branches: [codex/security-release-rehearsal-20261022]
+  workflow_dispatch:
 permissions:
   contents: read
 defaults:

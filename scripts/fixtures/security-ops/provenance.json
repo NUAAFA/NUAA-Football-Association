@@ -1,0 +1,18 @@
+[
+  {
+    "name": "monitor.py",
+    "source_sha256": "762dc6debb8afe99ad323c39687a9447d7d77b7efe9c30afebf6e804eeebbe35",
+    "fixture_sha256": "3e9598c9578424d6de7cd6e0537fa3fed74acdae8c497fd7ab644f08983ecb3a",
+    "source": "isolated native acceptance baseline 2026-10-21",
+    "scope": "stable process identity algorithm reference, not a claim of production whole-file byte identity",
+    "normalization": "EXPECTED only, to observed stale production pin"
+  },
+  {
+    "name": "backup.py",
+    "source_sha256": "720da8965e0b34a8af912cc13f2ca48f1724529fcdb1602615fed524b2518486",
+    "fixture_sha256": "916bcd08c864c4a5a5e0ac9931d80856ba6c4025274dd69ef2b04766c2e144c5",
+    "source": "isolated native acceptance baseline 2026-10-21",
+    "scope": "stable process identity algorithm reference, not a claim of production whole-file byte identity",
+    "normalization": "EXPECTED only, to observed stale production pin"
+  }
+]

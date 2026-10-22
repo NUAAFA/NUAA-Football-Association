@@ -51,6 +51,11 @@ jobs:
           test "$(cat /proc/1/comm)" = systemd
           test "$(uname -sm)" = 'Linux x86_64'
           sudo env "PATH=$RUNNER_TEMP/transition-inputs/node-22.23.4:$PATH" GITHUB_ACTIONS=true "RUNNER_TEMP=$RUNNER_TEMP" PYTHONDONTWRITEBYTECODE=1 "NUAAFA_TEST_EVIDENCE=$RUNNER_TEMP/backout-output/case-logs" python3 driver/scripts/test-production-backout.py --source="$GITHUB_WORKSPACE/candidate" --previous-source="$GITHUB_WORKSPACE/previous" --old-node="$RUNNER_TEMP/transition-inputs/node-22.23.2/node" --new-node="$RUNNER_TEMP/transition-inputs/node-22.23.4/node" --old-archive="$RUNNER_TEMP/transition-inputs/$OLD.tar.gz" --new-archive="$RUNNER_TEMP/transition-inputs/$NEW.tar.gz" --output="$RUNNER_TEMP/backout-output"
+      - name: Actual private Nginx rate, payload and proxy identity checks
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends nginx
+          python3 driver/scripts/test-security-edge.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

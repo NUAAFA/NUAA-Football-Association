@@ -180,7 +180,7 @@ student_id_preflight_node="$NODE"; student_id_preflight_command="$SLOT/student-i
         activate='main --activate-prebuilt --artifact-sha256 "$DIGEST" "$COMMIT"'
         newenv={**env,'DIGEST':checksums[NEW],'COMMIT':NEW}
         run(['bash','-c',setup+activate],'missing-approval-refused',newenv,expected=1)
-        assert fingerprint()==initial and healthy(OLD)['MainPID']==pid 
+        assert fingerprint()==initial and healthy(OLD)['MainPID']==pid
         record('missing_approval_refused_before_backup_stop_or_data_change')
         # This is a disposable fixture's positive-path token, NOT a production approval.
         for commit in (OLD,NEW):
@@ -191,6 +191,22 @@ student_id_preflight_node="$NODE"; student_id_preflight_command="$SLOT/student-i
         assert fingerprint()==initial;new_state=healthy(NEW)
         assert not (P('/proc')/pid).exists()
         record('actual_backup_migrate_switch_start_health',process=new_state,wrapper_adaptations=adaptations,data_unchanged=True)
+        ops_spec=importlib.util.spec_from_file_location('transition_ops',P(__file__).with_name('test-transition-ops.py'))
+        ops_test=importlib.util.module_from_spec(ops_spec);ops_spec.loader.exec_module(ops_test)
+        record('new_ops_pin_backup_restore_and_generation_guards',result=ops_test.exercise_ops(output,root,shared,unit,NEW))
+        new_state=healthy(NEW)
+        # Bounded requests against the actual server under the proposed caps.
+        import concurrent.futures
+        def request(_):
+            with urllib.request.urlopen('http://127.0.0.1:3001/'+('api/health' if _%2 else ''),timeout=10) as response:return response.status
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:assert list(pool.map(request,range(80)))==[200]*80
+        group=P('/sys/fs/cgroup')/healthy(NEW)['ControlGroup'].lstrip('/')
+        limits={name:(group/name).read_text().strip() for name in ('memory.max','memory.high','memory.peak','memory.events','cpu.max','pids.max','pids.peak')}
+        assert limits['memory.max']=='1610612736' and limits['memory.high']=='1073741824' and limits['pids.max']=='128'
+        assert limits['cpu.max'].split()[0]==limits['cpu.max'].split()[1]
+        assert dict(line.split() for line in limits['memory.events'].splitlines())['oom_kill']=='0'
+        assert fingerprint()==initial
+        record('actual_resource_caps_and_bounded_http_load',requests=80,parallel=8,limits=limits,production_load_equivalence=False)
         with sqlite3.connect(database) as db:
             db.execute("INSERT INTO Referee (id,publicCode,name,studentId,updatedAt) VALUES ('synthetic-after','SYNTHETIC-AFTER','Fictional after release','SYNTHETIC-RELEASE-002',CURRENT_TIMESTAMP)")
         latest=fingerprint();assert len(latest['sentinels'])==2
@@ -200,6 +216,8 @@ student_id_preflight_node="$NODE"; student_id_preflight_command="$SLOT/student-i
         healthy(OLD);assert fingerprint()==latest
         assert not (P('/proc')/new_state['MainPID']).exists()
         record('old_production_version_backout_preserves_new_fictional_records',sentinels=2,media_unchanged=True)
+        record('old_ops_pin_backup_restore_and_generation_guards',result=ops_test.exercise_ops(output,root,shared,unit,OLD))
+        assert fingerprint()==latest
         # Inject a failure AFTER the real stop, while still before migration.
         inject='stop_service() { /usr/bin/systemctl stop "$service_name"; return 97; }\n'
         run(['bash','-c',setup+inject+activate],'actual-pre-migration-failure',newenv,expected=1,timeout=300)
