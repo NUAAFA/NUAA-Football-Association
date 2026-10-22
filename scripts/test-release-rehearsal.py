@@ -28,6 +28,7 @@ def main():
     account=resources.create_user();user=account.pw_name
     records=[];unit='nuaafa-rehearsal-'+secrets.token_hex(12)+'.service';service_started=False
     unit_path=P('/run/systemd/system')/unit;unit_identity=None
+    system_node=P('/usr/bin/node');node_alias_identity=None
     def record(name,**detail):
         records.append(dict(name=name,status='PASS',utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),**detail))
         (output/'rehearsal-results.json').write_text(json.dumps(records,indent=2)+'\n')
@@ -58,6 +59,12 @@ def main():
         for name in ('releases','trusted','home','approvals'):(root/name).mkdir(mode=0o755)
         os.chown(root/'home',account.pw_uid,account.pw_gid)
         trusted=root/'trusted';node=trusted/'node';shutil.copyfile(shutil.which('node'),node);node.chmod(0o755)
+        # setup-node only adds its cache to PATH. The real deployer intentionally
+        # clears PATH; emulate the separately installed host runtime in this VM.
+        if not os.path.lexists(system_node):
+            system_node.symlink_to(node)
+            info=system_node.lstat();node_alias_identity=(info.st_dev,info.st_ino)
+        assert subprocess.check_output([system_node,'--version'],text=True).strip()=='v22.23.4'
         for source_name,target in [('ops/deploy/prebuilt-artifact.py','prebuilt-artifact.py'),('ops/deploy/nuaafa-deploy','deployer'),('scripts/student-id-release-preflight.mjs','student-id-release-preflight.mjs')]:
             shutil.copyfile(source/source_name,trusted/target);(trusted/target).chmod(0o755 if target=='deployer' else 0o644)
         remote=root/'fictional-remote.git'
@@ -168,6 +175,10 @@ student_id_preflight_node="$NODE"; student_id_preflight_command="$ROOT/trusted/s
             assert (info.st_dev,info.st_ino)==unit_identity and info.st_uid==0 and unit_path.read_bytes()==unit_bytes
             unit_path.unlink()
             run(['systemctl','daemon-reload'],'cleanup-runtime-unit',timeout=20)
+        if node_alias_identity is not None:
+            info=system_node.lstat()
+            assert (info.st_dev,info.st_ino)==node_alias_identity and system_node.is_symlink() and system_node.readlink()==node
+            system_node.unlink()
         resources.cleanup()
         record('owned_test_resources_removed',user=user,root_removed=not root.exists())
 
