@@ -73,7 +73,7 @@ def exercise(root, database, unit, output):
         else:raise AssertionError('private fictional edge unavailable')
         paths=['/','/news','/referees/directory','/api/health']
         for path in paths:assert request(path)[0]==200,(path,'fixture warmup')
-        for rate in (5,15,25,50,100):
+        for rate in (5,15,25,50,100,200,400):
             duration=20;count=rate*duration;start=time.monotonic();before=measure();futures=[]
             with concurrent.futures.ThreadPoolExecutor(max_workers=128) as pool:
                 for i in range(count):
@@ -86,6 +86,9 @@ def exercise(root, database, unit, output):
             entry['within_planning_slo']=entry['p95_ms']<=2000 and entry['unexpected_errors']==0 and entry['completed_rps']>=rate*.95
             results.append(entry);save();print('capacity '+str(rate)+' rps '+json.dumps(entry),flush=True)
             time.sleep(1)
+            if rate>=25 and not entry['within_planning_slo']:
+                report['first_observed_over_slo_rps']=rate
+                break
         # Real password hashing, quota writes and session issuance through the
         # exact proposed Nginx rules. The origin is a header only: no outbound
         # request to this name or to any production service is performed.
