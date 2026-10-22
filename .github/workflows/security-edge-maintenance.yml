@@ -1,0 +1,37 @@
+name: Isolated Nginx maintenance integration
+on:
+  push:
+    branches: [codex/security-edge-maintenance-20261022]
+permissions:
+  contents: read
+concurrency:
+  group: security-edge-maintenance-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  nginx:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Prepare disposable fictional evidence
+        run: |
+          set -euo pipefail
+          mkdir -m 700 "$RUNNER_TEMP/backout-output"
+          git rev-parse HEAD > "$RUNNER_TEMP/backout-output/source-sha.txt"
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends nginx
+      - name: Check isolated routes, maintenance fence, limits and proxy identity
+        run: |
+          set -euo pipefail
+          python3 scripts/test-security-edge.py > "$RUNNER_TEMP/backout-output/nginx-test.log" 2>&1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: isolated-nginx-maintenance
+          path: ${{ runner.temp }}/backout-output
+          retention-days: 7
+          if-no-files-found: error
+# No production access, deployment, cloud account, application data or real mail.
+
