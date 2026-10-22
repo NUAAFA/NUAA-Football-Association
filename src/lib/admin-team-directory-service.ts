@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { sortTeamDirectory, teamDirectoryUnitSelect } from "@/lib/team-directory-order";
 import { RefereeServiceError } from "@/lib/referee-service-error";
 import {
   requireAdminServiceAuthorization,
@@ -49,11 +50,10 @@ export async function getAdminTeamDirectory(competitionId?: string) {
       id: true, name: true, publicStatus: true, publicContactName: true,
       publicContactRole: true, publicContactQQ: true, publicContactEmail: true,
       publicDirectoryNote: true, directoryIsPublic: true, directoryPublicOrder: true,
-      teamType: true, unitAffiliations: { select: { unit: { select: { id: true, name: true } } } },
+      teamType: true, unitAffiliations: { select: { unit: { select: teamDirectoryUnitSelect } } },
     },
-    orderBy: [{ directoryPublicOrder: "asc" }, { name: "asc" }],
   }) : [];
-  return { settings, competitions: competitions.map(({ _count, ...competition }) => ({ ...competition, teamCount: _count.teams, publicTeamCount: publicCountByCompetition.get(competition.id) ?? 0 })), units, selectedId: selected?.id ?? null, teams: teams.map(({ unitAffiliations, ...team }) => ({ ...team, units: unitAffiliations.map(({ unit }) => unit) })) };
+  return { settings, competitions: competitions.map(({ _count, ...competition }) => ({ ...competition, teamCount: _count.teams, publicTeamCount: publicCountByCompetition.get(competition.id) ?? 0 })), units, selectedId: selected?.id ?? null, teams: sortTeamDirectory(teams).map(({ unitAffiliations, ...team }) => ({ ...team, units: unitAffiliations.map(({ unit }) => ({ id: unit.id, name: unit.name })) })) };
 }
 
 export async function updateTeamDirectorySettings(input: Record<string, unknown>, authorization: Authorization) {

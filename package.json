@@ -33,6 +33,7 @@
     "test:public-competition-dynamic:http": "tsx scripts/test-public-competition-dynamic-http.ts",
     "test:team-directory-r1": "tsx scripts/test-team-directory-r1.ts",
     "test:team-directory-r1-1": "tsx scripts/test-team-directory-r1-1.ts",
+    "test:team-directory-order": "tsx scripts/test-team-directory-order.ts",
     "test:admin-operations-r2": "tsx scripts/test-admin-operations-r2.ts",
     "test:admin-operations-r2.1": "tsx scripts/test-admin-operations-r2.1.ts",
     "test:admin-availability-calendar": "tsx scripts/test-admin-availability-calendar.ts",
