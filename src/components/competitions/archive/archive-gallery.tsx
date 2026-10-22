@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/ui/site-image";
 
 import type { ArchiveGalleryImage } from "@/types";
 

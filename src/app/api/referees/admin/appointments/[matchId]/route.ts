@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/bounded-json";
 import { NextResponse } from "next/server";
 import { authorizeLegacyAdminRequest } from "@/lib/legacy-admin-authorization";
 import { refereeApiErrorResponse, RefereeApiInputError } from "@/lib/referee-api";
@@ -14,7 +15,7 @@ export async function PUT(request: Request, context: { params: Promise<{ matchId
   const authorization = await authorizeLegacyAdminRequest(request, "referees:write");
   if (!authorization.ok) return authorization.response;
   try {
-    const body: unknown = await request.json();
+    const body: unknown = await readBoundedJson(request);
     if (!isRecord(body)) throw new RefereeApiInputError("选派内容格式不正确。" );
     const { matchId } = await context.params;
     const result = await saveAppointmentDraft({
@@ -34,7 +35,7 @@ export async function POST(request: Request, context: { params: Promise<{ matchI
   const authorization = await authorizeLegacyAdminRequest(request, "referees:write");
   if (!authorization.ok) return authorization.response;
   try {
-    const body: unknown = await request.json();
+    const body: unknown = await readBoundedJson(request);
     if (!isRecord(body)) throw new RefereeApiInputError("操作内容格式不正确。" );
     const action = readEnum(
       body.action,

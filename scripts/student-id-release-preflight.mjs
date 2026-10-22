@@ -104,7 +104,7 @@ if (process.send) {
   });
 } else if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
-  const valid = process.version === "v22.23.2" && args.length === 1 && args[0].startsWith("--database=");
+  const valid = process.version === "v22.23.4" && args.length === 1 && args[0].startsWith("--database=");
   const report = valid ? await runPreflight(args[0].slice("--database=".length)) : failure;
   console.log(JSON.stringify(report));
   process.exitCode = report.scanComplete !== 1 ? 2 : report.releaseAllowed === 1 ? 0 : 1;

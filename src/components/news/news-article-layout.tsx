@@ -1,4 +1,4 @@
-import Image, { type StaticImageData } from "next/image";
+import Image, { type StaticImageData } from "@/components/ui/site-image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
@@ -64,7 +65,7 @@ async function main() {
     } catch (error) {
       if (error instanceof RefereeServiceError) duplicateStatus = error.status;
     }
-    assert(duplicateStatus === 409, `Duplicate admission returned ${duplicateStatus || "no error"}, expected 409.`);
+    assert(duplicateStatus === 0, "Exact repeat should receive the same success semantics.");
     assert(
       await prisma.refereeAdmissionApplication.count() === beforeDuplicate,
       "Duplicate admission created a database row.",
@@ -94,25 +95,14 @@ async function main() {
         phone: "13800000042",
       }),
     ]);
-    assert(
-      concurrent.filter((result) => result.status === "fulfilled").length === 1 &&
-      concurrent.filter(
-        (result) => result.status === "rejected" &&
-          result.reason instanceof RefereeServiceError &&
-          result.reason.status === 409,
-      ).length === 1,
-      "Concurrent duplicate admission did not resolve to one success and one typed 409.",
-    );
-    assert(
-      await prisma.refereeAdmissionApplication.count({ where: { studentId: "RACE001" } }) === 1,
-      "Concurrent duplicate admission created more than one business row.",
-    );
+    assert(concurrent.every((r) => r.status === "fulfilled"), "Different claimants sharing an unverified ID must both be accepted.");
+    assert(await prisma.refereeAdmissionApplication.count({ where: { studentId: "RACE001" } }) === 2, "An unverified ID claim blocked another applicant.");
 
     const blockedKey = "f".repeat(64);
     const blockedAttempt = await prisma.loginAttempt.create({
       data: {
         scope: "referee-admission-address",
-        keyHash: blockedKey,
+        keyHash: createHash("sha256").update(blockedKey).digest("hex"),
         failures: admission.admissionAddressMaximumSubmissions,
         blockedUntil: new Date(Date.now() + admission.admissionAddressWindowMs),
       },
@@ -139,7 +129,7 @@ async function main() {
     await prisma.loginAttempt.create({
       data: {
         scope: "referee-admission-address",
-        keyHash: resetKey,
+        keyHash: createHash("sha256").update(resetKey).digest("hex"),
         failures: admission.admissionAddressMaximumSubmissions,
         blockedUntil: expiredAt,
       },
@@ -151,7 +141,7 @@ async function main() {
       phone: "13800000100",
     }, { rateLimitKey: resetKey, now: resetNow });
     const resetAttempt = await prisma.loginAttempt.findUniqueOrThrow({
-      where: { scope_keyHash: { scope: "referee-admission-address", keyHash: resetKey } },
+      where: { scope_keyHash: { scope: "referee-admission-address", keyHash: createHash("sha256").update(resetKey).digest("hex") } },
     });
     assert(resetAttempt.failures === 1, "Expired admission quota window did not reset its count.");
     assert(
@@ -164,7 +154,7 @@ async function main() {
       duplicateStatus,
       duplicateCreatedRows: 0,
       sharedNatMultipleApplicants: true,
-      concurrentDuplicateSerialized: true,
+      unverifiedIdentityDoesNotExcludeOthers: true,
       addressLimit: admission.admissionAddressMaximumSubmissions,
       addressWindowMinutes: admission.admissionAddressWindowMs / 60_000,
       rateStatus,

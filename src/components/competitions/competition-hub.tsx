@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/ui/site-image";
 import Link from "next/link";
 
 import { SectionContactCard } from "@/components/ui/section-contact-card";

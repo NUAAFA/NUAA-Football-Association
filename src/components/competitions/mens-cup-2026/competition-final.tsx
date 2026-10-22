@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/ui/site-image";
 
 import { mensIntercollegeCup2026 } from "@/data/mens-intercollege-cup-2026";
 

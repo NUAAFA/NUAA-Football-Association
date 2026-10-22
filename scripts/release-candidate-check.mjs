@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { access } from "node:fs/promises";
 import path from "node:path";
 
-const expectedNode = "v22.23.2";
+const expectedNode = "v22.23.4";
 const npmCli = process.env.npm_execpath;
 const env = {
   ...process.env,

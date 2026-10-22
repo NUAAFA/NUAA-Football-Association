@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/bounded-json";
 import { randomUUID } from "node:crypto";
 
 import { NextResponse } from "next/server";
@@ -9,8 +10,9 @@ export { RefereeApiInputError } from "@/lib/referee-api-input-error";
 
 export async function readRefereeApiJson(request: Request, invalidMessage: string) {
   try {
-    return await request.json() as unknown;
-  } catch {
+    return await readBoundedJson(request);
+  } catch (error) {
+    if (error instanceof RefereeApiInputError && error.status !== 400) throw error;
     throw new RefereeApiInputError(invalidMessage);
   }
 }

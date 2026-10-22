@@ -8,7 +8,7 @@ assert.equal(path.dirname(root),await realpath(os.tmpdir()));assert(path.basenam
 const fixture=JSON.parse(await readFile(path.join(root,'fixture.json'),'utf8'));
 process.env.DATABASE_URL=fixture.databaseUrl;
 const {prisma}=await import('../src/lib/prisma.ts');
-const out='docs/v210x-admin/evidence/browser';await mkdir(out,{recursive:true});
+const out=process.env.V210X_BROWSER_EVIDENCE_DIR ?? 'docs/v210x-admin/evidence/browser';await mkdir(out,{recursive:true});
 const socket=net.createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const port=socket.address().port;await new Promise(r=>socket.close(r));const origin=`http://127.0.0.1:${port}`;
 const server=spawn(process.execPath,['node_modules/next/dist/bin/next','start','-H','127.0.0.1','-p',String(port)],{env:{...process.env,DATABASE_URL:fixture.databaseUrl,NUAAFA_UPLOAD_DIR:path.join(root,'uploads'),NODE_ENV:'production',NEXT_TELEMETRY_DISABLED:'1',REFEREE_ADMIN_SESSION_SECRET:'v210x-browser-synthetic-secret-32-characters-long',REFEREE_MEMBER_SESSION_SECRET:'v210x-member-synthetic-secret-32-characters-long'},stdio:['ignore','pipe','pipe']});
 let serverLog='';server.stdout.on('data',c=>serverLog+=c);server.stderr.on('data',c=>serverLog+=c);

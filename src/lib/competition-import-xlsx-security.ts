@@ -1,4 +1,5 @@
 import { inflateRawSync } from "node:zlib";
+import { zipSync } from "fflate";
 
 import {
   COMPETITION_IMPORT_MAX_COLUMNS,
@@ -141,6 +142,9 @@ function readEntry(buffer: Buffer, entry: ZipEntry, centralDirectoryOffset: numb
   }
   const localFlags = buffer.readUInt16LE(offset + 6);
   const localCompressionMethod = buffer.readUInt16LE(offset + 8);
+  const localCompressedSize = buffer.readUInt32LE(offset + 18);
+  const localUncompressedSize = buffer.readUInt32LE(offset + 22);
+  const hasDescriptor = (localFlags & 0x08) !== 0;
   const fileNameLength = buffer.readUInt16LE(offset + 26);
   const extraLength = buffer.readUInt16LE(offset + 28);
   const dataOffset = offset + 30 + fileNameLength + extraLength;
@@ -148,6 +152,9 @@ function readEntry(buffer: Buffer, entry: ZipEntry, centralDirectoryOffset: numb
   if (
     buffer.toString("utf8", offset + 30, offset + 30 + fileNameLength) !== entry.path
     || localFlags !== entry.flags
+    || (!hasDescriptor && (localCompressedSize !== entry.compressedSize || localUncompressedSize !== entry.uncompressedSize))
+    || (hasDescriptor && ((localCompressedSize !== 0 && localCompressedSize !== entry.compressedSize)
+      || (localUncompressedSize !== 0 && localUncompressedSize !== entry.uncompressedSize)))
     ||
     (localFlags & 0x1) !== 0
     || localCompressionMethod !== entry.compressionMethod
@@ -298,4 +305,19 @@ export function inspectCompetitionImportXlsx(buffer: Buffer) {
     maximumRow,
     maximumColumn,
   };
+}
+
+/** The downstream parser sees only bounded, verified XML, never the original ZIP. */
+export function prepareCompetitionImportXlsx(buffer: Buffer) {
+  inspectCompetitionImportXlsx(buffer);
+  const { entries, centralDirectoryOffset } = readCentralDirectory(buffer);
+  const files: Record<string, Uint8Array> = Object.create(null);
+  for (const entry of entries) {
+    if (/\.xml(?:\.rels)?$/iu.test(entry.path) || /\.rels$/iu.test(entry.path)) {
+      files[entry.path] = readEntry(buffer, entry, centralDirectoryOffset);
+    }
+  }
+  // Stored entries avoid a third decompression; all lengths/headers are generated
+  // from the verified bytes. Unindexed local entries cannot reach the parser.
+  return Buffer.from(zipSync(files, { level: 0 }));
 }

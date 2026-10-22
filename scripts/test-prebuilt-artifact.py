@@ -28,7 +28,7 @@ SPEC = importlib.util.spec_from_file_location("artifact", REPO / "ops/deploy/pre
 A = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(A)
 PLATFORM = {"system": "Linux", "machine": "x86_64", "os_id": "ubuntu", "os_version": "24.04",
-            "libc": ["glibc", "2.39"], "node": "22.23.2", "node_abi": "127", "openssl": "3.5.7"}
+            "libc": ["glibc", "2.39"], "node": "22.23.4", "node_abi": "127", "openssl": "3.5.7"}
 DEFAULT_EVIDENCE = None
 
 
@@ -441,7 +441,7 @@ class ArtifactTests(unittest.TestCase):
             p = cls.source / name
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text("synthetic\n")
-        packages = {"node_modules/" + n: {"version": v, "integrity": "synthetic-locked"} for n, v in (("next", "16.3.8"), ("prisma", "7.9.1"), ("@prisma/client", "7.9.1"))}
+        packages = {"node_modules/" + n: {"version": v, "integrity": "synthetic-locked"} for n, v in (("next", "16.4.1"), ("prisma", "7.9.1"), ("@prisma/client", "7.9.1"))}
         (cls.source / "package-lock.json").write_bytes(A.json_bytes({"packages": packages}))
         (cls.source / "package.json").write_text('{"name":"synthetic","private":true}\n')
         # Real immutable SQL/schema, with wholly synthetic business rows.
@@ -743,7 +743,7 @@ if verify_service_contract; then exit 90; fi
         sentinel = self.root / "helper-executed"
         helper.write_text("from pathlib import Path;Path(" + repr(str(sentinel)) + ").touch()")
         node = self.root / "must-not-execute-node"
-        node.write_text('#!/bin/sh\ntouch "' + str(sentinel) + '"\necho v22.23.2\n')
+        node.write_text('#!/bin/sh\ntouch "' + str(sentinel) + '"\necho v22.23.4\n')
         node.chmod(0o755)
         link = self.root / "untrusted-link"
         link.symlink_to(helper)

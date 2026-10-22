@@ -22,6 +22,7 @@ async function main() {
       cp(path.resolve("package-lock.json"), path.join(root, "package-lock.json")),
       cp(path.resolve("prisma.config.ts"), path.join(root, "prisma.config.ts")),
       cp(path.resolve("prisma"), path.join(root, "prisma"), { recursive: true }),
+      cp(path.resolve("vendor"), path.join(root, "vendor"), { recursive: true }),
       mkdir(path.join(root, "src"), { recursive: true }),
     ]);
     const env = {

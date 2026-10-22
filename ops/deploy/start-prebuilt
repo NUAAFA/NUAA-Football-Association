@@ -67,10 +67,10 @@ def main():
     trusted(cli)
     package = release / "node_modules/next/package.json"
     trusted(package)
-    require(json.loads(package.read_bytes())["version"] == "16.3.8", "startup Next version differs")
+    require(json.loads(package.read_bytes())["version"] == "16.4.1", "startup Next version differs")
     node = Path(NODE).resolve(strict=True)
     trusted(node)
-    require(subprocess.check_output([str(node), "--version"], env={}, timeout=10).strip() == b"v22.23.2", "startup Node version differs")
+    require(subprocess.check_output([str(node), "--version"], env={}, timeout=10).strip() == b"v22.23.4", "startup Node version differs")
     # A release may only read the exact schema/ledger it understands. In
     # particular, old 17-migration code cannot expose private 18-migration facts.
     helper = Path(HELPER)

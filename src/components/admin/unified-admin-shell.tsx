@@ -110,7 +110,7 @@ export function UnifiedAdminShell({
         currentPassword: form.get("currentPassword"),
         newPassword,
       });
-      setMessage("密码已更新，其他管理员会话已退出。");
+      setMessage("密码已更新，旧会话已失效。");
       formElement.reset();
       setPasswordOpen(false);
       router.refresh();

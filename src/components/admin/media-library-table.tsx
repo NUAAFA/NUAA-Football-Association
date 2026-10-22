@@ -1,5 +1,5 @@
 "use client";
-import Image from "next/image";
+import Image from "@/components/ui/site-image";
 import Link from "next/link";
 import { useState } from "react";
 import { MediaVisibilityButton } from "@/components/admin/media-visibility-button";

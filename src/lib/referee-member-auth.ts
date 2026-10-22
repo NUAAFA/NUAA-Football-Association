@@ -1,3 +1,4 @@
+import { issueVerifiedRefereeSession } from "@/lib/session-issuance";
 import "server-only";
 
 import { createHmac, randomBytes } from "node:crypto";
@@ -34,14 +35,7 @@ export async function createRefereeMemberSession(studentId: string, password: st
 
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + sessionDurationMs);
-  await prisma.refereeSession.deleteMany({ where: { expiresAt: { lt: new Date() } } });
-  await prisma.refereeSession.create({
-    data: { refereeId: referee.id, tokenHash: hashToken(token, secret), expiresAt },
-  });
-  await prisma.referee.update({
-    where: { id: referee.id },
-    data: { lastLoginAt: new Date(), failedLoginCount: 0, lockedUntil: null },
-  });
+  if (!(await issueVerifiedRefereeSession({ account: referee, tokenHash: hashToken(token, secret), expiresAt }))) return null;
 
   (await cookies()).set(sessionCookieName, token, {
     httpOnly: true,

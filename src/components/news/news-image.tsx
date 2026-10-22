@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/ui/site-image";
 
 import styles from "@/components/news/news-listing.module.css";
 

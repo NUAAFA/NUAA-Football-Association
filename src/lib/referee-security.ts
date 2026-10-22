@@ -85,6 +85,9 @@ export async function assertLoginAllowed(scope: "admin" | "referee", keyHash: st
   const attempt = await prisma.loginAttempt.findUnique({
     where: { scope_keyHash: { scope, keyHash } },
   });
+  if (attempt?.blockedUntil && attempt.blockedUntil <= new Date()) {
+    await prisma.loginAttempt.deleteMany({ where: { id: attempt.id, blockedUntil: { lte: new Date() } } });
+  }
   if (attempt?.blockedUntil && attempt.blockedUntil > new Date()) {
     throw new LoginRateLimitError();
   }

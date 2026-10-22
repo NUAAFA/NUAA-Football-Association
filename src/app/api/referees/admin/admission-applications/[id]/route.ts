@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/bounded-json";
 import { NextResponse } from "next/server";
 
 import {
@@ -35,12 +36,7 @@ export async function PATCH(
       "referees:write",
       { mutation: true },
     );
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      throw new UnifiedAdminInputError("审核内容格式不正确。");
-    }
+    const body = await readBoundedJson(request);
     if (!isRecord(body)) throw new UnifiedAdminInputError("审核内容格式不正确。");
     const action = readEnum(body.action, ["APPROVE", "REJECT"] as const, "审核结果");
     const reviewNote = readShortText(body.reviewNote, "审核意见", 500);

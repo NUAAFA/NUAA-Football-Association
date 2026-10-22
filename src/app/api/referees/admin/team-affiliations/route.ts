@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/bounded-json";
 import { NextResponse } from "next/server";
 
 import { authorizeLegacyAdminRequest } from "@/lib/legacy-admin-authorization";
@@ -10,7 +11,7 @@ export async function PUT(request: Request) {
   const authorization = await authorizeLegacyAdminRequest(request, "competitions:write");
   if (!authorization.ok) return authorization.response;
   try {
-    const body: unknown = await request.json();
+    const body: unknown = await readBoundedJson(request);
     if (!isRecord(body)) throw new RefereeApiInputError("球队组织关联格式不正确。");
     const unitIds = readShortTextArray(body.unitIds ?? body.collegeIds, "组织单位", 64, 30);
     const inferredType = unitIds.length > 1 ? "JOINT" : unitIds.length === 1 ? "ORGANIZATION" : "FREEFORM";

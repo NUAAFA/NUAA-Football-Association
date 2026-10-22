@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/bounded-json";
 import { NextResponse } from "next/server";
 import { authorizeUnifiedAdminServiceRequest, unifiedAdminErrorResponse, UnifiedAdminInputError } from "@/lib/unified-admin-api";
 import { inspectTeamRemoval, removeCompetitionTeams } from "@/lib/competition-team-removal";
@@ -7,7 +8,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   try {
     const grant = await authorizeUnifiedAdminServiceRequest(request, "competitions:write", { mutation: true });
     const competitionId = (await context.params).id;
-    const body: unknown = await request.json();
+    const body: unknown = await readBoundedJson(request);
     if (!isRecord(body) || !Array.isArray(body.teamIds) || body.teamIds.some((id) => typeof id !== "string" || id.length > 64)) throw new UnifiedAdminInputError("球队选择无效。");
     const teamIds = body.teamIds as string[];
     if (body.action === "inspect") return NextResponse.json(await inspectTeamRemoval(competitionId, teamIds));
