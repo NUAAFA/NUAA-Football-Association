@@ -63,6 +63,23 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends nginx
           python3 driver/scripts/test-security-edge.py
+      - name: Export only fictional owned evidence for the artifact uploader
+        if: always()
+        run: |
+          sudo python3 - "$RUNNER_TEMP/backout-output" "$(id -u)" "$(id -g)" "$RUNNER_TEMP" <<'PY'
+          import os,stat,sys
+          from pathlib import Path
+          root=Path(sys.argv[1]);temp=Path(sys.argv[4]).resolve(strict=True)
+          assert root==temp/'backout-output' and root.resolve(strict=True)==root and root.is_dir()
+          paths=[root,*root.rglob('*')]
+          for path in paths:
+              info=path.lstat()
+              assert not stat.S_ISLNK(info.st_mode) and (stat.S_ISDIR(info.st_mode) or (stat.S_ISREG(info.st_mode) and info.st_nlink==1))
+          for path in paths:
+              os.chmod(path,0o750 if path.is_dir() else 0o640)
+              os.chown(path,int(sys.argv[2]),int(sys.argv[3]),follow_symlinks=False)
+          print('PASS: only disposable fictional evidence exported; application/service/data permissions unchanged')
+          PY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
