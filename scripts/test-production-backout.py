@@ -54,7 +54,21 @@ def main():
             assert db.execute('pragma integrity_check').fetchall()==[('ok',)]
             assert not db.execute('pragma foreign_key_check').fetchall()
             rows=db.execute('SELECT id,publicCode,name FROM Referee ORDER BY id').fetchall()
-        return dict(logical_database=A.database_fingerprint(database),sentinels=rows,media_sha256=hashlib.sha256(media.read_bytes()).hexdigest())
+        return dict(logical_database=logical_fingerprint(database),sentinels=rows,media_sha256=hashlib.sha256(media.read_bytes()).hexdigest())
+    def logical_fingerprint(path):
+        # VACUUM INTO may reorder SQLite's internal catalog. Bind every exact
+        # schema definition, table value/type and migration row independently
+        # of catalog/SELECT iteration order, without ignoring any table.
+        with sqlite3.connect(path.as_uri()+'?mode=ro',uri=True) as db:
+            db.execute('PRAGMA query_only=ON');db.execute('BEGIN')
+            schema=db.execute('SELECT type,name,tbl_name,sql FROM sqlite_master ORDER BY type,name').fetchall()
+            tables={}
+            for (name,) in db.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").fetchall():
+                values=db.execute('SELECT * FROM "'+name.replace('"','""')+'"').fetchall()
+                tables[name]=dict(count=len(values),sha256=hashlib.sha256(repr(sorted(map(repr,values))).encode()).hexdigest())
+            assert db.total_changes==0
+            value=dict(schema=schema,tables=tables)
+        return hashlib.sha256(repr(value).encode()).hexdigest()
     try:
         for name in ('releases','trusted','home','approvals'):(root/name).mkdir(mode=0o755)
         os.chown(root/'home',account.pw_uid,account.pw_gid)
@@ -133,7 +147,10 @@ student_id_preflight_node="$NODE"; student_id_preflight_command="$SLOT/student-i
         sandbox=root/'restore-sandbox';sandbox.mkdir(mode=0o755);os.chown(sandbox,account.pw_uid,account.pw_gid)
         restored_db=sandbox/'restored/prisma/dev.db';restored_media=sandbox/'restored/uploads'
         run(['/usr/sbin/runuser','-u',user,'--',old_node,old_release/'node_modules/tsx/dist/cli.mjs',old_release/'scripts/restore-unified-data.ts','--backup='+str(backup),'--database='+str(restored_db),'--uploads='+str(restored_media)],'old-original-isolated-restore',env={**backup_env,'NUAAFA_RESTORE_ISOLATED':'1','NUAAFA_RESTORE_TARGET_ROOT':str(sandbox)},cwd=old_release)
-        assert A.database_fingerprint(restored_db)==before_restore['logical_database']
+        restored_logical=logical_fingerprint(restored_db)
+        (output/'old-restore-fingerprints.json').write_text(json.dumps(dict(source_logical=before_restore['logical_database'],restored_logical=restored_logical,source_dump=A.database_fingerprint(database),restored_dump=A.database_fingerprint(restored_db)),indent=2)+'\n')
+        assert restored_logical==before_restore['logical_database']
+        A.migration_ready(old_release,old_release,restored_db,complete=True)
         assert hashlib.sha256((restored_media/media.relative_to(shared/'uploads')).read_bytes()).hexdigest()==before_restore['media_sha256']
         # Boot the actual old release on the verified restored fictional data.
         database.rename(root/'seed-original.db');restored_db.rename(database)
