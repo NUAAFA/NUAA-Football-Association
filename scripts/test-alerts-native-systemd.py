@@ -65,8 +65,9 @@ TimeoutStartSec=60s
     put(flag,'owned disposable fixture only\n');flag_owned=True;checked(['systemctl','start',proof_name]);condition=checked(['systemctl','show',proof_name,'-p','ConditionResult']);assert condition.strip()=='ConditionResult=no' and not (results/'proof.json').exists();flag.unlink();flag_owned=False
     checked(['systemctl','start','--no-block',proof_name]);deadline=time.monotonic()+65
     while not (results/'proof.json').exists():
-        if time.monotonic()>deadline:
-            log=checked(['journalctl','-u',proof_name,'--no-pager','-o','cat','-n','35']);put(out/'native-failure.log',log,0o644);raise RuntimeError('NATIVE_PROOF_TIMEOUT')
+        failed=checked(['systemctl','show',proof_name,'-p','ActiveState','--value']).strip()=='failed'
+        if failed or time.monotonic()>deadline:
+            log=checked(['journalctl','-u',proof_name,'--no-pager','-o','cat','-n','35']);put(out/'native-failure.log',log,0o644);raise RuntimeError('NATIVE_PROOF_FAILED' if failed else 'NATIVE_PROOF_TIMEOUT')
         time.sleep(.2)
     observed=json.loads((results/'proof.json').read_text());credential=P(observed['credential_directory'])/'smtp';probe=run(['runuser','-u',app.pw_name,'--','/bin/cat',str(credential)]);assert probe.returncode!=0 and not probe.stdout,'OTHER_UID_READ_CREDENTIAL'
     put(results/'release','other-uid-denial-verified\n');deadline=time.monotonic()+15

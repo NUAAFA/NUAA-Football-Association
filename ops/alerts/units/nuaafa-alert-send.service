@@ -29,5 +29,5 @@ IPAddressAllow=localhost
 CPUQuota=10%
 MemoryMax=64M
 TasksMax=16
-TimeoutStartSec=35s
+TimeoutStartSec=45s
 LimitCORE=0

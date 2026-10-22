@@ -21,6 +21,7 @@ def retire(raw):
                 if value[pos:pos+1]==quote and (quote!=b'"' or escapes%2==0):end=pos;break
             if end is None or value[end+1:].lstrip()[:1] not in (b'',b'#'):raise Refused('MULTILINE_OR_AMBIGUOUS_ENV')
         if match[1]==KEY:hits.append(index)
+        elif re.search(rb'\$(?:\{)?'+KEY+rb'(?![A-Za-z0-9_])',value):raise Refused('LEGACY_KEY_REFERENCE_REQUIRES_REVIEW')
     if len(hits)!=1:raise Refused('REQUIRES_ONE_UNIQUE_LEGACY_KEY')
     return b''.join(line for index,line in enumerate(lines) if index!=hits[0])
 def main():

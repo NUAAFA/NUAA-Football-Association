@@ -25,6 +25,13 @@ supplemented by a process-wide deadline that cannot be swallowed by smtplib.
 Messages are at least once: a crash after SMTP acceptance but before the durable
 ack can duplicate a message. SMTP acceptance is not proof of inbox receipt.
 
+Managed credentials are restricted to the exact read-only `/run/credentials/`
+service directory. The reader supports systemd255's root-owned file with one
+named-user read ACL, as well as its service-owned 0400 fallback. Additional ACL
+readers, group/other access and writable mounts are rejected. Other file readers
+retain their original ownership and permission rules. This matches the
+[systemd255 credential creation source](https://github.com/systemd/systemd/blob/v255/src/core/exec-credential.c#L176-L191).
+
 Events and delivered/quarantined metadata are retained; there is no automatic
 deletion. The 20 MiB / 10000 event limits fail visibly rather than discard data.
 Retention/rotation tooling is not part of this change. Each pass handles at most

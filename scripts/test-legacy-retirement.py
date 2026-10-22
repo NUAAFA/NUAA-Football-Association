@@ -8,6 +8,10 @@ class Retirement(unittest.TestCase):
             after=b'# fictional only'+newline+b'DATABASE_URL="file:/fictional/database.db"'+newline+b'UNCHANGED="fictional-other-secret"'+newline
             self.assertEqual(M.retire(before),after)
     def test_export_whitespace(self):self.assertEqual(M.retire(b' export REFEREE_ADMIN_PASSWORD_HASH = fixture\nOTHER=kept'),b'OTHER=kept')
+    def test_dependent_expansions_require_separate_review(self):
+        for value in [b'$REFEREE_ADMIN_PASSWORD_HASH',b'${REFEREE_ADMIN_PASSWORD_HASH}',b'${REFEREE_ADMIN_PASSWORD_HASH:-default}',b'"prefix-$REFEREE_ADMIN_PASSWORD_HASH"',b'\\$REFEREE_ADMIN_PASSWORD_HASH']:
+            with self.subTest(value=value):
+                with self.assertRaises(M.Refused):M.retire(b'REFEREE_ADMIN_PASSWORD_HASH=fixture\nOTHER='+value+b'\n')
     def test_single_backtick_escaped_quotes_and_comment(self):
         for value in [b"'fictional' # note",b'`fictional`',b'"fictional\\"value" # note']:
             self.assertEqual(M.retire(b'OTHER='+value+b'\nREFEREE_ADMIN_PASSWORD_HASH=fixture\n'),b'OTHER='+value+b'\n')

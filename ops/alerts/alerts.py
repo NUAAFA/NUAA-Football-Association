@@ -4,7 +4,7 @@
 No application database access. Deployment configuration is disabled by default;
 all tests use loopback TLS endpoints, fictional events and .invalid addresses.
 """
-import argparse,base64,contextlib,datetime,email.message,email.policy,fcntl,hashlib,hmac,http.client,ipaddress,json,math,os,pathlib,re,signal,smtplib,socket,ssl,stat,sys,time,uuid
+import argparse,base64,contextlib,datetime,email.message,email.policy,fcntl,hashlib,hmac,http.client,ipaddress,json,math,os,pathlib,re,signal,smtplib,socket,ssl,stat,struct,sys,time,uuid
 P=pathlib.Path
 SOURCE_CHECKS={'PUBLIC_HTTPS_HOME','PUBLIC_HTTPS_HEALTH','LOCAL_APPLICATION_HEALTH','APPLICATION','APPLICATION_RESTARTS','VERSION','NGINX','NGINX_CONFIG','NGINX_ERROR_LOG','SQLITE','DISK_INODES','MEMORY','CPU','HTTPS_CERTIFICATE','CERTIFICATE_RENEWAL','BACKUP_FRESHNESS_AND_FAILURE','BACKUP_COMPLETION','ISOLATED_RESTORE_FRESHNESS',*['SCHEDULE_'+x for x in ['nuaafa-ops-backup.timer','nuaafa-ops-monitor.timer','nuaafa-ops-restore.timer','nuaafa-ops-nginx-log.timer']]}
 CHECKS=SOURCE_CHECKS|{'EXTERNAL_HEARTBEAT','OFFSITE_STORAGE','ALERT_TRANSPORT'}
@@ -139,8 +139,25 @@ def endpoint(host,port,isolated):
     if isolated:need(all(ipaddress.ip_address(x[4][0]).is_loopback for x in resolved),'ISOLATED_EGRESS_DENIED')
     # Return one resolved IP; transport pins it, preventing a second DNS lookup.
     selected=next((x for x in resolved if x[0]==socket.AF_INET),resolved[0]);return selected[4][0]
+def credential_acl(raw,uid):
+    # systemd255 prefers root ownership plus one named-user read ACL. Never
+    # treat the ACL mask's group-read mode bit as permission for the group.
+    need(len(raw)==44 and struct.unpack('<I',raw[:4])[0]==2,'CREDENTIAL_ACL')
+    entries=set(struct.iter_unpack('<HHI',raw[4:]));undefined=0xffffffff
+    need(entries=={(1,4,undefined),(2,4,uid),(4,0,undefined),(16,4,undefined),(32,0,undefined)},'CREDENTIAL_ACL')
+def read_credential(path,bound):
+    managed=os.environ.get('CREDENTIALS_DIRECTORY')
+    if not managed:return read_file(path,bound,os.getuid()) # isolated fixtures only
+    root=P(managed);need(root.is_absolute() and root.resolve()==root and root.parent==P('/run/credentials') and re.fullmatch(r'[A-Za-z0-9_.@-]+\.service',root.name),'CREDENTIAL_DIRECTORY')
+    need(path.parent==root and path.name in {'smtp','heartbeat'},'CREDENTIAL_PATH')
+    ds=root.lstat();s=path.lstat();uid=os.getuid()
+    need(stat.S_ISDIR(ds.st_mode) and ds.st_uid in {0,uid} and not stat.S_IMODE(ds.st_mode)&0o027 and os.statvfs(root).f_flag&os.ST_RDONLY,'CREDENTIAL_MOUNT')
+    need(s.st_uid in {0,uid} and stat.S_IMODE(s.st_mode) in {0o400,0o440},'CREDENTIAL_OWNER_MODE')
+    if stat.S_IMODE(s.st_mode)==0o440:credential_acl(os.getxattr(path,'system.posix_acl_access'),uid)
+    elif s.st_uid!=uid:need(uid==0,'CREDENTIAL_ACCESS')
+    raw=read_file(path,bound,s.st_uid,private=False);need(identity(path.lstat())==identity(s),'CREDENTIAL_CHANGED');return raw
 def credentials(path):
-    d=decode(read_file(path,4096,os.getuid()));need(set(d)=={'username','password'},'CREDENTIAL_SHAPE')
+    d=decode(read_credential(path,4096));need(set(d)=={'username','password'},'CREDENTIAL_SHAPE')
     for v in d.values():need(isinstance(v,str) and 0<len(v)<=256 and all(32<=ord(c)<=126 for c in v),'CREDENTIAL_VALUE')
     return d
 def message(event,config,recipients):
@@ -234,7 +251,7 @@ def send_heartbeat(spool,state,config,credential_file,delivery,now=None):
     with locked(state):
         observation=decode(read_file(spool/'observation.json',4096,config.get('spool_uid',0),private=False));payload=heartbeat_payload(observation,delivery,now);old=load(state/'heartbeat-ack.json',{'observed_epoch':-1})
         if payload['observed_epoch']<=old['observed_epoch']:return {'status':'SKIPPED','reason':'NO_NEW_OBSERVATION'}
-        key=read_file(credential_file,256,os.getuid());need(32<=len(key)<=128,'HEARTBEAT_KEY_SIZE');body=encode(payload);signature=hmac.new(key,body,hashlib.sha256).hexdigest()
+        key=read_credential(credential_file,256);need(32<=len(key)<=128,'HEARTBEAT_KEY_SIZE');body=encode(payload);signature=hmac.new(key,body,hashlib.sha256).hexdigest()
         with deadline(config.get('deadline_seconds',10)):
             status,data=https_exchange(config,'POST',config['path'],body,{'Content-Type':'application/json','X-NUAAFA-Signature':signature},4096)
         need(status==200 and decode(data)=={'accepted':True},'HEARTBEAT_NOT_ACCEPTED');atomic(state/'heartbeat-ack.json',encode({'observed_epoch':payload['observed_epoch']}));return {'status':'PASS','health':payload['overall_status']}

@@ -131,6 +131,14 @@ class Alerts(unittest.TestCase):
         with self.assertRaises(A.Refused):A.bridge(*paths,self.spool,os.getuid(),1000)
         paths[0].chmod(0o600);os.link(paths[0],self.root/'hardlink')
         with self.assertRaises(A.Refused):A.bridge(*paths,self.spool,os.getuid(),1000)
+    def test_systemd_credential_acl_and_directory_fail_closed(self):
+        uid=12345;undefined=0xffffffff;entries=[(1,4,undefined),(2,4,uid),(4,0,undefined),(16,4,undefined),(32,0,undefined)]
+        pack=lambda values:A.struct.pack('<I',2)+b''.join(A.struct.pack('<HHI',*v) for v in values)
+        A.credential_acl(pack(entries),uid)
+        for values in [entries[:-1],entries+[(2,4,9999)],entries[:2]+[(4,4,undefined)]+entries[3:],entries[:-1]+[(32,4,undefined)],entries[:1]+[(2,4,9999)]+entries[2:]]:
+            with self.assertRaises(A.Refused):A.credential_acl(pack(values),uid)
+        with patch.dict(os.environ,{'CREDENTIALS_DIRECTORY':str(self.root)}):
+            with self.assertRaises(A.Refused):A.credentials(self.cred)
     def test_bridge_rotation_truncation_and_rewrite(self):
         paths=self.source();A.bridge(*paths,self.spool,os.getuid(),1000);original=paths[0].read_bytes();private(paths[0],original[:-1])
         with self.assertRaises(A.Refused):A.bridge(*paths,self.spool,os.getuid(),1000)

@@ -6,7 +6,7 @@ spec=importlib.util.spec_from_file_location('loopback_tests',P(__file__).with_na
 root=P(sys.argv[1]);config=A.config_file(root/'proof-config.json');output=P(config['result']);state=P(config['state']);spool=P(config['spool']);creds=P(os.environ['CREDENTIALS_DIRECTORY'])
 assert os.getuid()==config['expected_uid']!=0 and not [x for x in P('/proc/net/route').read_text().splitlines()[1:] if x.strip()]
 assert A.credentials(creds/'smtp')=={'username':'fictional-user','password':'FICTIONAL_NATIVE_CANARY'}
-assert (creds/'smtp').stat().st_uid==os.getuid() and os.statvfs(creds).f_flag&os.ST_RDONLY
+assert (creds/'smtp').stat().st_uid in {0,os.getuid()} and os.statvfs(creds).f_flag&os.ST_RDONLY
 try:(creds/'smtp').open('ab')
 except (PermissionError,OSError):pass
 else:raise RuntimeError('CREDENTIAL_WRITABLE')
@@ -22,7 +22,7 @@ with tempfile.TemporaryDirectory(prefix='nuaafa-native-fake-tls-') as t:
     with T.server('https',certroot) as https:
         https.now=time.time();https.key=(creds/'heartbeat').read_bytes();hc=dict(enabled=True,isolated=True,host='localhost',port=https.server_address[1],path='/heartbeat',ca_file=str(certroot/'ca.crt'),spool_uid=0,deadline_seconds=10)
         hb=A.send_heartbeat(spool,state,hc,creds/'heartbeat',delivery);assert hb['status']=='PASS' and https.received['health']=='PASS'
-record=dict(status='AWAITING_OTHER_UID_DENIAL',uid=os.getuid(),credential_directory=str(creds),credential_readonly=True,network_routes=0,application_path_masked=True,code_readonly=True,synthetic_tls_smtp='PASS',synthetic_https_heartbeat='PASS',private_values_exported=False)
+record=dict(status='AWAITING_OTHER_UID_DENIAL',uid=os.getuid(),credential_directory=str(creds),credential_owner=(creds/'smtp').stat().st_uid,credential_mode=oct(stat.S_IMODE((creds/'smtp').stat().st_mode)),credential_readonly=True,network_routes=0,application_path_masked=True,code_readonly=True,synthetic_tls_smtp='PASS',synthetic_https_heartbeat='PASS',private_values_exported=False)
 A.atomic(output,A.encode(record));deadline=time.monotonic()+25
 while not (output.parent/'release').exists():
     assert time.monotonic()<deadline,'UID_PROBE_TIMEOUT';time.sleep(.1)
