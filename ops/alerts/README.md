@@ -1,6 +1,10 @@
 # Isolated alert implementation
 
 This standalone operations code does not change the application or its database.
+The current zero additional budget proposal is in
+[NO_COST_PREPARATION.md](NO_COST_PREPARATION.md). It uses existing Tencent Cloud
+basic monitoring and free hosted notifications; a separate SMTP service is not
+required. The original SMTP transport remains a disabled alternative.
 All sample configurations are disabled. The sending unit permits loopback only;
 production SMTP/heartbeat endpoints, verified sender identity, recipient list and
 network allowlist must be approved separately before any real delivery.
@@ -90,3 +94,13 @@ configuration and verifies unchanged named super-admin credentials against a new
 fictional database. Production configuration editing, real login/session changes,
 installation, merging, deployment and actual mail delivery remain outside this
 implementation's execution scope.
+
+`alerts.py hosted` is the SMTP-free alternative. It uses a scoped Healthchecks
+UUID credential, GET success/failure signals, strict TLS and a durable attempt
+before transmission. It does not claim provider-managed email delivery has been
+verified. `healthchecks.example.json`, `no-cost-plan.example.json` and the new
+heartbeat unit/timer are review-only; they do not install or enable anything.
+The provider contract suite adds actual loopback TLS, crash/replay, stale input,
+credential/endpoint refusal and false-acknowledgement cases. Actual account setup,
+five-minute public-probe behavior, cloud policy changes and inbox acceptance are
+still NOT RUN.

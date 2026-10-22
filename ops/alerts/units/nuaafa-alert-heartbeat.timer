@@ -1,0 +1,11 @@
+# REVIEW ONLY. No install or enable action is provided.
+[Unit]
+Description=NUAAFA hosted heartbeat schedule
+[Timer]
+OnBootSec=30s
+OnUnitInactiveSec=30s
+AccuracySec=5s
+Persistent=false
+Unit=nuaafa-alert-heartbeat.service
+[Install]
+WantedBy=timers.target

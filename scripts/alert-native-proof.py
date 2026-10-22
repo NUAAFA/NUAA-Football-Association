@@ -22,6 +22,7 @@ with tempfile.TemporaryDirectory(prefix='nuaafa-native-fake-tls-') as t:
     with T.server('https',certroot) as https:
         https.now=time.time();https.key=(creds/'heartbeat').read_bytes();hc=dict(enabled=True,isolated=True,host='localhost',port=https.server_address[1],path='/heartbeat',ca_file=str(certroot/'ca.crt'),spool_uid=0,deadline_seconds=10)
         hb=A.send_heartbeat(spool,state,hc,creds/'heartbeat',delivery);assert hb['status']=='PASS' and https.received['health']=='PASS'
+        https.provider_ping=True;hosted=A.send_healthchecks_heartbeat(spool,state,dict(hc,provider='healthchecks'),creds/'heartbeat');assert hosted['status']=='PASS' and not hosted['mail_delivery_verified'] and https.get_paths==['/11111111-1111-4111-8111-111111111111']
 record=dict(status='AWAITING_OTHER_UID_DENIAL',uid=os.getuid(),credential_directory=str(creds),credential_owner=(creds/'smtp').stat().st_uid,credential_mode=oct(stat.S_IMODE((creds/'smtp').stat().st_mode)),credential_readonly=True,network_routes=0,application_path_masked=True,code_readonly=True,synthetic_tls_smtp='PASS',synthetic_https_heartbeat='PASS',private_values_exported=False)
 A.atomic(output,A.encode(record));deadline=time.monotonic()+25
 while not (output.parent/'release').exists():

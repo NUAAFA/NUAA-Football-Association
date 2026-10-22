@@ -36,7 +36,7 @@ try:
     bridge_config=dict(enabled=True,events=str(source/'events.jsonl'),latest=str(source/'latest.json'),storage_receipt=str(root/'storage.json'),spool=str(spool),source_uid=app.pw_uid)
     put(root/'bridge-config.json',json.dumps(bridge_config),0o640,gid=alert.pw_gid)
     put(root/'proof-config.json',json.dumps(dict(result=str(results/'proof.json'),state=str(state),spool=str(spool),expected_uid=alert.pw_uid,masked_canary=str(root/'business-canary'))),0o640,gid=alert.pw_gid)
-    put(root/'smtp-plaintext',A.encode({'username':'fictional-user','password':'FICTIONAL_NATIVE_CANARY'}).decode());put(root/'heartbeat-plaintext','fictional-heartbeat-key-32-bytes-minimum')
+    put(root/'smtp-plaintext',A.encode({'username':'fictional-user','password':'FICTIONAL_NATIVE_CANARY'}).decode());put(root/'heartbeat-plaintext',A.encode({'path':'/11111111-1111-4111-8111-111111111111'}).decode())
     for name in ['smtp','heartbeat']:checked(['systemd-creds','encrypt','--with-key=host','--name='+name,str(root/(name+'-plaintext')),str(root/(name+'-encrypted'))])
     bridge_name='nuaafa-alert-bridge-fixture-'+ident+'.service';proof_name='nuaafa-alert-proof-fixture-'+ident+'.service'
     common='''[Unit]
@@ -76,7 +76,7 @@ TimeoutStartSec=60s
     while checked(['systemctl','show',proof_name,'-p','ActiveState','--value']).strip() in {'activating','active'}:assert time.monotonic()<deadline;time.sleep(.1)
     props=dict(line.split('=',1) for line in checked(['systemctl','show',proof_name,'--property=Result,ExecMainStatus,CPUQuotaPerSecUSec,MemoryMax,TasksMax,PrivateNetwork,NoNewPrivileges,ProtectSystem']).splitlines())
     assert props['Result']=='success' and props['ExecMainStatus']=='0' and props['MemoryMax']=='67108864' and props['TasksMax']=='16' and props['CPUQuotaPerSecUSec']=='100ms' and props['PrivateNetwork']=='yes' and props['NoNewPrivileges']=='yes' and props['ProtectSystem']=='strict'
-    final=dict(status='PASS',systemd=version,properties=props,bridge_real_unit=True,sender_other_uid_denied=True,credential_encrypted_and_readonly=True,maintenance_skip_then_resume=True,loopback_tls_smtp_and_https=True,no_network_routes=True,no_production_access=True,no_real_mail=True)
+    final=dict(status='PASS',systemd=version,properties=props,bridge_real_unit=True,sender_other_uid_denied=True,credential_encrypted_and_readonly=True,maintenance_skip_then_resume=True,loopback_tls_smtp_and_https=True,hosted_bearer_heartbeat_adapter=True,no_network_routes=True,no_production_access=True,no_real_mail=True)
     put(out/'native-systemd-result.json',json.dumps(final,indent=2)+'\n',0o644);print(json.dumps(final));success=True
 finally:
     for name,path in units:

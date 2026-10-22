@@ -75,7 +75,9 @@ class HTTPSServer(TLSMixin,http.server.ThreadingHTTPServer):pass
 class HTTPSHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self,*args):pass
     def do_GET(self):
-        s=self.server;status=s.http_status;body=(b'{"status":"ok"}' if s.health_ok else b'{"status":"bad"}') if self.path=='/api/health' else b'fictional home'
+        s=self.server;s.get_paths.append(self.path)
+        if s.get_delay:time.sleep(s.get_delay)
+        status=s.http_status;body=s.ping_body if s.provider_ping else (b'{"status":"ok"}' if s.health_ok else b'{"status":"bad"}') if self.path=='/api/health' else b'fictional home'
         if s.oversize:body=b'x'*8193
         self.send_response(status);self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body)
     def do_POST(self):
@@ -89,7 +91,7 @@ class HTTPSHandler(http.server.BaseHTTPRequestHandler):
 def server(kind,root,expired=False):
     cls,handler=(SMTPServer,SMTPHandler) if kind=='smtp' else (HTTPSServer,HTTPSHandler)
     s=cls(('127.0.0.1',0),handler);s.tls=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);s.tls.load_cert_chain(root/('expired.crt' if expired else 'server.crt'),root/'server.key')
-    s.auth_count=0;s.auth_fail=False;s.stall=False;s.data_code=250;s.refuse=set();s.messages=[];s.rcpts=[];s.http_status=200;s.health_ok=True;s.oversize=False;s.key=b'fictional-heartbeat-key-32-bytes-minimum';s.received={};s.received_state=None;s.now=1000
+    s.auth_count=0;s.auth_fail=False;s.stall=False;s.data_code=250;s.refuse=set();s.messages=[];s.rcpts=[];s.http_status=200;s.health_ok=True;s.oversize=False;s.get_paths=[];s.get_delay=0;s.provider_ping=False;s.ping_body=b'OK';s.key=b'fictional-heartbeat-key-32-bytes-minimum';s.received={};s.received_state=None;s.now=1000
     thread=threading.Thread(target=s.serve_forever,daemon=True);thread.start()
     try:yield s
     finally:s.shutdown();s.server_close();thread.join(3)

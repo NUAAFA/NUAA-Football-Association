@@ -1,0 +1,59 @@
+{
+  "status": "REVIEW_ONLY",
+  "enabled": false,
+  "additional_monthly_budget_cny": 0,
+  "account_creation_authorized": false,
+  "production_changes_authorized": false,
+  "real_notifications_authorized": false,
+  "paid_or_trial_products_allowed": false,
+  "smtp_required": false,
+  "smtp_sender_enabled": false,
+  "cloud_monitor": {
+    "provider": "Tencent Cloud TCOP basic cloud-product monitoring",
+    "use_existing_account": true,
+    "new_services_enabled": false,
+    "notification_channels_proposed": ["email"],
+    "disable_or_modify_existing_channels_now": false,
+    "instance_identity": "MUST_BIND_LIVE_BEFORE_CHANGE",
+    "proposed_rules": [
+      "CPU above 90 percent for 5 minutes, if supported",
+      "Memory above 90 percent for 5 minutes, if supported and reporting",
+      "Disk above 85 percent for 5 minutes, if supported and reporting",
+      "Keep existing traffic-package alert and review warning at 20 percent",
+      "Missing data or instance events only if supported; verify semantics first"
+    ],
+    "install_agent_now": false,
+    "custom_metrics_or_paid_APIs": false
+  },
+  "public_probe": {
+    "provider": "UptimeRobot",
+    "plan": "Free",
+    "interval_seconds": 300,
+    "monitor_count": 2,
+    "targets": ["https://site.example.invalid/", "https://site.example.invalid/api/health"],
+    "health_keyword": "\"status\":\"ok\"",
+    "notifications": "provider-managed email",
+    "failure_recovery_semantics": "ACCOUNT_ACCEPTANCE_PENDING; do not claim old 3-failure/2-recovery contract",
+    "one_minute_checks": false,
+    "paid_maintenance_features": false
+  },
+  "heartbeat": {
+    "provider": "Healthchecks.io",
+    "plan": "Hobbyist",
+    "checks_needed": 1,
+    "published_free_check_limit": 20,
+    "period_seconds": 300,
+    "grace_seconds": 420,
+    "expected_missing_ping_limit_seconds": 720,
+    "notifications": "provider-managed email",
+    "diagnostic_body_or_logs_uploaded": false,
+    "smtp_credentials_required": false,
+    "management_API_key_required": false,
+    "uuid_ping_credential_required": true,
+    "autoprovisioning_allowed": false
+  },
+  "excluded": ["Tencent CAT paid or 15-day trial", "Tencent SES metered email", "UptimeRobot paid plans", "Better Stack paid plans", "paid SMS or calls", "new server", "SCF", "paid custom monitoring", "paid log storage"],
+  "billing_gate": "STOP if the actual account requires payment, a card, a trial, automatic paid overage or unavailable free features. No auto-upgrade.",
+  "maintenance": "Manual coordination with an explicit end and recovery checks; no indefinite pause. Keep critical heartbeat/storage failure visible. No provider settings are changed by this file.",
+  "known_cost_boundary": "No new service charges planned. Tiny HTTPS requests still consume existing server traffic quota; verify headroom and account billing before enablement."
+}

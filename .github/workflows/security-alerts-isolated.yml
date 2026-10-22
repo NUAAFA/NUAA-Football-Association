@@ -1,7 +1,7 @@
 name: Isolated alerts and storage contracts
 on:
   push:
-    branches: [codex/security-alerts-storage-20261022]
+    branches: [codex/security-alerts-storage-20261022, codex/security-provider-prep-20261022]
 permissions:
   contents: read
 concurrency:
@@ -55,6 +55,10 @@ jobs:
         run: |
           set -euo pipefail
           sudo env GITHUB_ACTIONS=true "RUNNER_TEMP=$RUNNER_TEMP" PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -I -B scripts/test-alerts-native-systemd.py "$GITHUB_WORKSPACE" "$RUNNER_TEMP/alert-evidence" > "$RUNNER_TEMP/alert-evidence/native-driver.log" 2>&1
+      - name: Hosted-provider contract in a namespace without network routes
+        run: |
+          set -euo pipefail
+          sudo unshare --net --fork /bin/bash -eu -c 'ip link set lo up; exec env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin TZ=UTC /usr/bin/python3 -I -B "$1/scripts/test-alert-provider.py"' -- "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/alert-evidence/provider-contract.log" 2>&1
       - name: Seal fictional evidence
         if: always()
         run: |

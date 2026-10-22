@@ -1,0 +1,11 @@
+{
+  "enabled": false,
+  "provider": "healthchecks",
+  "isolated": false,
+  "host": "hc-ping.com",
+  "port": 443,
+  "deadline_seconds": 10,
+  "spool": "/var/lib/nuaafa-alert-input",
+  "spool_uid": 0,
+  "state": "/var/lib/nuaafa-alert-heartbeat"
+}

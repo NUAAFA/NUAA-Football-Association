@@ -247,6 +247,7 @@ def heartbeat_payload(observation,delivery,now):
     return dict(**observation,delivery_ok=ok,sent_epoch=now,overall_status='PASS' if healthy and ok else 'DEGRADED')
 def send_heartbeat(spool,state,config,credential_file,delivery,now=None):
     if config.get('enabled') is not True:return {'status':'NOT RUN'}
+    need(config.get('provider') in {None,'signed-contract'},'HEARTBEAT_PROVIDER')
     now=time.time() if now is None else epoch(now)
     with locked(state):
         observation=decode(read_file(spool/'observation.json',4096,config.get('spool_uid',0),private=False));payload=heartbeat_payload(observation,delivery,now);old=load(state/'heartbeat-ack.json',{'observed_epoch':-1})
@@ -255,6 +256,33 @@ def send_heartbeat(spool,state,config,credential_file,delivery,now=None):
         with deadline(config.get('deadline_seconds',10)):
             status,data=https_exchange(config,'POST',config['path'],body,{'Content-Type':'application/json','X-NUAAFA-Signature':signature},4096)
         need(status==200 and decode(data)=={'accepted':True},'HEARTBEAT_NOT_ACCEPTED');atomic(state/'heartbeat-ack.json',encode({'observed_epoch':payload['observed_epoch']}));return {'status':'PASS','health':payload['overall_status']}
+def send_healthchecks_heartbeat(spool,state,config,credential_file,now=None):
+    # Hosted bearer-path contract. No raw observations or HMAC bodies leave the
+    # host. Persist an attempt BEFORE GET so crashes cannot refresh an old sample.
+    need(config.get('enabled') is True and config.get('provider')=='healthchecks' and type(config.get('isolated')) is bool,'HOSTED_HEARTBEAT_DISABLED')
+    isolated=config['isolated'];host=config['host'];port=config['port']
+    need((isolated and host in {'localhost','127.0.0.1','127.0.0.2'}) or (not isolated and host=='hc-ping.com' and port==443),'HOSTED_HEARTBEAT_ENDPOINT')
+    now=time.time() if now is None else epoch(now)
+    with locked(state):
+        observation=decode(read_file(spool/'observation.json',4096,config.get('spool_uid',0),private=False))
+        # Reuse strict observation validation, without claiming that cloud-managed
+        # email delivery has been verified by the local SMTP sender.
+        payload=heartbeat_payload(observation,{'status':'NOT RUN'},now);health=payload['status']
+        secret=decode(read_credential(credential_file,1024));need(type(secret) is dict and set(secret)=={'path'} and isinstance(secret['path'],str) and re.fullmatch(r'/[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}',secret['path']),'HOSTED_HEARTBEAT_CREDENTIAL')
+        binding=digest(encode(['healthchecks',host,port,secret['path']]))
+        path=state/'hosted-heartbeat-attempt.json';old=load(path,{'observed_epoch':-1,'binding':binding,'result':'NONE','health':None})
+        need(old['binding']==binding,'HOSTED_HEARTBEAT_CONFIGURATION_CHANGED')
+        need(payload['observed_epoch']>=old['observed_epoch'],'HOSTED_HEARTBEAT_REPLAY')
+        need(not (payload['observed_epoch']==old['observed_epoch'] and health=='PASS' and old['health']=='DEGRADED'),'RECOVERY_REQUIRES_NEW_OBSERVATION')
+        failure_transition=payload['observed_epoch']==old['observed_epoch'] and health=='DEGRADED' and old['health']=='PASS'
+        if payload['observed_epoch']<=old['observed_epoch'] and not failure_transition:
+            return {'status':'SKIPPED' if old['result']=='ACK' and health=='PASS' else 'DEGRADED','health':health,'reason':'NO_NEW_OBSERVATION','previous_acknowledged':old['result']=='ACK'}
+        record=dict(observed_epoch=payload['observed_epoch'],binding=binding,result='ATTEMPTED',health=health)
+        atomic(path,encode(record))
+        with deadline(config.get('deadline_seconds',10)):
+            status,body=https_exchange(config,'GET',secret['path']+('/fail' if health=='DEGRADED' else ''),maximum=512)
+        need(status==200 and body in {b'OK',b'OK\n'},'HOSTED_HEARTBEAT_NOT_ACCEPTED');record['result']='ACK';atomic(path,encode(record))
+        return {'status':health,'health':health,'provider':'healthchecks','provider_acknowledged':True,'mail_delivery_verified':False}
 def accept_heartbeat(raw,signature,key,previous,now):
     need(len(raw)<=4096 and isinstance(signature,str) and re.fullmatch(r'[a-f0-9]{64}',signature),'HEARTBEAT_INPUT')
     need(hmac.compare_digest(signature,hmac.new(key,raw,hashlib.sha256).hexdigest()),'HEARTBEAT_SIGNATURE')
@@ -305,14 +333,16 @@ def config_file(path):
     # sender. SMTP/heartbeat secrets are separate managed credentials.
     config=decode(read_file(path,16384,0,private=False));need(type(config) is dict,'CONFIG_SHAPE');return config
 def main():
-    os.umask(0o077);parser=argparse.ArgumentParser();parser.add_argument('mode',choices=['bridge','send','probe']);parser.add_argument('--config',required=True,type=P);args=parser.parse_args();c=config_file(args.config)
+    os.umask(0o077);parser=argparse.ArgumentParser();parser.add_argument('mode',choices=['bridge','send','probe','hosted']);parser.add_argument('--config',required=True,type=P);args=parser.parse_args();c=config_file(args.config)
     # Production enablement requires an explicit root-owned config, never env flags.
     need(c.get('enabled') is True,'CONFIG_DISABLED');now=time.time()
     if args.mode=='bridge':out=bridge(P(c['events']),P(c['latest']),P(c['storage_receipt']),P(c['spool']),c['source_uid'],now)
     elif args.mode=='send':
         credroot=P(os.environ['CREDENTIALS_DIRECTORY']);smtp=dict(c['smtp'],recipients=c['recipients'],spool_uid=c.get('spool_uid',0));out=deliver(P(c['spool']),P(c['state']),smtp,credroot/'smtp',now);out['heartbeat']=send_heartbeat(P(c['spool']),P(c['state']),dict(c['heartbeat'],spool_uid=c.get('spool_uid',0)),credroot/'heartbeat',out,now)
+        if out['heartbeat'].get('status')=='DEGRADED' or out['heartbeat'].get('health')=='DEGRADED':out['status']='DEGRADED'
+    elif args.mode=='hosted':out=send_healthchecks_heartbeat(P(c['spool']),P(c['state']),c,P(os.environ['CREDENTIALS_DIRECTORY'])/'heartbeat',now)
     else:out=external_check(c,P(c['state']),P(c['spool']),now)
-    print(json.dumps(out));return 0 if out['status']=='PASS' else 1
+    print(json.dumps(out));return 0 if out['status']=='PASS' or (out['status']=='SKIPPED' and out.get('health')=='PASS' and out.get('previous_acknowledged') is True) else 1
 if __name__=='__main__':
     try:raise SystemExit(main())
     except (Exception,Deadline) as error:print(json.dumps({'status':'FAIL','error_type':type(error).__name__,'code':str(error) if isinstance(error,Refused) else 'DETAIL_OMITTED'}));raise SystemExit(1)
