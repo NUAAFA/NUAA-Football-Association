@@ -33,8 +33,8 @@ def main():
         records.append(dict(name=name,status='PASS',utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),**detail))
         (output/'rehearsal-results.json').write_text(json.dumps(records,indent=2)+'\n')
         print(name+' PASS',flush=True)
-    def run(command,label,env=None,expected=0,timeout=300):
-        result=subprocess.run(list(map(str,command)),env=env,capture_output=True,text=True,timeout=timeout,cwd="/")
+    def run(command,label,env=None,expected=0,timeout=300,cwd="/"):
+        result=subprocess.run(list(map(str,command)),env=env,capture_output=True,text=True,timeout=timeout,cwd=cwd)
         (output/(label+'.log')).write_text(result.stdout+result.stderr)
         if expected==0:assert result.returncode==0,(label,result.returncode,result.stdout[-2500:],result.stderr[-6000:])
         else:assert result.returncode!=0,(label,'unexpected success')
@@ -127,12 +127,12 @@ student_id_preflight_node="$NODE"; student_id_preflight_command="$SLOT/student-i
         before_restore=fingerprint()
         old_release=root/'releases'/OLD;old_node=slots[OLD]/'node'
         backup_env={**os.environ,'PATH':str(old_node.parent)+':/usr/bin:/bin','DATABASE_URL':'file:'+str(database),'NUAAFA_UPLOAD_DIR':str(shared/'uploads'),'NUAAFA_CONTENT_SOURCE':'database'}
-        backup_result=run(['/usr/sbin/runuser','-u',user,'--',old_node,old_release/'node_modules/tsx/dist/cli.mjs',old_release/'scripts/backup-unified-data.ts','--root='+str(shared/'backups/unified')],'old-original-backup',env=backup_env)
+        backup_result=run(['/usr/sbin/runuser','-u',user,'--',old_node,old_release/'node_modules/tsx/dist/cli.mjs',old_release/'scripts/backup-unified-data.ts','--root='+str(shared/'backups/unified')],'old-original-backup',env=backup_env,cwd=old_release)
         backup=P(json.loads(backup_result.stdout)['outputDirectory'])
-        run(['/usr/sbin/runuser','-u',user,'--',old_node,old_release/'node_modules/tsx/dist/cli.mjs',old_release/'scripts/verify-unified-backup.ts','--backup='+str(backup)],'old-original-backup-verification',env=backup_env)
+        run(['/usr/sbin/runuser','-u',user,'--',old_node,old_release/'node_modules/tsx/dist/cli.mjs',old_release/'scripts/verify-unified-backup.ts','--backup='+str(backup)],'old-original-backup-verification',env=backup_env,cwd=old_release)
         sandbox=root/'restore-sandbox';sandbox.mkdir(mode=0o755);os.chown(sandbox,account.pw_uid,account.pw_gid)
         restored_db=sandbox/'restored/prisma/dev.db';restored_media=sandbox/'restored/uploads'
-        run(['/usr/sbin/runuser','-u',user,'--',old_node,old_release/'node_modules/tsx/dist/cli.mjs',old_release/'scripts/restore-unified-data.ts','--backup='+str(backup),'--database='+str(restored_db),'--uploads='+str(restored_media)],'old-original-isolated-restore',env={**backup_env,'NUAAFA_RESTORE_ISOLATED':'1','NUAAFA_RESTORE_TARGET_ROOT':str(sandbox)})
+        run(['/usr/sbin/runuser','-u',user,'--',old_node,old_release/'node_modules/tsx/dist/cli.mjs',old_release/'scripts/restore-unified-data.ts','--backup='+str(backup),'--database='+str(restored_db),'--uploads='+str(restored_media)],'old-original-isolated-restore',env={**backup_env,'NUAAFA_RESTORE_ISOLATED':'1','NUAAFA_RESTORE_TARGET_ROOT':str(sandbox)},cwd=old_release)
         assert A.database_fingerprint(restored_db)==before_restore['logical_database']
         assert hashlib.sha256((restored_media/media.relative_to(shared/'uploads')).read_bytes()).hexdigest()==before_restore['media_sha256']
         # Boot the actual old release on the verified restored fictional data.
