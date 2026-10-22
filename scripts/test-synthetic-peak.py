@@ -4,7 +4,7 @@
 Called only by the disposable native-systemd fixture. All rows, passwords,
 sessions, source IPs and media belong to this invocation and are fictional.
 """
-import base64, collections, concurrent.futures, hashlib, http.client, importlib.util
+import base64, collections, concurrent.futures, hashlib, http.client, http.cookies
 import json, math, os, pathlib, shutil, socket, sqlite3, subprocess, threading, time
 P=pathlib.Path
 
@@ -94,9 +94,17 @@ def exercise(root, database, unit, output):
         # request to this name or to any production service is performed.
         good=request('/api/referees/login',{'studentId':'SYNTHETIC-PEAK-255','password':password},address='127.0.0.250')
         assert good[0]==200,'normal fictional login before burst'
-        cookie=next((value.split(';',1)[0] for value in good[3].get('set-cookie',[]) if value.startswith('nuaa_referee_member=')),'')
+        parsed_cookies=[]
+        for header in good[3].get('set-cookie',[]):
+            parsed=http.cookies.SimpleCookie();parsed.load(header)
+            if 'nuaa_referee_member' in parsed and parsed['nuaa_referee_member'].value:
+                parsed_cookies.append('nuaa_referee_member='+parsed['nuaa_referee_member'].value)
+        cookie=parsed_cookies[-1] if parsed_cookies else ''
         assert cookie.startswith('nuaa_referee_member=')
-        assert request('/referees/workspace/account',cookie=cookie)[0]==200
+        probe=request('/referees/workspace/account',cookie=cookie)
+        report['member_session_probe']=dict(status=probe[0],location=probe[3].get('location'),cookie_headers=len(good[3].get('set-cookie',[])),nonempty_member_cookies=len(parsed_cookies))
+        save()
+        assert probe[0]==200,('fictional member page',report['member_session_probe'])
         started=time.monotonic()
         with concurrent.futures.ThreadPoolExecutor(max_workers=64) as pool:
             samples=list(pool.map(lambda i:request('/api/referees/login',{'studentId':'SYNTHETIC-PEAK-'+str(i%128),'password':password if i%2==0 else 'Fictional-wrong-password'},address='127.0.0.'+str(2+i%64)),range(160)))
@@ -124,6 +132,8 @@ def exercise(root, database, unit, output):
         assert report['status']=='PASS','planning capacity SLO not met; retain actual measurements'
         return report
     finally:
+        journal=subprocess.run(['journalctl','-u',unit,'--no-pager','-n','120'],capture_output=True,text=True,timeout=10)
+        (output/'fictional-peak-service.log').write_text(journal.stdout+journal.stderr)
         if report['status']=='RUNNING':report['status']='FAIL';save()
         server.terminate();server.wait(timeout=10)
 
