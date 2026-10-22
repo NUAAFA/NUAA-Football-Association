@@ -100,9 +100,11 @@ student_id_preflight_node="$NODE"; student_id_preflight_command="$ROOT/trusted/s
             for i,(name,digest) in enumerate(inventory.items()):
                 db.executescript((root/'releases'/OLD/'prisma/migrations'/name/'migration.sql').read_text())
                 db.execute('INSERT INTO _prisma_migrations (id,checksum,finished_at,migration_name,started_at,applied_steps_count) VALUES (?,?,?,?,?,1)',('synthetic-'+str(i),digest,1700000000001+i,name,1700000000000+i))
-            db.execute("INSERT INTO Referee (id,publicCode,name,updatedAt) VALUES ('synthetic-before','SYNTHETIC-BEFORE','Fictional before release',CURRENT_TIMESTAMP)")
+            db.execute("INSERT INTO Referee (id,publicCode,name,studentId,updatedAt) VALUES ('synthetic-before','SYNTHETIC-BEFORE','Fictional before release','SYNTHETIC-RELEASE-001',CURRENT_TIMESTAMP)")
             db.execute("INSERT INTO MediaAsset (id,storageKey,originalFilename,storedFilename,mimeType,size,updatedAt) VALUES ('synthetic-media','2026/10/00000000-0000-0000-0000-000000000001.pdf','fictional.pdf','00000000-0000-0000-0000-000000000001.pdf','application/pdf',?,CURRENT_TIMESTAMP)",(len(b'%PDF-1.7\nFictional release fixture\n'),))
         os.chown(database,account.pw_uid,account.pw_gid);database.chmod(0o600)
+        preflight=run(['/usr/sbin/runuser','-u',user,'--',node,trusted/'student-id-release-preflight.mjs','--database='+str(database)],'fictional-data-preflight')
+        assert json.loads(preflight.stdout)['releaseAllowed']==1
         media=shared/'uploads/2026/10/00000000-0000-0000-0000-000000000001.pdf';media.parent.mkdir(parents=True);media.write_bytes(b'%PDF-1.7\nFictional release fixture\n')
         for path in [media,*list((shared/'uploads').rglob('*'))]:os.chown(path,account.pw_uid,account.pw_gid)
         for commit in (OLD,NEW):
@@ -140,7 +142,7 @@ student_id_preflight_node="$NODE"; student_id_preflight_command="$ROOT/trusted/s
         assert not (P('/proc')/pid).exists()
         record('actual_backup_migrate_switch_start_health',process=new_state,wrapper_adaptation=adaptation,data_unchanged=True)
         with sqlite3.connect(database) as db:
-            db.execute("INSERT INTO Referee (id,publicCode,name,updatedAt) VALUES ('synthetic-after','SYNTHETIC-AFTER','Fictional after release',CURRENT_TIMESTAMP)")
+            db.execute("INSERT INTO Referee (id,publicCode,name,studentId,updatedAt) VALUES ('synthetic-after','SYNTHETIC-AFTER','Fictional after release','SYNTHETIC-RELEASE-002',CURRENT_TIMESTAMP)")
         latest=fingerprint();assert len(latest['sentinels'])==2
         oldenv={**env,'DIGEST':checksums[OLD],'COMMIT':OLD}
         run(['bash','-c',setup+activate],'actual-compatible-version-backout',oldenv,timeout=300)
