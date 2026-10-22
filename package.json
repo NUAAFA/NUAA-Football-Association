@@ -92,7 +92,7 @@
     "@tiptap/react": "3.30.5",
     "@tiptap/starter-kit": "3.30.5",
     "dotenv": "^17.4.2",
-    "next": "16.3.8",
+    "next": "16.4.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "read-excel-file": "^9.3.10",
@@ -104,7 +104,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.8",
+    "eslint-config-next": "16.4.1",
     "prisma": "7.9.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.1",
@@ -118,7 +118,7 @@
     "prisma@7.9.1": {
       "mysql2": "3.23.1"
     },
-    "@next/eslint-plugin-next@16.3.8": {
+    "@next/eslint-plugin-next@16.4.1": {
       "fast-glob": "$fast-glob"
     }
   }

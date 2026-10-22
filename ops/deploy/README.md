@@ -68,7 +68,10 @@ contract. Nothing was installed or changed in systemd/Nginx this round.
 ExecStart must be the root-controlled wrapper, User `nuaafa`, WorkingDirectory
 `/srv/nuaafa/current`. The wrapper verifies application UID, canonical direct
 current link, trusted parent/build/CLI metadata, exact shared links, configuration
-permissions and Next `16.3.8`. It rejects extra `.env*` before executing Next,
+permissions and Next `16.4.1`. Previously sealed Next `16.3.8` releases remain
+verifiable only for recovery; new imports require `16.4.1`. Startup also checks
+that the installed Next version matches the release's exact dependency pin.
+It rejects extra `.env*` before executing Next,
 clears inherited environment, uses host
 `/usr/bin/node` version `22.23.2`, and starts packaged Next on `127.0.0.1:3001`.
 Unit fragment/drop-ins must be root controlled. Additional start/stop commands,

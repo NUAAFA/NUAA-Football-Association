@@ -441,7 +441,7 @@ class ArtifactTests(unittest.TestCase):
             p = cls.source / name
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text("synthetic\n")
-        packages = {"node_modules/" + n: {"version": v, "integrity": "synthetic-locked"} for n, v in (("next", "16.3.8"), ("prisma", "7.9.1"), ("@prisma/client", "7.9.1"))}
+        packages = {"node_modules/" + n: {"version": v, "integrity": "synthetic-locked"} for n, v in (("next", "16.4.1"), ("prisma", "7.9.1"), ("@prisma/client", "7.9.1"))}
         (cls.source / "package-lock.json").write_bytes(A.json_bytes({"packages": packages}))
         (cls.source / "package.json").write_text('{"name":"synthetic","private":true}\n')
         # Real immutable SQL/schema, with wholly synthetic business rows.
@@ -553,6 +553,38 @@ class ArtifactTests(unittest.TestCase):
     def test_wrong_sha(self):
         with self.assertRaises(ValueError):
             A.read_archive(self.archive, self.checksum, self.old)
+
+    def test_prior_next_version_requires_sealed_recovery_not_new_import(self):
+        source = self.root / "legacy-next-source"
+        shutil.copytree(self.source, source, symlinks=True)
+        lock = A.load_json((source / "package-lock.json").read_bytes())
+        lock["packages"]["node_modules/next"]["version"] = "16.3.8"
+        for name in ("package-lock.json", "node_modules/.package-lock.json"):
+            (source / name).write_bytes(A.json_bytes(lock))
+        (source / "node_modules/next/package.json").write_text('{"version":"16.3.8"}')
+        run("git", "-C", str(source), "add", "package-lock.json")
+        run("git", "-C", str(source), "commit", "-m", "synthetic sealed prior Next version")
+        commit = run("git", "-C", str(source), "rev-parse", "HEAD")
+        archive = self.root / "legacy-next.tar.gz"
+        dest = self.root / "legacy-next-extracted"
+        dest.mkdir()
+        with patch.object(A, "VERSIONS", A.RECOVERY_VERSIONS), patch.object(A, "platform_info", return_value=PLATFORM), contextlib.redirect_stdout(io.StringIO()):
+            A.pack(source, archive, commit)
+            manifest = A.read_archive(archive, A.file_digest(archive), commit, dest)
+        with self.assertRaises(ValueError):
+            A.read_archive(archive, A.file_digest(archive), commit)
+        git_copy = self.root / "legacy-next-git"
+        run("git", "clone", "--no-hardlinks", "--no-checkout", str(source), str(git_copy))
+        shutil.move(str(git_copy / ".git"), dest / ".git")
+        run("git", "-C", str(dest), "reset", "--mixed", commit)
+        (dest / A.MANIFEST).unlink()
+        A.verify_tree(dest, manifest, commit, recovery=True)
+        with self.assertRaises(ValueError):
+            A.verify_tree(dest, manifest, commit)
+        forged = copy.deepcopy(manifest)
+        forged["versions"]["next"] = "16.4.0"
+        with self.assertRaises(ValueError):
+            A.validate_manifest(forged, commit, recovery=True)
 
     def test_independent_checksum_required(self):
         for value in ("", "f" * 64):

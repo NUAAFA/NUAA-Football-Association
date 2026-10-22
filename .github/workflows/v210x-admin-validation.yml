@@ -52,6 +52,7 @@ jobs:
           npm run test:v210x-migration
       - name: Existing application and real HTTP regressions
         run: |
+          npm run test:team-directory-order
           npm run test:v210x-regressions
           npm run test:v210x-http-regressions
       - name: Install pinned browser test runtime in runner temp

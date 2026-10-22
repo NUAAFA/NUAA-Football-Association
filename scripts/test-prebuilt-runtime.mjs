@@ -26,7 +26,7 @@ assert(!(await readdir(runtime)).some((name) => name.startsWith(".env") && !(sta
 assert(!(await readdir(path.join(runtime, "prisma"))).some((name) => /\.(?:db|sqlite|sqlite3)(?:-|$)/.test(name) && !(startup && name === "dev.db")), "Runtime test refuses unexpected database files");
 assert.equal(process.versions.node, "22.23.2");
 const requireRuntime = createRequire(path.join(runtime, "package.json"));
-assert.equal(requireRuntime("next/package.json").version, "16.3.8");
+assert.equal(requireRuntime("next/package.json").version, "16.4.1");
 assert.equal(requireRuntime("prisma/package.json").version, "7.9.1");
 const root = startup ? await realpath(path.join(startup, "work")) : await realpath(await mkdtemp(path.join(os.tmpdir(), "nuaafa-prebuilt-runtime-")));
 const ownsRoot = !startup;
