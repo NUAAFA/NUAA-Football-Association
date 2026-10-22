@@ -10,10 +10,10 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const readJson = (name) => JSON.parse(readFileSync(path.join(root, name), "utf8"));
 const pkg = readJson("package.json");
 const lock = readJson("package-lock.json");
-assert.equal(require("@next/eslint-plugin-next/package.json").version, "16.3.8");
+assert.equal(require("@next/eslint-plugin-next/package.json").version, "16.4.1");
 assert.equal(require("fast-glob/package.json").name, "@nuaafa/next-default-root-glob");
 assert.equal(require("fast-glob/package.json").version, "1.0.0");
-assert.equal(pkg.overrides["@next/eslint-plugin-next@16.3.8"]["fast-glob"], "$fast-glob");
+assert.equal(pkg.overrides["@next/eslint-plugin-next@16.4.1"]["fast-glob"], "$fast-glob");
 for (const [name, entry] of Object.entries(lock.packages)) {
   if (entry.dependencies?.["fast-glob"]) assert.equal(name, "node_modules/@next/eslint-plugin-next", "Unexpected scanner consumer");
   assert(!name.endsWith("/braces") && !name.endsWith("/micromatch"), "Original affected dependency reintroduced");

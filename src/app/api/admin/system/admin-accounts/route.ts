@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/bounded-json";
 import type { UnifiedAdminRole } from "@/generated/prisma-v29/client";
 import { NextResponse } from "next/server";
 
@@ -27,7 +28,7 @@ function readRoles(value: unknown) {
 
 async function readBody(request: Request) {
   try {
-    const body: unknown = await request.json();
+    const body: unknown = await readBoundedJson(request);
     if (!isRecord(body)) throw new UnifiedAdminInputError("管理员账号格式不正确。");
     return body;
   } catch (error) {

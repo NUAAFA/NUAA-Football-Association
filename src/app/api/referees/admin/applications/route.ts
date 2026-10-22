@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/bounded-json";
 import { NextResponse } from "next/server";
 
 import { authorizeLegacyAdminRequest } from "@/lib/legacy-admin-authorization";
@@ -16,7 +17,7 @@ export async function POST(request: Request) {
   const authorization = await authorizeLegacyAdminRequest(request, "referees:write");
   if (!authorization.ok) return authorization.response;
   try {
-    const body: unknown = await request.json();
+    const body: unknown = await readBoundedJson(request);
     if (!isRecord(body) || !Array.isArray(body.preferredPositions)) {
       throw new RefereeApiInputError("补录内容格式不正确。");
     }

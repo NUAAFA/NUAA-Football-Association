@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/bounded-json";
 import { NextResponse } from "next/server";
 
 import type { ContentPostStatus, ContentPostType } from "@/generated/prisma-v29/client";
@@ -37,7 +38,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const actor = await authorizeUnifiedAdminRequest(request, "content:write", { mutation: true });
-    const input = readContentPostInput(await request.json());
+    const input = readContentPostInput(await readBoundedJson(request));
     const post = await createContentPost(input, actor);
     return NextResponse.json({ ok: true, post }, { status: 201 });
   } catch (error) {

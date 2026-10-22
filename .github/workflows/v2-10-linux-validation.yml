@@ -45,7 +45,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6, verified 2026-10-09
         with:
-          node-version: 22.23.2
+          node-version: 22.23.4
           package-manager-cache: false
           # No dependency cache or billed artifact uploads.
       - name: Verify platform and record exact candidate
@@ -53,7 +53,7 @@ jobs:
           EXPECTED_SOURCE_SHA: ${{ github.sha }}
         run: |
           test "$(uname -sm)" = "Linux x86_64"
-          test "$(node --version)" = "v22.23.2"
+          test "$(node --version)" = "v22.23.4"
           test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
           printf 'DATABASE_URL=file:%s/synthetic-build.db\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
           # Set the runtime path after the runner starts; job env has no runner context.
@@ -106,6 +106,8 @@ jobs:
         run: |
           npm run test:security-dependencies
           npm run test:security-runtime-r2
+          npm run test:security-remediation
+          npm run test:security-remediation:http
           npm run test:security-http
           npm run test:unified-admin-rbac
           npm run test:unified-admin-blockers:http
@@ -214,7 +216,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
-          node-version: 22.23.2
+          node-version: 22.23.4
           package-manager-cache: false
       - name: Verify source and set synthetic database path
         env:

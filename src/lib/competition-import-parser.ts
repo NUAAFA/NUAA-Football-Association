@@ -15,7 +15,7 @@ import {
 } from "@/lib/competition-import-types";
 import {
   CompetitionImportXlsxPreflightError,
-  inspectCompetitionImportXlsx,
+  prepareCompetitionImportXlsx,
 } from "@/lib/competition-import-xlsx-security";
 
 import { parseCompetitionImportDocx, completeDocxRows } from "@/lib/competition-import-docx";
@@ -291,8 +291,9 @@ export function parseCompetitionImportPaste(text: string, importType: Competitio
 }
 
 export async function parseCompetitionImportXlsx(buffer: Buffer, importType: CompetitionImportType, mapping: Record<string, string> = {}, inspect = false) {
+  let verifiedWorkbook: Buffer;
   try {
-    inspectCompetitionImportXlsx(buffer);
+    verifiedWorkbook = prepareCompetitionImportXlsx(buffer);
   } catch (error) {
     if (error instanceof CompetitionImportXlsxPreflightError) {
       throw new CompetitionImportParseError(error.message, error.status);
@@ -301,7 +302,7 @@ export async function parseCompetitionImportXlsx(buffer: Buffer, importType: Com
   }
   let sheets: Awaited<ReturnType<typeof readXlsxFile>>;
   try {
-    sheets = await readXlsxFile(buffer);
+    sheets = await readXlsxFile(verifiedWorkbook);
   } catch {
     throw new CompetitionImportParseError("Excel 文件无法解析，请确认文件是有效的 .xlsx 工作簿。");
   }

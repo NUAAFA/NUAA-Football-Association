@@ -21,26 +21,35 @@ export async function getAdminAvailabilityPage(input: { refereeId?: string; date
   const groups = await prisma.refereeAvailability.groupBy({ by: ["refereeId"], where, _max: { updatedAt: true }, _count: { _all: true }, orderBy: [{ _max: { updatedAt: "desc" } }, { refereeId: "asc" }], skip: (page - 1) * pageSize, take: pageSize });
   const ids = groups.map((g) => g.refereeId);
   const daySql = `
-    WITH RECURSIVE windows(refereeId, kind, day, lastDay) AS (
+    WITH ranges AS (
       SELECT refereeId, kind,
-        date((CASE WHEN typeof(startAt) = 'integer' THEN startAt ELSE unixepoch(startAt) * 1000 END) / 1000, 'unixepoch', '+8 hours'),
-        date(((CASE WHEN typeof(endAt) = 'integer' THEN endAt ELSE unixepoch(endAt) * 1000 END) - 1) / 1000, 'unixepoch', '+8 hours')
+        CAST(floor(((CASE WHEN typeof(startAt) = 'integer' THEN startAt ELSE unixepoch(startAt) * 1000 END) + 28800000) / 86400000.0) AS INTEGER) AS firstDay,
+        CAST(floor(((CASE WHEN typeof(endAt) = 'integer' THEN endAt ELSE unixepoch(endAt) * 1000 END) - 1 + 28800000) / 86400000.0) AS INTEGER) AS lastDay
       FROM RefereeAvailability WHERE refereeId IN (${ids.map(() => "?").join(",")})
       ${input.kind ? "AND kind = ?" : ""}
-      ${start && end ? "AND (CASE WHEN typeof(startAt) = 'integer' THEN startAt ELSE unixepoch(startAt) * 1000 END) < ? AND (CASE WHEN typeof(endAt) = 'integer' THEN endAt ELSE unixepoch(endAt) * 1000 END) > ?" : ""}
-      UNION ALL SELECT refereeId, kind, date(day, '+1 day'), lastDay FROM windows WHERE day < lastDay
+    ), kinds AS (
+      SELECT * FROM ranges UNION ALL SELECT refereeId, 'ALL', firstDay, lastDay FROM ranges
+    ), ordered AS (
+      SELECT *, MAX(lastDay) OVER (
+        PARTITION BY refereeId, kind ORDER BY firstDay, lastDay
+        ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+      ) AS previousEnd FROM kinds
+    ), counts AS (
+      SELECT refereeId, kind, SUM(MAX(0, lastDay - MAX(firstDay, COALESCE(previousEnd + 1, firstDay)) + 1)) AS days
+      FROM ordered GROUP BY refereeId, kind
     )
-    SELECT refereeId, COUNT(DISTINCT day) AS days,
-      COUNT(DISTINCT CASE WHEN kind = 'AVAILABLE' THEN day END) AS availableDays,
-      COUNT(DISTINCT CASE WHEN kind = 'UNAVAILABLE' THEN day END) AS unavailableDays
-    FROM windows GROUP BY refereeId`;
-  const dayParams: Array<string | number> = [...ids, ...(input.kind ? [input.kind] : []), ...(start && end ? [end.getTime(), start.getTime()] : [])];
+    SELECT refereeId,
+      SUM(CASE WHEN kind = 'ALL' THEN days ELSE 0 END) AS days,
+      SUM(CASE WHEN kind = 'AVAILABLE' THEN days ELSE 0 END) AS availableDays,
+      SUM(CASE WHEN kind = 'UNAVAILABLE' THEN days ELSE 0 END) AS unavailableDays
+    FROM counts GROUP BY refereeId`;
+  const dayParams: Array<string | number> = [...ids, ...(input.kind ? [input.kind] : []), ];
   const [referees, kinds, dateRecords, days] = ids.length ? await Promise.all([
     prisma.referee.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, publicCode: true } }),
     prisma.refereeAvailability.groupBy({ by: ["refereeId", "kind"], where: { ...where, refereeId: { in: ids } }, _count: { _all: true } }),
     start && end ? prisma.refereeAvailability.findMany({ where: { ...where, refereeId: { in: ids } }, orderBy: [{ startAt: "asc" }, { id: "asc" }], select: { id: true, refereeId: true, kind: true, startAt: true, endAt: true, competitionFormat: true, note: true } }) : Promise.resolve([]),
-    // Expand dates only for the current page, in SQL. This counts distinct Beijing calendar days, including multi-day windows.
-    prisma.$queryRawUnsafe<Array<{ refereeId: string; days: bigint; availableDays: bigint; unavailableDays: bigint }>>(daySql, ...dayParams)
+    // Count unions of intervals without generating one row per day. Single-day views need no range expansion.
+    start ? Promise.resolve([]) : prisma.$queryRawUnsafe<Array<{ refereeId: string; days: bigint; availableDays: bigint; unavailableDays: bigint }>>(daySql, ...dayParams)
   ]) : [[], [], [], []] as const;
   const refById = new Map(referees.map((r) => [r.id, r]));
   const daysById = new Map(days.map((d) => [d.refereeId, d]));

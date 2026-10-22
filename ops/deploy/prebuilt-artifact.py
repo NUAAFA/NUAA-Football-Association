@@ -23,7 +23,7 @@ import time
 FORMAT = 1
 MANIFEST = "nuaafa-artifact.json"
 REPOSITORY = "NUAAFA/NUAA-Football-Association"
-VERSIONS = {"node": "22.23.2", "next": "16.3.8", "prisma": "7.9.1"}
+VERSIONS = {"node": "22.23.4", "next": "16.4.1", "prisma": "7.9.1"}
 SOURCE_ROOTS = {"src", "scripts", "prisma", "public"}
 SOURCE_FILES = {".gitignore", "package.json", "package-lock.json", "next.config.ts", "prisma.config.ts", "tsconfig.json"}
 REQUIRED = SOURCE_FILES | {

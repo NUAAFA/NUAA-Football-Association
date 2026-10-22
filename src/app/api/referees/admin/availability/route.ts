@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/bounded-json";
 import { NextResponse } from "next/server";
 
 import { authorizeLegacyAdminRequest } from "@/lib/legacy-admin-authorization";
@@ -9,7 +10,7 @@ export async function POST(request: Request) {
   const authorization = await authorizeLegacyAdminRequest(request, "referees:write");
   if (!authorization.ok) return authorization.response;
   try {
-    const body: unknown = await request.json();
+    const body: unknown = await readBoundedJson(request);
     if (!isRecord(body)) throw new RefereeApiInputError("可执裁时间格式不正确。");
     const actor = authorization.actor;
     const result = await saveRefereeAvailability({
@@ -34,7 +35,7 @@ export async function DELETE(request: Request) {
   const authorization = await authorizeLegacyAdminRequest(request, "referees:write");
   if (!authorization.ok) return authorization.response;
   try {
-    const body: unknown = await request.json();
+    const body: unknown = await readBoundedJson(request);
     if (!isRecord(body)) throw new RefereeApiInputError("删除内容格式不正确。");
     const actor = authorization.actor;
     await deleteRefereeAvailability(

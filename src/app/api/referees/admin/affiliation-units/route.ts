@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/bounded-json";
 import { NextResponse } from "next/server";
 
 import { authorizeLegacyAdminRequest } from "@/lib/legacy-admin-authorization";
@@ -16,7 +17,7 @@ export async function POST(request: Request) {
   if (!authorization.ok) return authorization.response;
   const actor = authorization.actor;
   try {
-    const body: unknown = await request.json();
+    const body: unknown = await readBoundedJson(request);
     if (!isRecord(body)) throw new RefereeApiInputError("组织单位内容格式不正确。");
     const action = readEnum(body.action, ["create", "set-children"] as const, "操作");
     const type = action === "create"
@@ -44,7 +45,7 @@ export async function PATCH(request: Request) {
   const authorization = await authorizeLegacyAdminRequest(request, "competitions:write");
   if (!authorization.ok) return authorization.response;
   try {
-    const body: unknown = await request.json();
+    const body: unknown = await readBoundedJson(request);
     if (!isRecord(body)) throw new RefereeApiInputError("书院内容格式不正确。");
     const result = await updateHouse(
       readShortText(body.id, "书院", 64),
@@ -61,7 +62,7 @@ export async function DELETE(request: Request) {
   const authorization = await authorizeLegacyAdminRequest(request, "competitions:write");
   if (!authorization.ok) return authorization.response;
   try {
-    const body: unknown = await request.json();
+    const body: unknown = await readBoundedJson(request);
     if (!isRecord(body)) throw new RefereeApiInputError("书院删除内容格式不正确。");
     await deleteHouseSafely(
       readShortText(body.id, "书院", 64),

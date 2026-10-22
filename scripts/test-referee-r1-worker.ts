@@ -206,7 +206,7 @@ async function main() {
           "r1-manager",
           "R1-Test-Manager-Password-2026",
         )) &&
-        await verifier.adminSession.count({ where: { adminAccountId: managerAccount.id } }) === 1,
+        await verifier.adminSession.count({ where: { adminAccountId: managerAccount.id } }) === 0,
       "管理员改密或其他会话失效逻辑不正确。",
     );
 

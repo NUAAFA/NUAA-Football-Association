@@ -1,3 +1,4 @@
+import { consumeRequestQuota } from "@/lib/request-budget";
 import type {
   AdminRole,
   AffiliationUnitType,
@@ -30,8 +31,8 @@ async function audit(input: {
   entityId?: string;
   summary: string;
   metadata?: Record<string, unknown>;
-}) {
-  return prisma.auditLog.create({
+}, db: Prisma.TransactionClient = prisma) {
+  return db.auditLog.create({
     data: {
       actorType: input.actorType,
       actorId: input.actorId,
@@ -514,48 +515,64 @@ export async function saveRefereeAvailability(input: {
   note?: string;
   actor: { type: "ADMIN" | "REFEREE"; id: string | null };
 }) {
-  if (input.endAt <= input.startAt) throw new RefereeServiceError("结束时间必须晚于开始时间。");
-  if (input.id) {
-    const existing = await prisma.refereeAvailability.findUnique({ where: { id: input.id } });
-    if (!existing || existing.refereeId !== input.refereeId) {
-      throw new RefereeServiceError("可执裁时间记录不存在。", 404);
+  const duration = input.endAt.getTime() - input.startAt.getTime();
+  if (!Number.isFinite(duration) || duration <= 0) throw new RefereeServiceError("结束时间必须晚于开始时间。");
+  if (duration > 366 * 86400000) throw new RefereeServiceError("单条可执裁时间不能超过 366 天。");
+  await consumeRequestQuota("availability:member", input.refereeId, 60, 60_000);
+  return prisma.$transaction(async (tx) => {
+    if (input.id) {
+      const existing = await tx.refereeAvailability.findUnique({ where: { id: input.id } });
+      if (!existing || existing.refereeId !== input.refereeId) {
+        throw new RefereeServiceError("可执裁时间记录不存在。", 404);
+      }
     }
-  }
-  const availability = input.id
-    ? await prisma.refereeAvailability.update({
-        where: { id: input.id },
-        data: {
-          startAt: input.startAt,
-          endAt: input.endAt,
-          kind: input.kind,
-          competitionFormat: input.competitionFormat ?? null,
-          note: input.note || null,
-        },
-      })
-    : await prisma.refereeAvailability.create({
-        data: {
-          refereeId: input.refereeId,
-          startAt: input.startAt,
-          endAt: input.endAt,
-          kind: input.kind,
-          competitionFormat: input.competitionFormat ?? null,
-          note: input.note || null,
-        },
-      });
-  await audit({
-    actorType: input.actor.type,
-    actorId: input.actor.id,
-    action: "REFEREE_AVAILABILITY_SAVED",
-    entityType: "RefereeAvailability",
-    entityId: availability.id,
-    summary: "保存裁判员可执裁时间",
-    metadata: {
-      refereeId: input.refereeId,
-      kind: input.kind,
-      competitionFormat: input.competitionFormat ?? "BOTH",
-    },
+    if (!input.id && await tx.refereeAvailability.count({ where: { refereeId: input.refereeId } }) >= 1000) {
+      throw new RefereeServiceError("可执裁时间记录已达上限，请先整理已有记录。", 409);
+    }
+    const duplicate = await tx.refereeAvailability.findFirst({ where: {
+      refereeId: input.refereeId, startAt: input.startAt, endAt: input.endAt, kind: input.kind,
+      competitionFormat: input.competitionFormat ?? null, ...(input.id ? { id: { not: input.id } } : {}),
+    }, select: { id: true, note: true } });
+    if (duplicate) {
+      if (!input.id && duplicate.note === (input.note || null)) return tx.refereeAvailability.findUniqueOrThrow({ where: { id: duplicate.id } });
+      throw new RefereeServiceError("相同可执裁时间已存在，请修改已有记录。", 409);
+    }
+    const availability = input.id
+      ? await tx.refereeAvailability.update({
+          where: { id: input.id },
+          data: {
+            startAt: input.startAt,
+            endAt: input.endAt,
+            kind: input.kind,
+            competitionFormat: input.competitionFormat ?? null,
+            note: input.note || null,
+          },
+        })
+      : await tx.refereeAvailability.create({
+          data: {
+            refereeId: input.refereeId,
+            startAt: input.startAt,
+            endAt: input.endAt,
+            kind: input.kind,
+            competitionFormat: input.competitionFormat ?? null,
+            note: input.note || null,
+          },
+        });
+    await audit({
+      actorType: input.actor.type,
+      actorId: input.actor.id,
+      action: "REFEREE_AVAILABILITY_SAVED",
+      entityType: "RefereeAvailability",
+      entityId: availability.id,
+      summary: "保存裁判员可执裁时间",
+      metadata: {
+        refereeId: input.refereeId,
+        kind: input.kind,
+        competitionFormat: input.competitionFormat ?? "BOTH",
+      },
+    }, tx);
+    return availability;
   });
-  return availability;
 }
 
 export async function deleteRefereeAvailability(
@@ -775,6 +792,7 @@ export async function changeAdminPassword(input: {
   if (input.newPassword.length < 12) {
     throw new RefereeServiceError("管理员新密码不能少于 12 个字符。");
   }
+  await consumeRequestQuota("password:admin", input.adminAccountId, 10, 15 * 60_000);
   const account = await prisma.adminAccount.findUnique({
     where: { id: input.adminAccountId },
     select: { id: true, username: true, passwordHash: true, isActive: true },
@@ -790,16 +808,12 @@ export async function changeAdminPassword(input: {
   }
   const passwordHash = await hashPassword(input.newPassword);
   await prisma.$transaction(async (tx) => {
-    await tx.adminAccount.update({
-      where: { id: account.id },
+    const changed = await tx.adminAccount.updateMany({
+      where: { id: account.id, passwordHash: account.passwordHash, isActive: true },
       data: { passwordHash, mustChangePassword: false },
     });
-    await tx.adminSession.deleteMany({
-      where: {
-        adminAccountId: account.id,
-        id: { not: input.currentSessionId },
-      },
-    });
+    if (changed.count !== 1) throw new RefereeServiceError("账号凭据已变化，请重新登录。", 409);
+    await tx.adminSession.deleteMany({ where: { adminAccountId: account.id } });
     await tx.auditLog.create({
       data: {
         actorType: "ADMIN",

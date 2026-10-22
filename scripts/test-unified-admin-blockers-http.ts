@@ -244,9 +244,12 @@ async function verifyRequiredPasswordMatrix() {
     body: JSON.stringify({ currentPassword: password, newPassword }),
   });
   expectStatus("required password change success", passwordChange.status, 200);
+  const rotatedCookie = passwordChange.headers.getSetCookie().filter((value) => value.startsWith("nuaa_referee_admin=")).at(-1)?.split(";", 1)[0];
+  assert(rotatedCookie && rotatedCookie !== requiredCookies.content, "Password change did not rotate the authenticated Cookie.");
+  expectStatus("old password-change Cookie rejected", (await fetch(`${baseUrl}/media/${privateMediaId}`, { headers: { cookie: requiredCookies.content } })).status, 401);
   expectStatus(
-    "PRIVATE media restored for same current session",
-    (await fetch(`${baseUrl}/media/${privateMediaId}`, { headers: { cookie: requiredCookies.content } })).status,
+    "PRIVATE media restored for rotated session",
+    (await fetch(`${baseUrl}/media/${privateMediaId}`, { headers: { cookie: rotatedCookie } })).status,
     200,
   );
   console.log("PASS required-password HTML/RSC/API and PUBLIC/PRIVATE media matrix");
@@ -436,9 +439,10 @@ async function verifyUnknownRuntimeBoundaries(normalContentCookie: string) {
 
 async function main() {
   expectStatus("isolated blocker app health", (await fetch(`${baseUrl}/api/health`)).status, 200);
-  const cookies = Object.fromEntries(await Promise.all(
-    (Object.keys(usernames) as RoleName[]).map(async (role) => [role, await login(usernames[role], role)] as const),
-  )) as Record<RoleName, string>;
+  // This matrix verifies permissions, not login saturation. Keep real KDF
+  // admission limits enabled and authenticate the role fixtures sequentially.
+  const cookies = {} as Record<RoleName, string>;
+  for (const role of Object.keys(usernames) as RoleName[]) cookies[role] = await login(usernames[role], role);
 
   await verifyRequiredPasswordMatrix();
   await verifyLegacyRoleMatrix(cookies);

@@ -66,10 +66,9 @@ async function main() {
       };
       assert(response.status === 201 && body.ok, `${message}未成功提交。`);
       assert(body.status === "PENDING", `${message}未返回 PENDING 状态。`);
-      const applicationId = body.applicationId;
-      assert(typeof applicationId === "string", `${message}未返回申请 ID。`);
-      const persisted = await verifier.refereeAdmissionApplication.findUnique({
-        where: { id: applicationId },
+      assert(body.applicationId === undefined, `${message}泄露了内部申请 ID。`);
+      const persisted = await verifier.refereeAdmissionApplication.findFirst({
+        where: { studentId: String(input.studentId).trim().toUpperCase() }, orderBy: { createdAt: "desc" },
       });
       assert(persisted, `${message}未持久化。`);
       assert(persisted.status === "PENDING", `${message}未以 PENDING 状态持久化。`);
@@ -164,7 +163,7 @@ async function main() {
     const malformedResponse = await postRaw('{"name":');
     const malformedBody = await malformedResponse.json() as { error?: string };
     assert(malformedResponse.status === 400, "Malformed JSON 未返回 400。");
-    assert(malformedBody.error === "提交内容格式不正确。", "Malformed JSON 未返回固定错误。");
+    assert(malformedBody.error === "请求内容格式不正确。", "Malformed JSON 未返回固定错误。");
     assert(Object.keys(malformedBody).length === 1, "Malformed JSON response 泄露了额外字段。");
     assert(
       await verifier.refereeAdmissionApplication.count() === malformedCount,

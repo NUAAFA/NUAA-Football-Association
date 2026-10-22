@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/bounded-json";
 import { NextResponse } from "next/server";
 
 import { authorizeLegacyAdminRequest } from "@/lib/legacy-admin-authorization";
@@ -77,7 +78,7 @@ export async function PATCH(
   const authorization = await authorize(request);
   if (authorization instanceof Response) return authorization;
   try {
-    const body: unknown = await request.json();
+    const body: unknown = await readBoundedJson(request);
     if (!isRecord(body)) throw new RefereeApiInputError("场次内容格式不正确。");
     const { id } = await context.params;
     const match = await updateMatch(id, inputFromBody(body), authorization.actor);
@@ -95,7 +96,7 @@ export async function POST(
   const authorization = await authorize(request);
   if (authorization instanceof Response) return authorization;
   try {
-    const body: unknown = await request.json();
+    const body: unknown = await readBoundedJson(request);
     if (!isRecord(body) || body.action !== "copy") throw new RefereeApiInputError("操作格式不正确。");
     const { id } = await context.params;
     const source = await prisma.match.findUnique({
@@ -138,7 +139,7 @@ export async function DELETE(
   const authorization = await authorize(request);
   if (authorization instanceof Response) return authorization;
   try {
-    const body: unknown = await request.json();
+    const body: unknown = await readBoundedJson(request);
     if (!isRecord(body)) throw new RefereeApiInputError("删除内容格式不正确。");
     const { id } = await context.params;
     const deleted = await deleteMatchSafely(

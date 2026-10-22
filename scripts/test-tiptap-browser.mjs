@@ -12,7 +12,7 @@ const argument = (name) => process.argv.find((a) => a.startsWith(`--${name}=`))?
 const runtime = await realpath(argument("runtime"));
 const evidence = await mkdtemp(path.join(await realpath(argument("evidence")), "tiptap-"));
 assert(!runtime.startsWith("/srv/") && !runtime.startsWith("/etc/"));
-assert.equal(process.versions.node, "22.23.2");
+assert.equal(process.versions.node, "22.23.4");
 const browserRequire = createRequire(path.join(argument("playwright"), "package.json"));
 const { chromium } = browserRequire("playwright");
 assert.equal(JSON.parse(await readFile(path.join(runtime, "node_modules/@tiptap/core/package.json"))).version, "3.30.5");

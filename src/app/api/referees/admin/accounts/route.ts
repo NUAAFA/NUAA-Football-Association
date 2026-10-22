@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/bounded-json";
 import { NextResponse } from "next/server";
 
 import { createOnboardedRefereeAccount } from "@/lib/referee-admission-service";
@@ -11,7 +12,7 @@ import {
 export async function POST(request: Request) {
   try {
     const actor = await authorizeUnifiedAdminRequest(request, "referees:write", { mutation: true });
-    const body: unknown = await request.json();
+    const body: unknown = await readBoundedJson(request);
     if (!isRecord(body)) throw new UnifiedAdminInputError("账号内容格式不正确。");
     const onboarding = await createOnboardedRefereeAccount({
       name: readShortText(body.name, "姓名", 48),

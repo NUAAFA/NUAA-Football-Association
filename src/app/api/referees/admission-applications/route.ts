@@ -1,3 +1,5 @@
+import { readBoundedJson } from "@/lib/bounded-json";
+import { consumePublicRequestBudget } from "@/lib/request-budget";
 import { NextResponse } from "next/server";
 import { isSameOrigin } from "@/lib/referee-auth";
 import { submitRefereeAdmissionApplication } from "@/lib/referee-admission-service";
@@ -9,21 +11,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "请求来源无效。" }, { status: 403 });
   }
 
-  let body: unknown;
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "提交内容格式不正确。" }, { status: 400 });
-  }
-
-  try {
-    const application = await submitRefereeAdmissionApplication(body, {
+    await consumePublicRequestBudget("admission", request);
+    const body = await readBoundedJson(request);
+    await submitRefereeAdmissionApplication(body, {
       rateLimitKey: getAdmissionRateLimitKey(request),
     });
-    return NextResponse.json(
-      { ok: true, applicationId: application.id, status: application.status },
-      { status: 201 },
-    );
+    // Neither duplicate state nor another applicant's record ID is disclosed.
+    return NextResponse.json({ ok: true, status: "PENDING" }, { status: 201 });
   } catch (error) {
     return refereeApiErrorResponse(
       error,

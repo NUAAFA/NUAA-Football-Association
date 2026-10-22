@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/bounded-json";
 import { NextResponse } from "next/server";
 
 import { readContentPostInput } from "@/lib/admin-content-input";
@@ -24,7 +25,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/admin/
   try {
     const actor = await authorizeUnifiedAdminRequest(request, "content:write", { mutation: true });
     const { id } = await context.params;
-    const input = readContentPostInput(await request.json());
+    const input = readContentPostInput(await readBoundedJson(request));
     const post = await updateContentPost(id, input, actor);
     return NextResponse.json({ ok: true, post });
   } catch (error) {

@@ -68,7 +68,7 @@ class StartupTests(unittest.TestCase):
         self.release = self.root / "releases" / ("a" * 40)
         (self.release / "node_modules/next/dist/bin").mkdir(parents=True)
         (self.release / "node_modules/next/dist/bin/next").write_text("synthetic entry only")
-        (self.release / "node_modules/next/package.json").write_text('{"version":"16.3.8"}')
+        (self.release / "node_modules/next/package.json").write_text('{"version":"16.4.1"}')
         (self.release / ".next").mkdir()
         (self.release / ".next/BUILD_ID").write_text("synthetic")
         (self.release / "prisma").mkdir()
@@ -99,7 +99,7 @@ class StartupTests(unittest.TestCase):
         self.current.symlink_to(self.release)
         self.node = self.root / "node"
         self.version = self.root / "node-version"
-        self.version.write_text("v22.23.2")
+        self.version.write_text("v22.23.4")
         # Synthetic executable only records wrapper exec/cwd/env/uid. The separate
         # --runtime suite executes actual Next, native modules and HTTP.
         self.node.write_text('#!' + sys.executable + '\nimport os,sys,json\nfrom pathlib import Path\n'

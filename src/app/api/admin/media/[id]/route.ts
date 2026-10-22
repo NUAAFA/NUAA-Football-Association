@@ -1,3 +1,5 @@
+import { isRecord } from "@/lib/referee-validation";
+import { readBoundedJson } from "@/lib/bounded-json";
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { changeMediaVisibility } from "@/lib/admin-media-service";
@@ -5,7 +7,8 @@ import { authorizeUnifiedAdminRequest, UnifiedAdminInputError, unifiedAdminError
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const actor = await authorizeUnifiedAdminRequest(request, "media:write", { mutation: true });
-    const input = await request.json();
+    const input = await readBoundedJson(request);
+    if (!isRecord(input)) throw new UnifiedAdminInputError("可见性格式不正确。");
     if (input.visibility !== "PUBLIC" && input.visibility !== "PRIVATE") throw new UnifiedAdminInputError("可见性无效。");
     if (input.confirm !== true) throw new UnifiedAdminInputError("请明确确认文件访问范围。");
     const asset = await changeMediaVisibility((await context.params).id, input.visibility, actor);

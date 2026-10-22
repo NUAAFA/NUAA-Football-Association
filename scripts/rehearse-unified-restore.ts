@@ -184,7 +184,6 @@ async function main() {
   const restoredDatabase = path.join(restoreRoot, "data", "restored.sqlite");
   const restoredUploads = path.join(restoreRoot, "uploads");
   const databaseUrl = `file:${sourceDatabase.replaceAll("\\", "/")}`;
-  const prismaDatabaseUrl = `file:./prisma/${path.basename(sourceDatabase)}`;
   let server: ChildProcess | null = null;
   let sourceClient: PrismaClient | null = null;
   let phase = "migrations";
@@ -194,7 +193,8 @@ async function main() {
     await mkdir(sourceUploads, { recursive: true });
     await mkdir(path.dirname(backupDirectory), { recursive: true });
     await mkdir(restoreRoot, { recursive: true });
-    await runPrismaDeploy(prismaDatabaseUrl);
+    await writeFile(sourceDatabase, "", { flag: "wx", mode: 0o600 });
+    await runPrismaDeploy(databaseUrl);
     diagnostic("migrations_complete");
     phase = "seed_and_backup";
     const seeded = await seedIsolatedDataset(databaseUrl, sourceUploads);
@@ -327,9 +327,8 @@ async function entry() {
     return;
   }
   const root = await realpath(await mkdtemp(path.join(os.tmpdir(), "nuaafa-r1-3c-restore-")));
-  const sourceDatabase = path.resolve("prisma", `r1-3c-restore-${randomUUID()}.db`);
-  const prismaRoot = `${path.resolve("prisma")}${path.sep}`;
-  if (!sourceDatabase.startsWith(prismaRoot)) throw new Error("R1-3C restore database escaped the workspace prisma directory.");
+  const sourceDatabase = path.join(root, `synthetic-${randomUUID()}.db`);
+  if (!sourceDatabase.startsWith(`${root}${path.sep}`)) throw new Error("R1-3C restore database escaped its isolated root.");
   const code = await new Promise<number>((resolve, reject) => {
     diagnostic("restore_worker_start", {
       command: process.execPath,

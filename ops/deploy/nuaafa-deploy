@@ -973,7 +973,7 @@ run_prebuilt_helper() {
 verify_prebuilt_platform() {
   # Node is deliberately outside the archive. Never bundle/replace the host runtime.
   verify_root_metadata "$(resolve_existing_path "$student_id_preflight_node")" || return $?
-  [ "$(env -i "$student_id_preflight_node" --version)" = "v22.23.2" ] || { die "prebuilt activation requires Node 22.23.2"; return 1; }
+  [ "$(env -i "$student_id_preflight_node" --version)" = "v22.23.4" ] || { die "prebuilt activation requires Node 22.23.4"; return 1; }
   run_prebuilt_helper platform --receipt "$(prebuilt_receipt "$target_commit")"
 }
 

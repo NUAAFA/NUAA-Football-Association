@@ -1,3 +1,4 @@
+import { consumeRequestQuota } from "@/lib/request-budget";
 import { assertMatchScheduled, isMatchScheduled, validateMatchSchedule } from "@/lib/match-scheduling";
 import { isKnockoutPlaceholder, validMatchNumber } from "@/lib/competition-match-number";
 import type {
@@ -419,6 +420,7 @@ export async function changeRefereePassword(
   authorization: RefereeSelfServiceAuthorization,
 ) {
   requireRefereeSelfServiceAuthorization(authorization, refereeId);
+  await consumeRequestQuota("password:referee", refereeId, 10, 15 * 60_000);
   const referee = await prisma.referee.findUnique({ where: { id: refereeId } });
   if (
     !referee ||
@@ -430,14 +432,11 @@ export async function changeRefereePassword(
   }
   const passwordHash = await hashPassword(newPassword);
   await prisma.$transaction(async (tx) => {
-    await tx.referee.update({
-      where: { id: refereeId },
-      data: {
-        passwordHash,
-        mustChangePassword: false,
-        passwordChangedAt: new Date(),
-      },
+    const changed = await tx.referee.updateMany({
+      where: { id: refereeId, passwordHash: referee.passwordHash, status: "ACTIVE" },
+      data: { passwordHash, mustChangePassword: false, passwordChangedAt: new Date() },
     });
+    if (changed.count !== 1) throw new RefereeServiceError("账号凭据已变化，请重新登录。", 409);
     await tx.refereeSession.deleteMany({ where: { refereeId } });
     await writeAudit({
       actorType: "REFEREE",
@@ -512,34 +511,26 @@ export async function createRefereeApplication(input: {
 }
 
 export async function withdrawRefereeApplication(id: string, refereeId: string) {
-  const application = await prisma.refereeApplication.findUnique({
-    where: { id },
-    include: { match: true },
+  return prisma.$transaction(async (tx) => {
+    const changed = await tx.refereeApplication.updateMany({
+      where: {
+        id, refereeId, status: { notIn: ["APPOINTED", "WITHDRAWN"] },
+        match: { applicationDeadline: { gt: new Date() } },
+      },
+      data: { status: "WITHDRAWN" },
+    });
+    if (changed.count !== 1) {
+      const owned = await tx.refereeApplication.findFirst({ where: { id, refereeId }, select: { id: true } });
+      throw new RefereeServiceError(owned ? "该报名记录当前不能自行撤回。" : "报名记录不存在。", owned ? 409 : 404);
+    }
+    const result = await tx.refereeApplication.findUniqueOrThrow({ where: { id } });
+    await writeAudit({
+      actorType: "REFEREE", actorId: refereeId, action: "APPLICATION_WITHDRAWN",
+      entityType: "RefereeApplication", entityId: id,
+      summary: "裁判员在截止前撤回执裁意向",
+    }, tx);
+    return result;
   });
-  if (!application || application.refereeId !== refereeId) {
-    throw new RefereeServiceError("报名记录不存在。", 404);
-  }
-  if (
-    application.status === "APPOINTED" ||
-    application.status === "WITHDRAWN" ||
-    !application.match.applicationDeadline ||
-    application.match.applicationDeadline <= new Date()
-  ) {
-    throw new RefereeServiceError("该报名记录当前不能自行撤回。", 409);
-  }
-  const result = await prisma.refereeApplication.update({
-    where: { id },
-    data: { status: "WITHDRAWN" },
-  });
-  await writeAudit({
-    actorType: "REFEREE",
-    actorId: refereeId,
-    action: "APPLICATION_WITHDRAWN",
-    entityType: "RefereeApplication",
-    entityId: id,
-    summary: "裁判员在截止前撤回执裁意向",
-  });
-  return result;
 }
 
 export async function createAdminApplicationException(input: {
@@ -793,11 +784,22 @@ export async function updateMatch(
   }
   if (competition.teams.filter((t) => [input.homeTeamId, input.awayTeamId].includes(t.id)).some((t) => isKnockoutPlaceholder(t.name))) throw new RefereeServiceError("请人工选择真实球队，不可使用淘汰赛占位球队。");
   const match = await prisma.$transaction(async (tx) => {
-    const current = await tx.match.findUnique({ where: { id } });
+    const current = await tx.match.findUnique({ where: { id }, include: { positionRequirements: true } });
     if (!current) throw new RefereeServiceError("比赛不存在。", 404);
     if (input.status === "COMPLETED" && (current.status !== "COMPLETED" || (!input.kickoff || input.kickoff > new Date()) || (input.endAt && input.endAt > new Date()) || current.homeScore === null || current.awayScore === null)) throw new RefereeServiceError("请通过确认赛果入口标记比赛完赛。", 409);
     if (current.status === "COMPLETED" && (input.status !== current.status || input.homeTeamId !== current.homeTeamId || input.awayTeamId !== current.awayTeamId || input.competitionId !== current.competitionId)) throw new RefereeServiceError("已确认赛果的比赛不可更换参赛球队或状态。", 409);
     const existing = current;
+    const requirementFacts = (items: Array<{ key: string; count: number }>) =>
+      JSON.stringify(items.map(({ key, count }) => [key, count]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))));
+    const assignmentFactsChanged = input.competitionId !== current.competitionId
+      || input.homeTeamId !== current.homeTeamId || input.awayTeamId !== current.awayTeamId
+      || (input.kickoff?.getTime() ?? null) !== (current.kickoff?.getTime() ?? null)
+      || (input.endAt?.getTime() ?? null) !== (current.endAt?.getTime() ?? null)
+      || input.venue !== current.venue
+      || requirementFacts(buildPositionRequirements(competition.format, input.positionCounts)) !== requirementFacts(current.positionRequirements);
+    if (input.status !== "CANCELLED" && assignmentFactsChanged && await tx.refereeAppointment.count({ where: { matchId: id, status: { in: ["PUBLISHED", "COMPLETED"] } } })) {
+      throw new RefereeServiceError("已有正式裁判任务，修改时间、场地、球队、赛制或岗位前须先撤回选派；已完赛任务请使用更正流程。", 409);
+    }
     if (!isMatchScheduled(input) && await tx.refereeAppointment.count({ where: { matchId: id, status: { in: ["PUBLISHED", "COMPLETED"] } } })) throw new RefereeServiceError("已有正式裁判任务，不能清空比赛时间或场地；请先撤回选派。", 409);
     await assertMatchStructure(tx, { ...input, stageId: input.stageId === undefined ? existing.stageId : input.stageId, groupId: input.groupId === undefined ? existing.groupId : input.groupId, roundId: input.roundId === undefined ? existing.roundId : input.roundId });
     const structureChanged = input.stageId !== undefined && input.stageId !== existing.stageId || input.groupId !== undefined && input.groupId !== existing.groupId || input.roundId !== undefined && input.roundId !== existing.roundId;

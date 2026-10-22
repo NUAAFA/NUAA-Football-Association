@@ -197,11 +197,11 @@ async function main() {
     const admissionBody = { name: "HTTP Security Applicant", studentId: "sec-http-1", phone: "13911112222", qq: "76543210" };
     await expectStatus("public admission create", await fetch(`${baseUrl}/api/referees/admission-applications`, { method: "POST", headers: admissionHeaders, body: JSON.stringify(admissionBody) }), 201);
     const beforeDuplicate = await prisma.refereeAdmissionApplication.count();
-    await expectStatus("public admission duplicate", await fetch(`${baseUrl}/api/referees/admission-applications`, { method: "POST", headers: admissionHeaders, body: JSON.stringify(admissionBody) }), 409);
+    await expectStatus("public admission duplicate", await fetch(`${baseUrl}/api/referees/admission-applications`, { method: "POST", headers: admissionHeaders, body: JSON.stringify(admissionBody) }), 201);
     assert(await prisma.refereeAdmissionApplication.count() === beforeDuplicate, "HTTP duplicate created a business row.");
     const blockedAddress = "203.0.113.78";
     const blockedKey = createHash("sha256").update(`referee-admission:${blockedAddress}`).digest("hex");
-    await prisma.loginAttempt.create({ data: { scope: "referee-admission-address", keyHash: blockedKey, failures: 30, blockedUntil: new Date(Date.now() + 900_000) } });
+    await prisma.loginAttempt.create({ data: { scope: "referee-admission-address", keyHash: createHash("sha256").update(blockedKey).digest("hex"), failures: 30, blockedUntil: new Date(Date.now() + 900_000) } });
     const beforeRate = await prisma.refereeAdmissionApplication.count();
     await expectStatus("public admission rate limit", await fetch(`${baseUrl}/api/referees/admission-applications`, {
       method: "POST",

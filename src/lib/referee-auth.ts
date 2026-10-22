@@ -1,3 +1,4 @@
+import { issueVerifiedAdminSession } from "@/lib/session-issuance";
 import { createHmac, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 
@@ -41,22 +42,7 @@ export async function createAdminSession(username: string, password: string) {
 
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + sessionDurationMs);
-  await prisma.$transaction(async (tx) => {
-    await tx.adminSession.deleteMany({ where: { expiresAt: { lt: new Date() } } });
-    await tx.adminSession.create({
-      data: {
-        tokenHash: hashToken(token, secret),
-        expiresAt,
-        adminAccountId: account?.id ?? null,
-      },
-    });
-    if (account) {
-      await tx.adminAccount.update({
-        where: { id: account.id },
-        data: { lastLoginAt: new Date() },
-      });
-    }
-  });
+  if (!(await issueVerifiedAdminSession({ account, tokenHash: hashToken(token, secret), expiresAt }))) return null;
 
   (await cookies()).set(adminSessionCookieName, token, {
     httpOnly: true,
