@@ -46,16 +46,6 @@ def main():
         for name,filename in [('node','node'),('helper','prebuilt-artifact.py'),('start','start-prebuilt')]:
             contracts[commit][name]=str(slot/filename);contracts[commit][name+'_sha256']=digest(payload/str(slot/filename).lstrip('/'))
     assert digest(a.old_archive)==ARCHIVES[OLD]
-    build_input=out/'auxiliary-input';file=build_input/'node_modules/@esbuild/linux-x64/bin/esbuild';file.parent.mkdir(parents=True)
-    with tarfile.open(a.old_archive,'r|gz') as archive:
-        for entry in archive:
-            if entry.name=='node_modules/@esbuild/linux-x64/bin/esbuild':
-                assert entry.isfile() and entry.size<20*1024**2
-                with archive.extractfile(entry) as src,file.open('xb') as dst:shutil.copyfileobj(src,dst)
-                file.chmod(entry.mode);break
-        else:raise ValueError('old auxiliary executable absent')
-    spec=importlib.util.spec_from_file_location('prepare_aux',repo/'ops/security-transition/prepare-recovery-esbuild.py');module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
-    auxiliary=module.prepare(payload/str(installed/OLD).lstrip('/'),build_input,installed/OLD/'recovery-esbuild')
     router=(repo/'ops/security-transition/contract-router.py').read_bytes()
     for name in ('helper-transition.py','start-transition'):put(toolroot/name,router,0o755)
     config=dict(format=1,current='/srv/nuaafa/current',releases='/srv/nuaafa/releases',contracts=contracts)
@@ -65,6 +55,6 @@ def main():
     put(Path('/etc/nginx/conf.d/nuaafa-security-auth.conf'),(repo/'ops/security-transition/nginx-http.conf').read_bytes())
     put(Path('/etc/nginx/snippets/nuaafa-security-auth-locations.conf'),(repo/'ops/security-transition/nginx-server.conf').read_bytes())
     files=[dict(target='/'+str(f.relative_to(payload)),sha256=digest(f),mode=oct(f.stat().st_mode & 0o777),owner='root:root') for f in sorted(payload.rglob('*')) if f.is_file()]
-    (out/'payload-manifest.json').write_text(json.dumps(dict(format=1,files=files,source_origins=origin,auxiliary=auxiliary,production_installation='NOT RUN',human_approval='NOT GENERATED',release_allowed=False),indent=2)+'\n')
+    (out/'payload-manifest.json').write_text(json.dumps(dict(format=1,files=files,source_origins=origin,production_installation='NOT RUN',human_approval='NOT GENERATED',release_allowed=False),indent=2)+'\n')
     print(json.dumps(dict(status='PASS',files=len(files),output=str(out),production_writes=False,approval_generated=False)))
 if __name__=='__main__':main()

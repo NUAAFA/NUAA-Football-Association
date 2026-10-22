@@ -34,7 +34,7 @@ def main():
         (output/'rehearsal-results.json').write_text(json.dumps(records,indent=2)+'\n')
         print(name+' PASS',flush=True)
     def run(command,label,env=None,expected=0,timeout=300):
-        result=subprocess.run(list(map(str,command)),env=env,capture_output=True,text=True,timeout=timeout)
+        result=subprocess.run(list(map(str,command)),env=env,capture_output=True,text=True,timeout=timeout,cwd="/")
         (output/(label+'.log')).write_text(result.stdout+result.stderr)
         if expected==0:assert result.returncode==0,(label,result.returncode,result.stdout[-2500:],result.stderr[-6000:])
         else:assert result.returncode!=0,(label,'unexpected success')
@@ -102,12 +102,6 @@ student_id_preflight_node="$NODE"; student_id_preflight_command="$SLOT/student-i
             system_node.unlink();system_node.symlink_to(slots[OLD]/'node')
             info=system_node.lstat();node_alias_identity=(info.st_dev,info.st_ino)
         record('actual_import_both_original_artifacts',commits=[OLD,NEW],digests=checksums)
-        auxiliary_spec=importlib.util.spec_from_file_location('recovery_aux',P(__file__).resolve().parents[1]/'ops/security-transition/prepare-recovery-esbuild.py')
-        auxiliary=importlib.util.module_from_spec(auxiliary_spec);auxiliary_spec.loader.exec_module(auxiliary)
-        auxiliary_evidence=auxiliary.prepare(slots[OLD],root/'releases'/OLD)
-        run(['/usr/bin/namei','-l',root/'releases'/OLD/'node_modules/@esbuild/linux-x64/bin/esbuild'],'old-original-executable-path-metadata')
-        run(['/usr/sbin/runuser','-u',user,'--',slots[OLD]/'recovery-esbuild','--version'],'old-recovery-auxiliary-exec')
-        record('old_recovery_auxiliary_exact_bytes_verified',detail=auxiliary_evidence)
         shared.mkdir(mode=0o755);(shared/'prisma').mkdir(mode=0o755);(shared/'uploads').mkdir(mode=0o755)
         (shared/'backups').mkdir(mode=0o755);(shared/'backups/unified').mkdir(mode=0o700)
         os.chown(shared/'backups/unified',account.pw_uid,account.pw_gid)
@@ -132,7 +126,7 @@ student_id_preflight_node="$NODE"; student_id_preflight_command="$SLOT/student-i
         # Execute the ORIGINAL old release's backup, verifier and isolated restore.
         before_restore=fingerprint()
         old_release=root/'releases'/OLD;old_node=slots[OLD]/'node'
-        backup_env={**os.environ,'PATH':str(old_node.parent)+':/usr/bin:/bin','ESBUILD_BINARY_PATH':str(slots[OLD]/'recovery-esbuild'),'DATABASE_URL':'file:'+str(database),'NUAAFA_UPLOAD_DIR':str(shared/'uploads'),'NUAAFA_CONTENT_SOURCE':'database'}
+        backup_env={**os.environ,'PATH':str(old_node.parent)+':/usr/bin:/bin','DATABASE_URL':'file:'+str(database),'NUAAFA_UPLOAD_DIR':str(shared/'uploads'),'NUAAFA_CONTENT_SOURCE':'database'}
         backup_result=run(['/usr/sbin/runuser','-u',user,'--',old_node,old_release/'node_modules/tsx/dist/cli.mjs',old_release/'scripts/backup-unified-data.ts','--root='+str(shared/'backups/unified')],'old-original-backup',env=backup_env)
         backup=P(json.loads(backup_result.stdout)['outputDirectory'])
         run(['/usr/sbin/runuser','-u',user,'--',old_node,old_release/'node_modules/tsx/dist/cli.mjs',old_release/'scripts/verify-unified-backup.ts','--backup='+str(backup)],'old-original-backup-verification',env=backup_env)
@@ -226,12 +220,6 @@ student_id_preflight_node="$NODE"; student_id_preflight_command="$SLOT/student-i
             db.execute("INSERT INTO Referee (id,publicCode,name,studentId,updatedAt) VALUES ('synthetic-after','SYNTHETIC-AFTER','Fictional after release','SYNTHETIC-RELEASE-002',CURRENT_TIMESTAMP)")
         latest=fingerprint();assert len(latest['sentinels'])==2
         oldenv={**env,'DEPLOYER':str(slots[OLD]/'deployer'),'SLOT':str(slots[OLD]),'NODE':str(slots[OLD]/'node'),'DIGEST':checksums[OLD],'COMMIT':OLD}
-        auxiliary_path=slots[OLD]/'recovery-esbuild';auxiliary_original=auxiliary_path.read_bytes()
-        auxiliary_path.write_bytes(auxiliary_original+b'corrupt-synthetic-test')
-        try:run(['bash','-c',setup+activate],'old-auxiliary-digest-drift-refused',oldenv,expected=1,timeout=300)
-        finally:auxiliary_path.write_bytes(auxiliary_original)
-        assert fingerprint()==latest and current.resolve().name==NEW and healthy(NEW)['MainPID']==new_state['MainPID']
-        record('old_recovery_auxiliary_digest_drift_refused_before_stop')
         run(['bash','-c',setup+activate],'actual-old-production-version-backout',oldenv,timeout=300)
         assert current.resolve().name==OLD and json.loads(state.read_text())['phase']=='HEALTHY'
         healthy(OLD);assert fingerprint()==latest
