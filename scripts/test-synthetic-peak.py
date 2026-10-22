@@ -53,7 +53,7 @@ def exercise(root, database, unit, output):
             c.request('POST' if body is not None else 'GET',path,None if body is None else json.dumps(body).encode(),headers)
             response=c.getresponse();data=response.read(4*1024**2+1)
             assert len(data)<=4*1024**2
-            return response.status,time.monotonic()-started,len(data),dict(response.getheaders())
+            return response.status,time.monotonic()-started,len(data),{**{k.lower():v for k,v in response.getheaders()},'set-cookie':[v for k,v in response.getheaders() if k.lower()=='set-cookie']}
         except (OSError,http.client.HTTPException,AssertionError):return 0,time.monotonic()-started,0,{}
         finally:c.close()
     def scheduled_request(path,scheduled):
@@ -91,7 +91,7 @@ def exercise(root, database, unit, output):
         # request to this name or to any production service is performed.
         good=request('/api/referees/login',{'studentId':'SYNTHETIC-PEAK-255','password':password},address='127.0.0.250')
         assert good[0]==200,'normal fictional login before burst'
-        cookie=good[3].get('Set-Cookie','').split(';',1)[0]
+        cookie=next((value.split(';',1)[0] for value in good[3].get('set-cookie',[]) if value.startswith('nuaa_referee_member=')),'')
         assert cookie.startswith('nuaa_referee_member=')
         assert request('/referees/workspace/account',cookie=cookie)[0]==200
         started=time.monotonic()
