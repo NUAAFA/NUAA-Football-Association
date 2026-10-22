@@ -1,0 +1,25 @@
+{
+  "enabled": false,
+  "spool": "/var/lib/nuaafa-alert-input",
+  "state": "/var/lib/nuaafa-alert-sender",
+  "spool_uid": 0,
+  "recipients": [
+    "ops@example.invalid"
+  ],
+  "smtp": {
+    "enabled": false,
+    "isolated": true,
+    "host": "localhost",
+    "port": 465,
+    "sender": "alert@example.invalid",
+    "deadline_seconds": 25
+  },
+  "heartbeat": {
+    "enabled": false,
+    "isolated": true,
+    "host": "localhost",
+    "port": 443,
+    "path": "/heartbeat",
+    "deadline_seconds": 10
+  }
+}

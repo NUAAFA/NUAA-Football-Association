@@ -1,0 +1,9 @@
+{
+  "enabled": false,
+  "isolated": true,
+  "host": "localhost",
+  "port": 443,
+  "deadline_seconds": 15,
+  "state": "/var/lib/nuaafa-independent-alert-monitor",
+  "spool": "/var/lib/nuaafa-independent-alert-input"
+}

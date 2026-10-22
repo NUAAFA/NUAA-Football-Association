@@ -1,0 +1,11 @@
+# REVIEW ONLY; disabled configs; provider egress approval still required.
+[Unit]
+Description=NUAAFA alert send timer
+[Timer]
+OnActiveSec=30s
+OnUnitActiveSec=30s
+AccuracySec=2s
+Persistent=false
+Unit=nuaafa-alert-send.service
+[Install]
+WantedBy=timers.target

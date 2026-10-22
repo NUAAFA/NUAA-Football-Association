@@ -1,0 +1,33 @@
+# REVIEW ONLY; disabled configs; provider egress approval still required.
+[Unit]
+Description=NUAAFA alert delivery
+ConditionPathExists=!/etc/nuaafa-b0-maintenance.flag
+Wants=network-online.target
+After=network-online.target
+[Service]
+Type=oneshot
+User=nuaafa-alert
+Group=nuaafa-alert
+ExecStart=/usr/bin/python3 -I -B /usr/local/lib/nuaafa-alert/alerts.py send --config=/etc/nuaafa-alert/send.json
+LoadCredentialEncrypted=smtp:/etc/credstore.encrypted/nuaafa-alert-smtp
+LoadCredentialEncrypted=heartbeat:/etc/credstore.encrypted/nuaafa-alert-heartbeat
+StateDirectory=nuaafa-alert-sender
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+CapabilityBoundingSet=
+ReadOnlyPaths=/var/lib/nuaafa-alert-input
+ReadWritePaths=/var/lib/nuaafa-alert-sender
+InaccessiblePaths=-/srv -/etc/nuaafa -/var/lib/nuaafa-ops-monitor -/var/lib/nuaafa-ops-backup
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+CPUQuota=10%
+MemoryMax=64M
+TasksMax=16
+TimeoutStartSec=35s
+LimitCORE=0

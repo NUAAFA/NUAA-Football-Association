@@ -1,0 +1,8 @@
+{
+  "enabled": false,
+  "events": "/var/lib/nuaafa-ops-monitor/events.jsonl",
+  "latest": "/var/lib/nuaafa-ops-monitor/latest.json",
+  "storage_receipt": "/var/lib/nuaafa-alert-storage/acceptance.json",
+  "spool": "/var/lib/nuaafa-alert-input",
+  "source_uid": 998
+}

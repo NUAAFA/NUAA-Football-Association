@@ -1,0 +1,28 @@
+# REVIEW ONLY; disabled configs; provider egress approval still required.
+[Unit]
+Description=NUAAFA sanitized alert bridge
+ConditionPathExists=!/etc/nuaafa-b0-maintenance.flag
+[Service]
+Type=oneshot
+User=root
+Group=nuaafa-alert
+ExecStart=/usr/bin/python3 -I -B /usr/local/lib/nuaafa-alert/alerts.py bridge --config=/etc/nuaafa-alert/bridge.json
+StateDirectory=nuaafa-alert-input
+StateDirectoryMode=0750
+UMask=0027
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateNetwork=yes
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH
+ReadOnlyPaths=/var/lib/nuaafa-ops-monitor /var/lib/nuaafa-alert-storage
+ReadWritePaths=/var/lib/nuaafa-alert-input
+InaccessiblePaths=-/srv -/etc/nuaafa -/etc/credstore -/etc/credstore.encrypted -/var/lib/nuaafa-ops-backup
+RestrictAddressFamilies=AF_UNIX
+CPUQuota=10%
+MemoryMax=64M
+TasksMax=16
+TimeoutStartSec=15s
+LimitCORE=0

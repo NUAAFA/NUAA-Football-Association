@@ -1,0 +1,79 @@
+name: Isolated alerts and storage contracts
+on:
+  push:
+    branches: [codex/security-alerts-storage-20261022]
+permissions:
+  contents: read
+concurrency:
+  group: isolated-alerts-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  isolated:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 22.23.4
+          package-manager-cache: false
+      - name: Prepare fictional evidence destination
+        run: |
+          set -euo pipefail
+          mkdir -m 700 "$RUNNER_TEMP/alert-evidence"
+          git rev-parse HEAD > "$RUNNER_TEMP/alert-evidence/source-sha.txt"
+          python3 --version > "$RUNNER_TEMP/alert-evidence/python-version.txt"
+          systemctl --version > "$RUNNER_TEMP/alert-evidence/systemd-version.txt"
+      - name: Locked dependencies and generated client with fictional URL
+        run: |
+          set -euo pipefail
+          export DATABASE_URL="file:$RUNNER_TEMP/fictional-install-only.sqlite"
+          npm ci > "$RUNNER_TEMP/alert-evidence/install.log" 2>&1
+      - name: Legacy retirement credential regression on a fresh fictional database
+        run: |
+          set -euo pipefail
+          node --import tsx scripts/test-legacy-retirement.ts > "$RUNNER_TEMP/alert-evidence/legacy-credentials.log" 2>&1
+          python3 scripts/test-legacy-retirement.py > "$RUNNER_TEMP/alert-evidence/legacy-config.log" 2>&1
+      - name: Storage negative cases with no real image or payload
+        run: |
+          set -euo pipefail
+          python3 scripts/test-storage-read-only-retest.py > "$RUNNER_TEMP/alert-evidence/storage-contract.log" 2>&1
+      - name: Actual TLS transports and outages in a network namespace
+        run: |
+          set -euo pipefail
+          sudo unshare --net --fork /bin/bash -eu -c 'ip link set lo up; exec env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin TZ=UTC /usr/bin/python3 -I -B "$1/scripts/test-alerts-isolated.py"' -- "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/alert-evidence/isolated-alert-tests.log" 2>&1
+      - name: Native systemd255 credentials, permissions, resources and maintenance guard
+        run: |
+          set -euo pipefail
+          sudo env GITHUB_ACTIONS=true "RUNNER_TEMP=$RUNNER_TEMP" PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -I -B scripts/test-alerts-native-systemd.py "$GITHUB_WORKSPACE" "$RUNNER_TEMP/alert-evidence" > "$RUNNER_TEMP/alert-evidence/native-driver.log" 2>&1
+      - name: Seal fictional evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          sudo python3 - "$RUNNER_TEMP/alert-evidence" "$(id -u)" "$(id -g)" <<'PY'
+          import hashlib,json,os,pathlib,stat,sys
+          root=pathlib.Path(sys.argv[1]);assert root.resolve()==root and root.name=='alert-evidence'
+          files={}
+          for p in root.iterdir():
+              assert p.is_file() and not p.is_symlink() and p.suffix in {'.json','.txt','.log'}
+              os.chown(p,int(sys.argv[2]),int(sys.argv[3]));p.chmod(0o600)
+              files[p.name]={'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()}
+          with (root/'manifest.json').open('x') as f:json.dump({'scope':'FICTIONAL DATA ONLY; NO PRODUCTION ACCESS OR REAL MAIL','files':files},f,indent=2)
+          os.chown(root/'manifest.json',int(sys.argv[2]),int(sys.argv[3]))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: isolated-alert-validation
+          path: ${{ runner.temp }}/alert-evidence
+          retention-days: 7
+          if-no-files-found: error
