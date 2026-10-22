@@ -99,7 +99,7 @@ student_id_preflight_node="$NODE"; student_id_preflight_command="$SLOT/student-i
             run(['bash','-c',setup+'main --import-artifact "$ARCHIVE" --artifact-sha256 "$DIGEST" "$COMMIT"'],
                 'import-'+commit[:7],env={**slotenv,'ARCHIVE':str(archive),'DIGEST':checksum,'COMMIT':commit},timeout=180)
         if node_alias_identity is not None:
-            system_node.unlink();system_node.symlink_to(node)
+            system_node.unlink();system_node.symlink_to(slots[OLD]/'node')
             info=system_node.lstat();node_alias_identity=(info.st_dev,info.st_ino)
         record('actual_import_both_original_artifacts',commits=[OLD,NEW],digests=checksums)
         auxiliary_spec=importlib.util.spec_from_file_location('recovery_aux',P(__file__).resolve().parents[1]/'ops/security-transition/prepare-recovery-esbuild.py')
@@ -183,6 +183,15 @@ student_id_preflight_node="$NODE"; student_id_preflight_command="$SLOT/student-i
             except (OSError,AssertionError,ValueError):time.sleep(.25)
         else:raise AssertionError('fictional baseline service not healthy')
         initial=fingerprint();pid=healthy(OLD)['MainPID']
+        original_configuration=configuration.read_bytes()
+        poisoned=json.loads(original_configuration);poisoned['contracts'][OLD]['node_sha256']='0'*64
+        configuration.write_text(json.dumps(poisoned))
+        try:
+            run(['/usr/sbin/runuser','-u',user,'--',trusted/'start-transition','--check-release',root/'releases'/OLD],'transition-digest-drift-refused',expected=1)
+        finally:configuration.write_bytes(original_configuration)
+        run(['/usr/bin/python3','-I',trusted/'helper-transition.py','verify','--commit','f'*40,'--sha256',checksums[OLD]],'unknown-transition-commit-refused',expected=1)
+        assert fingerprint()==initial and healthy(OLD)['MainPID']==pid
+        record('transition_runtime_digest_drift_and_unknown_commit_refused')
         activate='main --activate-prebuilt --artifact-sha256 "$DIGEST" "$COMMIT"'
         newenv={**env,'DIGEST':checksums[NEW],'COMMIT':NEW}
         run(['bash','-c',setup+activate],'missing-approval-refused',newenv,expected=1)
@@ -207,7 +216,7 @@ student_id_preflight_node="$NODE"; student_id_preflight_command="$SLOT/student-i
             with urllib.request.urlopen('http://127.0.0.1:3001/'+('api/health' if _%2 else ''),timeout=10) as response:return response.status
         with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:assert list(pool.map(request,range(80)))==[200]*80
         group=P('/sys/fs/cgroup')/healthy(NEW)['ControlGroup'].lstrip('/')
-        limits={name:(group/name).read_text().strip() for name in ('memory.max','memory.high','memory.peak','memory.events','cpu.max','pids.max','pids.peak')}
+        limits={name:((group/name).read_text().strip() if (group/name).exists() else 'UNKNOWN') for name in ('memory.max','memory.high','memory.peak','memory.events','cpu.max','pids.max','pids.peak')}
         assert limits['memory.max']=='1610612736' and limits['memory.high']=='1073741824' and limits['pids.max']=='128'
         assert limits['cpu.max'].split()[0]==limits['cpu.max'].split()[1]
         assert dict(line.split() for line in limits['memory.events'].splitlines())['oom_kill']=='0'
@@ -217,6 +226,12 @@ student_id_preflight_node="$NODE"; student_id_preflight_command="$SLOT/student-i
             db.execute("INSERT INTO Referee (id,publicCode,name,studentId,updatedAt) VALUES ('synthetic-after','SYNTHETIC-AFTER','Fictional after release','SYNTHETIC-RELEASE-002',CURRENT_TIMESTAMP)")
         latest=fingerprint();assert len(latest['sentinels'])==2
         oldenv={**env,'DEPLOYER':str(slots[OLD]/'deployer'),'SLOT':str(slots[OLD]),'NODE':str(slots[OLD]/'node'),'DIGEST':checksums[OLD],'COMMIT':OLD}
+        auxiliary_path=slots[OLD]/'recovery-esbuild';auxiliary_original=auxiliary_path.read_bytes()
+        auxiliary_path.write_bytes(auxiliary_original+b'corrupt-synthetic-test')
+        try:run(['bash','-c',setup+activate],'old-auxiliary-digest-drift-refused',oldenv,expected=1,timeout=300)
+        finally:auxiliary_path.write_bytes(auxiliary_original)
+        assert fingerprint()==latest and current.resolve().name==NEW and healthy(NEW)['MainPID']==new_state['MainPID']
+        record('old_recovery_auxiliary_digest_drift_refused_before_stop')
         run(['bash','-c',setup+activate],'actual-old-production-version-backout',oldenv,timeout=300)
         assert current.resolve().name==OLD and json.loads(state.read_text())['phase']=='HEALTHY'
         healthy(OLD);assert fingerprint()==latest
@@ -253,7 +268,7 @@ student_id_preflight_node="$NODE"; student_id_preflight_command="$SLOT/student-i
             run(['systemctl','daemon-reload'],'cleanup-runtime-unit',timeout=20)
         if node_alias_identity is not None:
             info=system_node.lstat()
-            assert (info.st_dev,info.st_ino)==node_alias_identity and system_node.is_symlink() and system_node.readlink()==node
+            assert (info.st_dev,info.st_ino)==node_alias_identity and system_node.is_symlink() and system_node.readlink() in (node,slots[OLD]/'node')
             system_node.unlink()
         resources.cleanup()
         record('owned_test_resources_removed',user=user,root_removed=not root.exists())
