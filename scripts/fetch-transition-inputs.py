@@ -2,7 +2,7 @@
 """Download two original CI archives and pinned official Linux runtimes only."""
 import hashlib, json, os
 from pathlib import Path
-import shutil, tarfile, urllib.request, zipfile
+import shutil, tarfile, urllib.request, urllib.parse, zipfile
 
 ARTIFACTS = [
     (12389415594, 'b68797c2e28e9dfdec215c460243628d1f0a4f6a', '8f298aa973f79500d92251c237757163e3b49d69cac15311488926d6bffd9c5f', '7ab7b87387363fb91ba9787eabd64f80c9ba76f1ded9b6fcf6915fb3f0de70b0'),
@@ -15,10 +15,16 @@ def digest(path):
     return h.hexdigest()
 
 def download(url, target, token=None):
+    class Redirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, request, fp, code, message, headers, new_url):
+            redirected=super().redirect_request(request,fp,code,message,headers,new_url)
+            if urllib.parse.urlsplit(request.full_url).netloc!=urllib.parse.urlsplit(new_url).netloc:
+                redirected.remove_header('Authorization')
+            return redirected
     headers={'Accept':'application/vnd.github+json'}
     if token:headers['Authorization']='Bearer '+token
     request=urllib.request.Request(url,headers=headers)
-    with urllib.request.urlopen(request,timeout=60) as source,target.open('xb') as out:shutil.copyfileobj(source,out)
+    with urllib.request.build_opener(Redirect()).open(request,timeout=60) as source,target.open('xb') as out:shutil.copyfileobj(source,out)
 
 def main():
     root=Path(os.environ['RUNNER_TEMP'])/'transition-inputs';root.mkdir(mode=0o700)
