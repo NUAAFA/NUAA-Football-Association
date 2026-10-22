@@ -146,7 +146,7 @@ jobs:
           python3 scripts/test-prebuilt-pack.py
           python3 scripts/test-prebuilt-artifact.py
           python3 scripts/test-deploy-recovery-health.py
-          sudo env "PATH=$PATH" PYTHONDONTWRITEBYTECODE=1 python3 scripts/test-start-prebuilt.py
+          sudo env "PATH=$PATH" PYTHONDONTWRITEBYTECODE=1 NUAAFA_TEST_ROOT=/var/lib "NUAAFA_TEST_APP_USER=$(id -un)" python3 scripts/test-start-prebuilt.py
           npm run test:deployer
           sudo env "PATH=$PATH" PYTHONDONTWRITEBYTECODE=1 "NUAAFA_TEST_EVIDENCE=$NUAAFA_TEST_EVIDENCE" python3 scripts/test-prebuilt-linux.py
       - name: Seal, verify, actually import twice and start exact Linux runtime
