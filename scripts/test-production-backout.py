@@ -102,6 +102,12 @@ student_id_preflight_node="$NODE"; student_id_preflight_command="$SLOT/student-i
             system_node.unlink();system_node.symlink_to(node)
             info=system_node.lstat();node_alias_identity=(info.st_dev,info.st_ino)
         record('actual_import_both_original_artifacts',commits=[OLD,NEW],digests=checksums)
+        auxiliary_spec=importlib.util.spec_from_file_location('recovery_aux',P(__file__).resolve().parents[1]/'ops/security-transition/prepare-recovery-esbuild.py')
+        auxiliary=importlib.util.module_from_spec(auxiliary_spec);auxiliary_spec.loader.exec_module(auxiliary)
+        auxiliary_evidence=auxiliary.prepare(slots[OLD],root/'releases'/OLD)
+        run(['/usr/bin/namei','-l',root/'releases'/OLD/'node_modules/@esbuild/linux-x64/bin/esbuild'],'old-original-executable-path-metadata')
+        run(['/usr/sbin/runuser','-u',user,'--',slots[OLD]/'recovery-esbuild','--version'],'old-recovery-auxiliary-exec')
+        record('old_recovery_auxiliary_exact_bytes_verified',detail=auxiliary_evidence)
         shared.mkdir(mode=0o755);(shared/'prisma').mkdir(mode=0o755);(shared/'uploads').mkdir(mode=0o755)
         (shared/'backups').mkdir(mode=0o755);(shared/'backups/unified').mkdir(mode=0o700)
         os.chown(shared/'backups/unified',account.pw_uid,account.pw_gid)
@@ -126,7 +132,7 @@ student_id_preflight_node="$NODE"; student_id_preflight_command="$SLOT/student-i
         # Execute the ORIGINAL old release's backup, verifier and isolated restore.
         before_restore=fingerprint()
         old_release=root/'releases'/OLD;old_node=slots[OLD]/'node'
-        backup_env={**os.environ,'PATH':str(old_node.parent)+':/usr/bin:/bin','DATABASE_URL':'file:'+str(database),'NUAAFA_UPLOAD_DIR':str(shared/'uploads'),'NUAAFA_CONTENT_SOURCE':'database'}
+        backup_env={**os.environ,'PATH':str(old_node.parent)+':/usr/bin:/bin','ESBUILD_BINARY_PATH':str(slots[OLD]/'recovery-esbuild'),'DATABASE_URL':'file:'+str(database),'NUAAFA_UPLOAD_DIR':str(shared/'uploads'),'NUAAFA_CONTENT_SOURCE':'database'}
         backup_result=run(['/usr/sbin/runuser','-u',user,'--',old_node,old_release/'node_modules/tsx/dist/cli.mjs',old_release/'scripts/backup-unified-data.ts','--root='+str(shared/'backups/unified')],'old-original-backup',env=backup_env)
         backup=P(json.loads(backup_result.stdout)['outputDirectory'])
         run(['/usr/sbin/runuser','-u',user,'--',old_node,old_release/'node_modules/tsx/dist/cli.mjs',old_release/'scripts/verify-unified-backup.ts','--backup='+str(backup)],'old-original-backup-verification',env=backup_env)
