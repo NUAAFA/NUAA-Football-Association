@@ -1,7 +1,6 @@
 name: Original production archive isolated recovery and backout
 on:
-  push:
-    branches: [codex/security-release-rehearsal-20261022]
+  workflow_dispatch:
 permissions:
   contents: read
   actions: read

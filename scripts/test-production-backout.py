@@ -14,6 +14,7 @@ NEW = '6db56b94c25ca3ce1376dabbda74714448decf53'
 
 def main():
     p=argparse.ArgumentParser()
+    p.add_argument('--peak-only',action='store_true',help='Run the fictional capacity matrix after exact candidate activation, then clean up')
     for name in ('source','previous-source','old-node','new-node','old-archive','new-archive','output'):p.add_argument('--'+name,type=P,required=True)
     args=p.parse_args();source=args.source.resolve(strict=True);previous_source=args.previous_source.resolve(strict=True);output=args.output.resolve(strict=True)
     assert os.getuid()==0 and sys.platform=='linux'
@@ -217,6 +218,11 @@ student_id_preflight_node="$NODE"; student_id_preflight_command="$SLOT/student-i
         assert fingerprint()==initial;new_state=healthy(NEW)
         assert not (P('/proc')/pid).exists()
         record('actual_backup_migrate_switch_start_health',process=new_state,wrapper_adaptations=adaptations,data_unchanged=True)
+        if args.peak_only:
+            peak_spec=importlib.util.spec_from_file_location('synthetic_peak',P(__file__).with_name('test-synthetic-peak.py'))
+            peak=importlib.util.module_from_spec(peak_spec);peak_spec.loader.exec_module(peak)
+            record('fictional_peak_capacity',result=peak.exercise(root,database,unit,output))
+            return
         ops_spec=importlib.util.spec_from_file_location('transition_ops',P(__file__).with_name('test-transition-ops.py'))
         ops_test=importlib.util.module_from_spec(ops_spec);ops_spec.loader.exec_module(ops_test)
         record('new_ops_pin_backup_restore_and_generation_guards',result=ops_test.exercise_ops(output,root,shared,unit,NEW))

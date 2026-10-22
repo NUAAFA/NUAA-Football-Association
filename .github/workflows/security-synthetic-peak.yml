@@ -1,0 +1,88 @@
+name: Isolated synthetic peak capacity
+on:
+  push:
+    branches: [codex/security-release-rehearsal-20261022]
+permissions:
+  contents: read
+  actions: read
+defaults:
+  run:
+    shell: bash
+concurrency:
+  group: security-synthetic-peak-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  synthetic-peak:
+    if: github.repository == 'NUAAFA/NUAA-Football-Association'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      TZ: UTC
+      OLD: b68797c2e28e9dfdec215c460243628d1f0a4f6a
+      NEW: 6db56b94c25ca3ce1376dabbda74714448decf53
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: driver
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: 6db56b94c25ca3ce1376dabbda74714448decf53
+          path: candidate
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: b68797c2e28e9dfdec215c460243628d1f0a4f6a
+          path: previous
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Authenticate original artifacts and official runtime archives
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 driver/scripts/fetch-transition-inputs.py
+          mkdir -p "$RUNNER_TEMP/backout-output"
+          cp "$RUNNER_TEMP/transition-inputs/input-identities.json" "$RUNNER_TEMP/backout-output/"
+      - name: Prepare and verify the concrete local review payload
+        run: |
+          python3 driver/scripts/prepare-security-transition-bundle.py --repository="$GITHUB_WORKSPACE/driver" --old-node="$RUNNER_TEMP/transition-inputs/node-22.23.2/node" --new-node="$RUNNER_TEMP/transition-inputs/node-22.23.4/node" --old-archive="$RUNNER_TEMP/transition-inputs/$OLD.tar.gz" --output="$RUNNER_TEMP/prepared-review-bundle"
+          cp "$RUNNER_TEMP/prepared-review-bundle/payload-manifest.json" "$RUNNER_TEMP/backout-output/prepared-payload-manifest.json"
+          find "$RUNNER_TEMP/prepared-review-bundle/payload/opt" -type f -name 'deployer*' -exec bash -n {} \;
+      - name: Install Nginx on this disposable runner only
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends nginx
+      - name: Exact candidate archive, fictional large dataset and capacity staircase
+        run: |
+          test "$(cat /proc/1/comm)" = systemd
+          test "$(uname -sm)" = 'Linux x86_64'
+          sudo env "PATH=$RUNNER_TEMP/transition-inputs/node-22.23.4:$PATH" GITHUB_ACTIONS=true "RUNNER_TEMP=$RUNNER_TEMP" PYTHONDONTWRITEBYTECODE=1 "NUAAFA_TEST_EVIDENCE=$RUNNER_TEMP/backout-output/case-logs" python3 driver/scripts/test-production-backout.py --peak-only --source="$GITHUB_WORKSPACE/candidate" --previous-source="$GITHUB_WORKSPACE/previous" --old-node="$RUNNER_TEMP/transition-inputs/node-22.23.2/node" --new-node="$RUNNER_TEMP/transition-inputs/node-22.23.4/node" --old-archive="$RUNNER_TEMP/transition-inputs/$OLD.tar.gz" --new-archive="$RUNNER_TEMP/transition-inputs/$NEW.tar.gz" --output="$RUNNER_TEMP/backout-output"
+      - name: Export only fictional owned evidence for the artifact uploader
+        if: always()
+        run: |
+          sudo python3 - "$RUNNER_TEMP/backout-output" "$(id -u)" "$(id -g)" "$RUNNER_TEMP" <<'PY'
+          import os,stat,sys
+          from pathlib import Path
+          root=Path(sys.argv[1]);temp=Path(sys.argv[4]).resolve(strict=True)
+          assert root==temp/'backout-output' and root.resolve(strict=True)==root and root.is_dir()
+          paths=[root,*root.rglob('*')]
+          for path in paths:
+              info=path.lstat()
+              assert not stat.S_ISLNK(info.st_mode) and (stat.S_ISDIR(info.st_mode) or (stat.S_ISREG(info.st_mode) and info.st_nlink==1))
+          for path in paths:
+              os.chmod(path,0o750 if path.is_dir() else 0o640)
+              os.chown(path,int(sys.argv[2]),int(sys.argv[3]),follow_symlinks=False)
+          print('PASS: only disposable fictional evidence exported; application/service/data permissions unchanged')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: synthetic-peak-${{ github.sha }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/backout-output/
+          if-no-files-found: error
+          retention-days: 7
+# Disposable GitHub-hosted runner only. No SSH or production credentials.
