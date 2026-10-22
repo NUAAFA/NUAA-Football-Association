@@ -21,8 +21,9 @@ def exercise(root, database, unit, output):
     stored='scrypt$'+enc(salt)+'$'+enc(derived)
     with sqlite3.connect(database,timeout=10) as db:
         db.execute('PRAGMA foreign_keys=ON')
-        db.executemany('INSERT INTO Referee (id,publicCode,name,studentId,status,passwordHash,mustChangePassword,publicDirectoryEnabled,trainingStatus,assignmentEligibility,updatedAt) VALUES (?,?,?,?,?,?,0,?,'PENDING_ASSESSMENT','NOT_ELIGIBLE',CURRENT_TIMESTAMP)',
-            [('synthetic-peak-'+str(i),'SYNTHETIC-PEAK-'+str(i),'Fictional capacity account '+str(i),'SYNTHETIC-PEAK-'+str(i),'ACTIVE' if i<256 else 'ARCHIVED',stored if i<256 else None,1 if i<200 else 0) for i in range(50000)])
+        db.execute("UPDATE Referee SET trainingStatus='PENDING_ASSESSMENT',assignmentEligibility='NOT_ELIGIBLE' WHERE id='synthetic-before'")
+        db.executemany('INSERT INTO Referee (id,publicCode,name,studentId,status,passwordHash,mustChangePassword,publicDirectoryEnabled,trainingStatus,assignmentEligibility,updatedAt) VALUES (?,?,?,?,?,?,0,?,?,?,CURRENT_TIMESTAMP)',
+            [('synthetic-peak-'+str(i),'SYNTHETIC-PEAK-'+str(i),'Fictional capacity account '+str(i),'SYNTHETIC-PEAK-'+str(i),'ACTIVE' if i<256 else 'ARCHIVED',stored if i<256 else None,1 if i<200 else 0,'PENDING_ASSESSMENT','NOT_ELIGIBLE') for i in range(50000)])
         db.execute("INSERT INTO AdminAccount (id,username,displayName,passwordHash,role,updatedAt) VALUES ('synthetic-peak-admin','synthetic-peak-admin','Fictional capacity administrator',?,'SUPER_ADMIN',CURRENT_TIMESTAMP)",(stored,))
         assert db.execute('PRAGMA integrity_check').fetchall()==[('ok',)] and not db.execute('PRAGMA foreign_key_check').fetchall()
         baseline=db.execute('SELECT COUNT(*) FROM Referee').fetchone()[0]
