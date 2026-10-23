@@ -1,5 +1,6 @@
 import { readBoundedJson } from "@/lib/bounded-json";
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 
 import { readContentPostInput } from "@/lib/admin-content-input";
 import { getAdminContentPost, updateContentPost } from "@/lib/admin-content-service";
@@ -27,6 +28,8 @@ export async function PATCH(request: Request, context: RouteContext<"/api/admin/
     const { id } = await context.params;
     const input = readContentPostInput(await readBoundedJson(request));
     const post = await updateContentPost(id, input, actor);
+    revalidatePath("/competitions/[slug]", "page");
+    revalidatePath("/media");
     return NextResponse.json({ ok: true, post });
   } catch (error) {
     return unifiedAdminErrorResponse(error, "内容更新失败。");

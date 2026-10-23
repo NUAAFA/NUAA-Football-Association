@@ -13,9 +13,10 @@ export default async function EditContentPostPage({ params }: { params: Promise<
     getAdminContentPost(id, actor),
     prisma.mediaAsset.findMany({ where: { visibility: "PUBLIC", mimeType: { startsWith: "image/" } }, select: { id: true, originalFilename: true }, orderBy: { createdAt: "desc" }, take: 100 }),
     prisma.mediaAsset.findMany({ where: { visibility: "PUBLIC", mimeType: "application/pdf" }, select: { id: true, originalFilename: true }, orderBy: { createdAt: "desc" }, take: 100 }),
-    prisma.competition.findMany({ select: { id: true, name: true }, orderBy: [{ year: "desc" }, { name: "asc" }], take: 200 }),
+    prisma.competition.findMany({ select: { id: true, name: true, isTestData: true }, orderBy: [{ year: "desc" }, { name: "asc" }], take: 200 }),
   ]);
   if (!post) notFound();
+  if (post.competition && !competitions.some((item) => item.id === post.competition!.id)) competitions.push(post.competition);
   const statusLabel = { DRAFT: "草稿", PUBLISHED: "已发布", ARCHIVED: "已归档" }[post.status];
   // Keep existing selections visible even when outside the first picker page.
   if (post.coverMedia && !imageMedia.some((asset) => asset.id === post.coverMedia!.id)) imageMedia.push(post.coverMedia);
@@ -23,5 +24,5 @@ export default async function EditContentPostPage({ params }: { params: Promise<
     const selected = await prisma.mediaAsset.findUnique({ where: { id: post.discipline.officialMediaId }, select: { id: true, originalFilename: true } });
     if (selected) pdfMedia.push(selected);
   }
-  return <><AdminPageHeader eyebrow="CONTENT OPERATIONS" title="编辑内容" description={`当前状态：${statusLabel}`} /><ContentPostForm competitions={competitions} imageMedia={imageMedia} initialValue={{ attachments: post.attachments.map((a) => ({ mediaAssetId: a.mediaAssetId, displayName: a.displayName, filename: a.mediaAsset.originalFilename, visibility: a.mediaAsset.visibility, mimeType: a.mediaAsset.mimeType })), id: post.id, type: post.type, slug: post.slug, title: post.title, summary: post.summary, contentJson: JSON.stringify(post.content, null, 2), source: post.source ?? "", coverMediaId: post.coverMedia?.id ?? "", pinned: post.pinned, featured: post.featured, discipline: { competitionId: post.discipline?.competitionId ?? "", officialMediaId: post.discipline?.officialMediaId ?? "", versionLabel: post.discipline?.versionLabel ?? "", scopeLabel: post.discipline?.scopeLabel ?? "" } }} pdfMedia={pdfMedia} /></>;
+  return <><AdminPageHeader eyebrow="CONTENT OPERATIONS" title="编辑内容" description={`当前状态：${statusLabel}`} /><ContentPostForm competitions={competitions} imageMedia={imageMedia} initialValue={{ attachments: post.attachments.map((a) => ({ mediaAssetId: a.mediaAssetId, displayName: a.displayName, filename: a.mediaAsset.originalFilename, visibility: a.mediaAsset.visibility, mimeType: a.mediaAsset.mimeType })), id: post.id, type: post.type, slug: post.slug, title: post.title, summary: post.summary, contentJson: JSON.stringify(post.content, null, 2), source: post.source ?? "", coverMediaId: post.coverMedia?.id ?? "", pinned: post.pinned, featured: post.featured, competitionId: post.competitionId ?? "", discipline: { competitionId: post.discipline?.competitionId ?? "", officialMediaId: post.discipline?.officialMediaId ?? "", versionLabel: post.discipline?.versionLabel ?? "", scopeLabel: post.discipline?.scopeLabel ?? "" } }} pdfMedia={pdfMedia} /></>;
 }

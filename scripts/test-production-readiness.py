@@ -7,11 +7,12 @@ spec=importlib.util.spec_from_file_location('policy',ROOT/'ops/deploy/prebuilt-a
 class Readiness(unittest.TestCase):
  def setUp(self):
   self.temp=tempfile.TemporaryDirectory(prefix='nuaafa-readiness-fictional-');self.addCleanup(self.temp.cleanup);self.root=Path(self.temp.name).resolve();self.old=self.root/('a'*40);self.new=self.root/('b'*40)
+  # Keep the historical 17-to-18 recovery fixture exact; the 18-to-19 policy has its own test.
   for directory,count in [(self.old,17),(self.new,18)]:
    for p in sorted((ROOT/'prisma/migrations').glob('*/migration.sql'))[:count]:
     dest=directory/'prisma/migrations'/p.parent.name/p.name;dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(p,dest)
    shutil.copyfile(ROOT/'prisma/migrations/migration_lock.toml',directory/'prisma/migrations/migration_lock.toml')
-   (directory/'prisma/schema.prisma').write_bytes(subprocess.check_output(['git','-C',str(ROOT),'show',A.BASELINE_COMMIT+':prisma/schema.prisma']) if count==17 else (ROOT/'prisma/schema.prisma').read_bytes())
+   (directory/'prisma/schema.prisma').write_bytes(subprocess.check_output(['git','-C',str(ROOT),'show',A.BASELINE_COMMIT+':prisma/schema.prisma']) if count==17 else subprocess.check_output(['git','-C',str(ROOT),'show','5c86ad7c042efcac0256f20caa8644999ae37f34:prisma/schema.prisma']))
   self.database=self.root/'fictional.db'
   with sqlite3.connect(self.database) as db:
    db.execute('CREATE TABLE _prisma_migrations (migration_name TEXT,checksum TEXT,started_at INTEGER,finished_at TEXT,rolled_back_at TEXT)')
@@ -88,13 +89,13 @@ class Readiness(unittest.TestCase):
    for i,(name,digest,started,finished,rolled) in enumerate(rows):db.execute("INSERT INTO _prisma_migrations (id,checksum,started_at,finished_at,migration_name,applied_steps_count) VALUES (?,?,?,? ,?,1)",(str(i),digest,1700000000000+i,1700000000001+i,name))
    db.commit()
   shared=self.root/'real-prisma/shared';(shared/'prisma').mkdir(parents=True);database=shared/'prisma/dev.db';shutil.copyfile(self.database,database)
-  A.migration_ready(self.new,self.old,database)
+  A.migration_ready(ROOT,self.old,database)
   script='set -Eeuo pipefail\nsource "$DEPLOYER"\nshared="$SHARED"; activation_state="$STATE"; target_commit="$COMMIT"; student_id_preflight_node="$NODE"; prebuilt_python="$PYTHON"\nverify_root_metadata() { :; }; run_as_deploy_user() { "$@"; }\nrun_migration "$RELEASE"\n'
   env={**os.environ,'DEPLOYER':str(ROOT/'ops/deploy/nuaafa-deploy'),'SHARED':str(shared),'STATE':str(self.root/'real-prisma/activation.json'),'COMMIT':self.new.name,'NODE':shutil.which('node'),'PYTHON':os.sys.executable,'RELEASE':str(ROOT)}
   for _ in range(2):
-   r=subprocess.run(['/bin/bash','-c',script],env=env,capture_output=True,text=True,timeout=60);self.assertEqual(r.returncode,0,r.stdout+r.stderr);A.migration_ready(self.new,self.old,database,True)
+   r=subprocess.run(['/bin/bash','-c',script],env=env,capture_output=True,text=True,timeout=60);self.assertEqual(r.returncode,0,r.stdout+r.stderr);A.migration_ready(ROOT,self.old,database,True)
   logs=list((self.root/'real-prisma').glob('activation.json.migration.*.log.*'));self.assertEqual(len(logs),2);self.assertTrue(all(p.stat().st_size>0 for p in logs))
-  with sqlite3.connect(database) as db:self.assertEqual(db.execute('select count(*) from _prisma_migrations').fetchone()[0],18)
+  with sqlite3.connect(database) as db:self.assertEqual(db.execute('select count(*) from _prisma_migrations').fetchone()[0],19)
 
  def test_installed_old_startup_contract_blocks_before_service_mutation(self):
   wrapper=self.root/'old-wrapper';wrapper.write_text("print('OLD-CONTRACT')");wrapper.chmod(0o755)
