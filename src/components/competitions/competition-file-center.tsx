@@ -5,16 +5,15 @@ import formal from "./formal-services.module.css";
 import styles from "./competition-file-center.module.css";
 
 const categoryOrder: readonly { key: PublicFileCategory; label: string; description: string }[] = [
-  { key: "regulations", label: "规则与版本", description: "国际足联、中国足协审定或发布的竞赛规则与版本说明。" },
   { key: "guidebooks", label: "秩序册与赛事指南", description: "经协会确认可以公开的赛事组织文件。" },
+  { key: "regulations", label: "竞赛规则", description: "国际足联、中国足协审定或发布的竞赛规则与版本说明。" },
   { key: "schedules", label: "赛程文件", description: "可下载赛程文件尚未单独提供。" },
-  { key: "appointments", label: "裁判选派", description: "裁判选派以官网已发布公示为准。" },
   { key: "discipline", label: "纪律决定", description: "协会提供的公开处罚决定原件。" },
   { key: "notices", label: "赛事通知", description: "可下载通知文件尚未单独提供。" },
 ];
 
 function originalFileHref(file: PublicCompetitionFile) {
-  return disciplineDecisions.find((decision) => decision.id === file.id)?.pdfHref ?? file.href;
+  return file.downloadHref ?? disciplineDecisions.find((decision) => decision.id === file.id)?.pdfHref ?? file.href;
 }
 
 export function CompetitionFileCenter({ files }: { files: readonly PublicCompetitionFile[] }) {
@@ -45,14 +44,14 @@ export function CompetitionFileCenter({ files }: { files: readonly PublicCompeti
                         <p className={styles.note}>{file.versionNote}</p>
                       </div>
                       <div className={`${formal.actions} ${styles.actions}`}>
-                        <a className="ui-button ui-button-secondary" href={file.href} aria-label={`查看${file.title}${file.category === "discipline" ? "决定网页" : `（${file.fileType}）`}`}>{file.category === "discipline" ? "查看决定" : `查看 ${file.fileType}`}</a>
+                        <a className="ui-button ui-button-secondary" href={file.href} aria-label={`查看${file.title}${file.category === "discipline" && file.href !== originalFileHref(file) ? "决定网页" : `（${file.fileType}）`}`}>{file.category === "discipline" && file.href !== originalFileHref(file) ? "查看决定" : `查看 ${file.fileType}`}</a>
                         <a className="ui-button ui-button-secondary" href={originalFileHref(file)} download aria-label={`下载${file.title}原文件（${file.fileType}）`}>下载原文件 <span aria-hidden="true">↓</span></a>
                       </div>
                     </article>
                   </li>
                 ))}
               </ul>
-            ) : <div className={formal.empty}><strong>暂无公开文件</strong><p>{category.description}</p>{category.key === "appointments" ? <Link className="ui-button ui-button-quiet" href="/referees/assignments">查看裁判选派公示 →</Link> : category.key === "schedules" ? <Link className="ui-button ui-button-quiet" href="/competitions/schedule">查看在线赛程 →</Link> : null}</div>}
+            ) : <div className={formal.empty}><strong>暂无公开文件</strong><p>{category.description}</p>{category.key === "schedules" ? <Link className="ui-button ui-button-quiet" href="/competitions/schedule">查看在线赛程 →</Link> : null}</div>}
           </section>
         );
       })}

@@ -9,7 +9,7 @@ export type RefereeListFilters = {
   to: string;
   q: string;
   after: string;
-  cursor?: { at: string; distance: number; id: string };
+  cursor?: { at: string; distance: number; id: string; bucket?: "upcoming" | "overdue" };
   error?: string;
 };
 export const refereeListPageSize = 3;
@@ -48,7 +48,8 @@ export function refereeListFilters(params: RefereeListSearchParams): RefereeList
       if (typeof value.at !== "string" || !Number.isFinite(anchor) || anchor < Date.UTC(1900, 0, 1) || anchor > Date.UTC(2201, 0, 1) ||
           !Number.isSafeInteger(value.distance) || value.distance < 0 || value.distance > 10_000_000_000_000 ||
           typeof value.id !== "string" || !value.id || value.id.length > 120) throw new Error();
-      cursor = { at: new Date(anchor).toISOString(), distance: value.distance, id: value.id };
+      if (value.bucket !== undefined && value.bucket !== "upcoming" && value.bucket !== "overdue") throw new Error();
+      cursor = { at: new Date(anchor).toISOString(), distance: value.distance, id: value.id, ...(value.bucket ? { bucket: value.bucket } : {}) };
     } catch { error = "加载位置已失效，请清除筛选后重新查看。"; }
   }
   return { competition, format, from, to, q, after, cursor, error };

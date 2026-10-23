@@ -1,11 +1,11 @@
-"use client";
-
 import Link from "next/link";
-import { useState } from "react";
 
 import { ArchiveStandingTable } from "@/components/competitions/archive/archive-data-tables";
-import { Badge, TableContainer } from "@/components/ui/foundation-primitives";
+import { Badge, Notice, TableContainer } from "@/components/ui/foundation-primitives";
 import type { CompetitionRecord } from "@/data/competition-records";
+import { CompetitionDataModules, DataViewBack, dataViewHref } from "./competition-data-navigation";
+import { CompetitionSeasonFilter } from "./competition-season-filter";
+import navigation from "./competition-data-navigation.module.css";
 
 import styles from "./match-centre.module.css";
 
@@ -14,48 +14,55 @@ type RecordMode = "standings" | "scorers";
 export function CompetitionRecordExplorer({
   records,
   mode,
+  season,
+  competitionId,
+  currentCompetitionId,
 }: {
   records: readonly CompetitionRecord[];
   mode: RecordMode;
+  season?: string;
+  competitionId?: string;
+  currentCompetitionId?: string;
 }) {
   const seasons = Array.from(new Set(records.map((record) => record.season))).sort((a, b) => b - a);
-  const [selectedSeason, setSelectedSeason] = useState(seasons[0] ?? 0);
-  const initialRecord = records.find((record) => record.season === selectedSeason) ?? records[0];
-  const [selectedCompetitionId, setSelectedCompetitionId] = useState(initialRecord?.id ?? "");
+  const selectedSeason = seasons.includes(Number(season)) ? Number(season) : seasons[0];
   const seasonRecords = records.filter((record) => record.season === selectedSeason);
-  const selectedRecord =
-    seasonRecords.find((record) => record.id === selectedCompetitionId) ?? seasonRecords[0];
+  const selectedRecord = seasonRecords.find((record) => record.id === competitionId);
+  const pathname = `/competitions/${mode}`;
+  const anchor = mode === "standings" ? "standings-records-title" : "scoring-records-title";
+  const preservedQuery: Record<string, string> = currentCompetitionId ? { competition: currentCompetitionId } : {};
+  const baseQuery = { ...preservedQuery, season: selectedSeason };
 
-  if (!selectedRecord) {
+  if (!seasonRecords.length) {
     return <div className={styles.emptyState}><strong>当前暂无已公开赛事数据</strong></div>;
   }
+
+  const toolbar = <div className={navigation.toolbar}>
+    <div><h3>{selectedSeason} 年赛事档案</h3><p>{seasonRecords.length} 项赛事 · {selectedRecord ? "正在查看所选赛事" : "选择赛事，查看完整记录"}</p></div>
+    <CompetitionSeasonFilter seasons={seasons} selectedSeason={selectedSeason} pathname={pathname} anchor={anchor} preservedQuery={preservedQuery} />
+  </div>;
+
+  if (!selectedRecord) return <div className={styles.recordExplorer}>
+    {toolbar}
+    {competitionId ? <p className={styles.recordNote}>该年份下暂无此赛事，请重新选择。</p> : null}
+    <CompetitionDataModules label={mode === "standings" ? "历史积分榜赛事选择" : "射手记录赛事选择"} items={seasonRecords.map((record) => ({
+      id: record.id,
+      title: record.shortName,
+      meta: record.formatLabel,
+      description: record.competitionName,
+      count: mode === "standings" ? `${record.standings.length} 组归档积分` : record.scorers.some((player) => player.goals !== null) ? `公开射手 Top ${record.scorers.filter((player) => player.goals !== null).length}` : `${record.scorers.length} 位金靴得主`,
+      action: mode === "standings" ? "查看积分" : "查看射手记录",
+      href: dataViewHref(pathname, { ...baseQuery, archive: record.id }, anchor),
+    }))} />
+  </div>;
 
   const rankedScorers = selectedRecord.scorers.filter((player) => player.goals !== null);
   const awardScorers = selectedRecord.scorers.filter((player) => player.goals === null);
 
-  function handleSeasonChange(value: string) {
-    const season = Number(value);
-    const firstRecord = records.find((record) => record.season === season);
-    setSelectedSeason(season);
-    setSelectedCompetitionId(firstRecord?.id ?? "");
-  }
-
   return (
     <div className={styles.recordExplorer}>
-      <div className={styles.recordFilters} aria-label="赛事数据筛选">
-        <label>
-          <span>赛季</span>
-          <select value={selectedSeason} onChange={(event) => handleSeasonChange(event.target.value)}>
-            {seasons.map((season) => <option key={season} value={season}>{season}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>赛事</span>
-          <select value={selectedRecord.id} onChange={(event) => setSelectedCompetitionId(event.target.value)}>
-            {seasonRecords.map((record) => <option key={record.id} value={record.id}>{record.shortName}</option>)}
-          </select>
-        </label>
-      </div>
+      {toolbar}
+      <DataViewBack href={dataViewHref(pathname, baseQuery, anchor)} />
 
       <section className={styles.recordResult} aria-live="polite">
         <header className={styles.recordHeader}>
@@ -65,6 +72,12 @@ export function CompetitionRecordExplorer({
           </div>
           <Link className={styles.archiveLink} href={selectedRecord.archiveHref}>进入赛事档案 →</Link>
         </header>
+
+        <Notice className={styles.recordScope} title={mode === "standings" ? "归档统计范围" : "数据完整性"}>
+          <p>{mode === "standings"
+            ? selectedRecord.id === "2026-womens-intercollege-cup" ? "最终积分仅统计联赛阶段，淘汰赛成绩不计入积分榜。" : "保留现有归档积分与原始顺序，各组的统计范围及来源见表下注明。"
+            : rankedScorers.length ? `以下仅为公开 Top ${rankedScorers.length}，不代表完整射手榜；来源未提供的数据不会被补算或推测。` : "公开资料仅确认金靴得主，未公开个人进球数及完整排名。"}</p>
+        </Notice>
 
         {mode === "standings" ? (
           selectedRecord.standings.length ? (

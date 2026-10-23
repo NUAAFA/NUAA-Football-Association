@@ -7,6 +7,7 @@ import { Badge, Notice } from "@/components/ui/foundation-primitives";
 import { publicMatchRecords } from "@/data/competition-center";
 import { getAllPublicCompetitionDetails } from "@/lib/public-competition-service";
 import styles from "@/components/competitions/match-centre.module.css";
+import { CompetitionLines } from "@/components/competitions/competition-lines";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/competitions/schedule" }, title: "赛程与赛果",
@@ -14,8 +15,8 @@ export const metadata: Metadata = {
 };
 export const dynamic = "force-dynamic";
 
-export default async function CompetitionSchedulePage() {
-  const competitions = await getAllPublicCompetitionDetails();
+export default async function CompetitionSchedulePage({ searchParams }: { searchParams: Promise<{ season?: string; archive?: string }> }) {
+  const [competitions, query] = await Promise.all([getAllPublicCompetitionDetails(), searchParams]);
   const normalized = (s: string) => s.normalize("NFKC").replace(/\s/g, "");
   const keys = new Set(competitions.flatMap((c) => c.matches.map((m) => [c.detailHref, m.dateLabel, m.timeLabel, normalized(m.homeTeam.name), normalized(m.awayTeam.name)].join("|"))));
   const archived = publicMatchRecords.filter((m) => !keys.has([m.competitionHref, m.dateLabel, m.timeLabel, normalized(m.homeTeam), normalized(m.awayTeam)].join("|")));
@@ -27,7 +28,7 @@ export default async function CompetitionSchedulePage() {
         {competitions.map((competition) => <article className={styles.publicationCard} key={competition.id}>
           <header><span>{competition.currentEdition} · {competition.formatLabel}</span><Badge tone={competition.status === "ongoing" || competition.status === "completed" ? "success" : "warning"}>{competition.statusLabel}</Badge></header>
           <h3>{competition.shortName}</h3><strong className={styles.publicationState}>{competition.nextMatch.label}</strong><p>{competition.notice}</p>
-          <dl className={styles.publicationFacts}><div><dt>比赛日期</dt><dd>{competition.matchWindow}</dd></div><div><dt>比赛场地</dt><dd>{competition.venue}</dd></div></dl>
+          <dl className={styles.publicationFacts}><div><dt>比赛日期</dt><dd>{competition.matchWindow}</dd></div><div><dt>比赛场地</dt><dd><CompetitionLines value={competition.venue} /></dd></div></dl>
           <Link className={styles.publicationLink} href={competition.detailHref}>查看赛事状态 →</Link>
         </article>)}
       </div>
@@ -35,12 +36,11 @@ export default async function CompetitionSchedulePage() {
     </section>
     <section className={`${styles.section} ${styles.publishedSection}`} id="published-matches" aria-labelledby="published-matches-title">
       <MatchCentreSectionHeading description="当前公开赛事的正式比赛安排、待排期记录与已确认赛果；时间按北京时间显示。" eyebrow="PUBLISHED MATCH RECORDS" id="published-matches-title" title="已发布比赛记录" />
-      <PublicSchedule competitions={competitions} />
-      <section className={styles.section} aria-labelledby="archived-matches-title">
-        <MatchCentreSectionHeading description="与当前公开比赛去重后列出的独立历史资料，按赛事、阶段或球队筛选，每次显示 12 场。" eyebrow="HISTORICAL ARCHIVES" id="archived-matches-title" title="历史归档比赛" />
-        <Notice className={styles.truthNotice} title="归档范围"><p>以下保留 2026 男子、女子足球院际杯的原始已完成比赛记录；历史档案不代表当前或未来赛程。</p></Notice>
-        <CompetitionScheduleExplorer matches={archived} />
-      </section>
+      <PublicSchedule competitions={competitions} referenceTime={competitions[0]?.asOf ?? 0} />
+    </section>
+    <section className={styles.section} aria-labelledby="archived-matches-title">
+      <MatchCentreSectionHeading description="按年份选择赛事，查看历史赛果；进入赛事后可按阶段和球队查找比赛。" eyebrow="HISTORICAL ARCHIVES" id="archived-matches-title" title="历史归档比赛" />
+      <CompetitionScheduleExplorer key={`${query.season}-${query.archive}`} matches={archived} season={query.season} competitionId={query.archive} />
     </section>
   </MatchCentreShell>;
 }

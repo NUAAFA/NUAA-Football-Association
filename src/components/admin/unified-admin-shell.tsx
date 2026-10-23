@@ -18,6 +18,7 @@ const navigationGroups: Array<{
     module: "content",
     items: [
       { href: "/admin/content/news", label: "新闻公告", english: "News & Notices" },
+      { href: "/admin/resources", label: "资料与规则", english: "Resource Library" },
       { href: "/admin/media", label: "媒体与附件", english: "Media Assets" },
     ],
   },

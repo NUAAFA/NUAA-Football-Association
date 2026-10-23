@@ -32,7 +32,7 @@
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(19rem, 0.65fr);
+  grid-template-columns: minmax(0, 1.1fr) minmax(21rem, 0.9fr);
   align-items: center;
   gap: clamp(var(--spacing-6), 5vw, var(--spacing-8));
 }
@@ -76,42 +76,41 @@
   line-height: var(--line-height-reading);
 }
 
-.headerStatusPanel {
+.officialServices {
   position: relative;
   display: grid;
-  gap: var(--spacing-3);
+  gap: var(--spacing-2);
   padding: var(--spacing-5);
+  border: 1px solid var(--color-border-subtle);
+  border-top: var(--spacing-1) solid var(--color-brand-sky-soft);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-raised);
   color: var(--color-text-strong);
+  box-shadow: var(--shadow-card-rest);
 }
 
 .panelEyebrow {
   color: var(--color-brand-action);
 }
 
-.headerStatusPanel > strong {
-  font-size: var(--font-size-card-title);
+.officialServices h2 {
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
+  font-weight: var(--font-weight-bold);
   line-height: var(--line-height-heading);
 }
 
-.headerStatusPanel ul {
+.officialServices > p {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-body);
+}
+
+.officialServiceList {
   display: grid;
   gap: var(--spacing-3);
   margin: 0;
-  padding: var(--spacing-3) 0 0;
-  border-top: 1px solid var(--color-border-subtle);
+  padding: var(--spacing-2) 0 0;
   list-style: none;
-}
-
-.headerStatusPanel li {
-  display: grid;
-  gap: var(--spacing-2);
-}
-
-.headerStatusPanel li > span:first-child {
-  color: var(--color-text-body);
-  font-size: var(--font-size-meta);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-body);
 }
 
 .currentSection,
@@ -362,10 +361,6 @@
   list-style: none;
 }
 
-.serviceGroup[data-group="official"] .serviceRouteList {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
 .serviceRouteLink {
   min-height: 5.5rem;
   display: flex;
@@ -408,6 +403,25 @@
   transition: transform var(--motion-duration-fast) var(--motion-ease-standard);
 }
 
+.officialServices .serviceRouteLink {
+  min-height: 5rem;
+  padding: var(--spacing-3) var(--spacing-4);
+}
+
+.officialServices .primaryServiceRoute {
+  border-color: var(--color-brand-action);
+  background: var(--color-brand-action);
+  color: var(--color-text-on-dark);
+}
+
+.primaryServiceRoute small {
+  color: var(--color-text-on-dark);
+}
+
+.primaryServiceRoute > span:last-child {
+  color: var(--color-text-on-dark);
+}
+
 @media (hover: hover) {
   .summaryCard:hover .cardImage img {
     transform: scale(1.015);
@@ -423,6 +437,12 @@
   .serviceRouteLink:hover > span:last-child {
     transform: translateX(2px);
   }
+
+  .officialServices .primaryServiceRoute:hover {
+    border-color: var(--color-brand-action-hover);
+    background: var(--color-brand-action-hover);
+    color: var(--color-text-on-dark);
+  }
 }
 
 @media (max-width: 900px) {
@@ -435,7 +455,7 @@
     align-items: stretch;
   }
 
-  .headerStatusPanel {
+  .officialServices {
     max-width: none;
   }
 
@@ -446,8 +466,7 @@
 
   .currentGrid,
   .archiveGrid,
-  .serviceRouteList,
-  .serviceGroup[data-group="official"] .serviceRouteList {
+  .serviceRouteList {
     grid-template-columns: 1fr;
   }
 }
@@ -498,7 +517,7 @@
 }
 
 @media (max-width: 520px) {
-  .headerStatusPanel,
+  .officialServices,
   .summaryCard {
     padding: var(--spacing-4);
   }
@@ -522,3 +541,23 @@
     transform: none;
   }
 }
+
+/* Current events have two concise facts, a full date row and a separate next fixture. */
+.currentCard .factGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; overflow: visible; padding-block: 20px; border: 0; border-block: 1px solid var(--color-border-subtle); border-radius: 0; background: transparent; }
+.currentCard .factGrid > div { padding: 0; background: transparent; }
+.currentCard .factGrid > .factWide { grid-column: 1 / -1; }
+.currentCard .factLabel { font-size: .875rem; }
+.currentCard .factValue { font-size: 1rem; font-weight: 600; }
+.nextMatch { display: grid; gap: 8px; margin-block: 20px 24px; padding: 20px; border-left: 3px solid var(--color-brand-action); border-radius: 0 8px 8px 0; background: var(--color-surface-subtle); }
+.nextLabel { color: var(--color-brand-action); font-size: .875rem; font-weight: 650; }
+.nextMatch > strong { font-size: 1.125rem; line-height: 1.6; }
+.nextMatch > strong > span { padding-inline: 4px; color: var(--color-text-muted); font-size: .875rem; }
+.nextMatch > p { color: var(--color-text-body); font-size: .9375rem; line-height: 1.6; }
+.cardAction { margin-top: auto; }
+.centerNav { border-block: 1px solid var(--color-border-subtle); background: var(--color-surface-raised); }
+.centerNav ul { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 24px; list-style: none; padding-block: 8px; }
+.centerNav a { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 4px; border-bottom: 2px solid transparent; color: var(--color-text-muted); font-size: .9375rem; font-weight: 600; }
+.centerNav a[aria-current="page"] { color: var(--color-brand-action); border-color: var(--color-brand-action); }
+.centerNav a:hover { color: var(--color-brand-action-hover); background: var(--color-surface-subtle); }
+.centerNav a:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
+@media (max-width: 520px) { .nextMatch { padding: 16px; } .centerNav ul { gap: 0 16px; } }

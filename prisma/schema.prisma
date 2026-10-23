@@ -646,6 +646,7 @@ model AdminRoleAssignment {
 }
 
 model MediaAsset {
+  resourceDocuments ResourceDocument[]
   attachments       ContentAttachment[]
   id                String              @id @default(cuid())
   storageKey        String              @unique
@@ -666,6 +667,31 @@ model MediaAsset {
   @@index([visibility, createdAt])
   @@index([mimeType, createdAt])
   @@index([uploadedByAdminId])
+}
+
+model ResourceDocument {
+  id             String            @id @default(cuid())
+  builtinKey     String?           @unique
+  category       String
+  title          String
+  description    String            @default("")
+  source         String            @default("")
+  scope          String            @default("")
+  version        String            @default("")
+  dateLabel      String            @default("")
+  versionStatus  String            @default("historical")
+  versionNote    String            @default("")
+  playingFormat  String            @default("all")
+  trainingLevel  String            @default("基础")
+  sortOrder      Int               @default(0)
+  status         ContentPostStatus @default(DRAFT)
+  mediaAssetId   String?
+  mediaAsset     MediaAsset?       @relation(fields: [mediaAssetId], references: [id], onDelete: Restrict)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([status, category, sortOrder])
+  @@index([mediaAssetId])
 }
 
 model ContentPost {

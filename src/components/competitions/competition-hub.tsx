@@ -7,7 +7,6 @@ import {
   Card,
   LinkButton,
   Notice,
-  Panel,
 } from "@/components/ui/foundation-primitives";
 import mensArchive from "@/data/archives/2026-mens-intercollege-cup/competition.json";
 import womensArchive from "@/data/archives/2026-womens-intercollege-cup/womens-cup-2026.json";
@@ -15,7 +14,7 @@ import { getCoreCompetition } from "@/data/competition-directory";
 import { publicSectionContacts } from "@/data/contacts";
 import { competitionNavigation } from "@/data/navigation";
 import { womensIntercollegeCup2026 } from "@/data/womens-intercollege-cup-2026";
-import type { CoreCompetitionDirectoryEntry, PublicCompetitionView } from "@/types/competition-center";
+import type { CompetitionNextMatch, CoreCompetitionDirectoryEntry, PublicCompetitionView } from "@/types/competition-center";
 
 import styles from "./competition-hub.module.css";
 
@@ -30,6 +29,7 @@ type CompetitionStatusProps = {
 type CompetitionFact = {
   label: string;
   value: string;
+  wide?: boolean;
 };
 
 export type CompetitionSummaryCardProps = {
@@ -38,6 +38,7 @@ export type CompetitionSummaryCardProps = {
   description: string;
   eyebrow: string;
   facts: readonly CompetitionFact[];
+  nextMatch?: CompetitionNextMatch;
   headingLevel?: 3 | 4;
   image?: {
     alt: string;
@@ -58,7 +59,7 @@ type ServiceItem = {
 type ServiceGroup = {
   description: string;
   eyebrow: string;
-  id: "data" | "archive" | "official";
+  id: "data" | "archive";
   items: readonly ServiceItem[];
   label: string;
 };
@@ -130,6 +131,11 @@ const archiveCards = [
 
 const [schedule, standings, scorers, history, files, arbitration] = competitionNavigation;
 
+const officialServices = [
+  { ...arbitration, label: "仲裁与申诉", description: "查看赛事争议处理与申诉说明。" },
+  { ...files, description: "查阅竞赛规程、赛事手册与正式通知。" },
+] as const satisfies readonly ServiceItem[];
+
 const serviceGroups = [
   {
     description: "从已发布信息进入赛程、积分与公开射手数据。",
@@ -149,16 +155,6 @@ const serviceGroups = [
     items: [{ ...history, description: "按年份查找既有赛事记录与档案入口。" }],
     label: "赛事档案",
   },
-  {
-    description: "查阅竞赛文件，或进入赛事争议处理与申诉说明。",
-    eyebrow: "OFFICIAL SERVICES",
-    id: "official",
-    items: [
-      { ...files, description: "查阅现有竞赛规程、手册与通知。" },
-      { ...arbitration, label: "仲裁与申诉", description: "查看赛事争议处理与申诉说明。" },
-    ],
-    label: "官方服务",
-  },
 ] as const satisfies readonly ServiceGroup[];
 
 export function CompetitionStatus({ context, label, tone = "info" }: CompetitionStatusProps) {
@@ -170,28 +166,25 @@ export function CompetitionStatus({ context, label, tone = "info" }: Competition
   );
 }
 
-export function CompetitionPageHeader({ competitions }: { competitions: readonly PublicCompetitionView[] }) {
+export function CompetitionPageHeader() {
   return (
     <header className={styles.pageHeader}>
       <div className={`detail-shell ${styles.pageHeaderInner}`}>
         <div className={styles.pageHeaderCopy}>
           <span className={styles.eyebrow}>TIANMUHU COMPETITIONS</span>
           <h1>赛事中心</h1>
-          <p>查看已公开发布的校园赛事、比赛数据与历史赛季档案，并前往赛事文件和仲裁服务。</p>
+          <p>进入仲裁与申诉、查阅正式赛事文件，或浏览当前赛事、比赛数据与历史档案。</p>
         </div>
-        <Panel className={styles.headerStatusPanel}>
-          <span className={styles.panelEyebrow}>CURRENT STATUS</span>
-          <strong>公开赛事状态</strong>
-          <ul>
-            {competitions.map((competition) => (
-              <li key={competition.id}>
-                <span>{competition.shortName}</span>
-                <CompetitionStatus context="赛事状态" label={competition.statusLabel} tone={competition.status === "ongoing" || competition.status === "completed" ? "success" : "warning"} />
-              </li>
+        <nav aria-labelledby="competition-official-title" className={styles.officialServices}>
+          <span className={styles.panelEyebrow}>OFFICIAL SERVICES</span>
+          <h2 id="competition-official-title">官方服务</h2>
+          <p>赛事争议处理与正式文件入口</p>
+          <ul className={styles.officialServiceList}>
+            {officialServices.map((item, index) => (
+              <li key={item.href}><ServiceRouteLink item={item} primary={index === 0} /></li>
             ))}
           </ul>
-          {!competitions.length ? <p>当前暂无公开赛事</p> : null}
-        </Panel>
+        </nav>
       </div>
     </header>
   );
@@ -203,6 +196,7 @@ export function CompetitionSummaryCard({
   description,
   eyebrow,
   facts,
+  nextMatch,
   headingLevel = 3,
   image,
   secondaryStatus,
@@ -236,12 +230,16 @@ export function CompetitionSummaryCard({
         <p className={styles.cardDescription}>{description}</p>
         <dl className={styles.factGrid}>
           {facts.map((fact) => (
-            <div key={fact.label}>
+            <div className={fact.wide ? styles.factWide : undefined} key={fact.label}>
               <dt><span className={styles.factLabel}>{fact.label}</span></dt>
               <dd><span className={styles.factValue}>{fact.value}</span></dd>
             </div>
           ))}
         </dl>
+        {nextMatch ? <div className={styles.nextMatch}>
+          <span className={styles.nextLabel}>{nextMatch.label}</span>
+          {nextMatch.state === "scheduled" ? <><strong>{nextMatch.homeTeam} <span>VS</span> {nextMatch.awayTeam}</strong><p>{nextMatch.dateLabel} {nextMatch.timeLabel} · 北京时间</p><p>{nextMatch.venue}</p></> : <p>{nextMatch.summary}</p>}
+        </div> : null}
         <LinkButton className={styles.cardAction} href={competition.detailHref} tone={variant === "archive" ? "primary" : "secondary"}>
           {actionLabel} <span aria-hidden="true">→</span>
         </LinkButton>
@@ -250,9 +248,9 @@ export function CompetitionSummaryCard({
   );
 }
 
-function ServiceRouteLink({ item }: { item: ServiceItem }) {
+function ServiceRouteLink({ item, primary = false }: { item: ServiceItem; primary?: boolean }) {
   return (
-    <Link className={styles.serviceRouteLink} href={item.href}>
+    <Link className={`${styles.serviceRouteLink}${primary ? ` ${styles.primaryServiceRoute}` : ""}`} href={item.href}>
       <span>
         <strong>{item.label}</strong>
         <small>{item.description}</small>
@@ -311,14 +309,9 @@ function currentCompetitionCard(competition: PublicCompetitionView, index: numbe
     facts: [
       { label: "组队方式", value: competition.teamFormation },
       { label: "当前阶段", value: competition.stageLabel },
-      { label: "时间状态", value: competition.matchWindow },
-      { label: "下一安排", value: competition.nextMatch.state === "scheduled" ? `${competition.nextMatch.homeTeam} vs ${competition.nextMatch.awayTeam} · ${competition.nextMatch.dateLabel} ${competition.nextMatch.timeLabel} · ${competition.nextMatch.venue}` : competition.nextMatch.summary },
+      { label: "比赛日期", value: competition.matchWindow, wide: true },
     ],
-    secondaryStatus: {
-      context: "下一安排",
-      label: competition.nextMatch.label,
-      tone: "neutral" as const,
-    },
+    nextMatch: competition.nextMatch,
     status: {
       context: "赛事状态",
       label: competition.statusLabel,
@@ -331,7 +324,10 @@ function currentCompetitionCard(competition: PublicCompetitionView, index: numbe
 export function CompetitionHub({ competitions }: { competitions: readonly PublicCompetitionView[] }) {
   return (
     <main className={styles.page} id="main-content">
-      <CompetitionPageHeader competitions={competitions} />
+      <CompetitionPageHeader />
+      <nav className={styles.centerNav} aria-label="赛事中心公开导航"><ul className="detail-shell">
+        {[["/competitions", "赛事中心"], ["/competitions/arbitration", "仲裁与申诉"], ["/competitions/files", "赛事文件"], ["/competitions/schedule", "赛程赛果"], ["/competitions/standings", "积分榜"], ["/competitions/scorers", "射手记录"], ["/competitions/history", "历史赛事"]].map(([href, label]) => <li key={href}><Link href={href} aria-current={href === "/competitions" ? "page" : undefined}>{label}</Link></li>)}
+      </ul></nav>
 
       <section className={styles.currentSection} aria-labelledby="current-competitions-title">
         <div className="detail-shell">
@@ -356,9 +352,9 @@ export function CompetitionHub({ competitions }: { competitions: readonly Public
           <div className={styles.sectionHeading}>
             <div>
               <span className={styles.eyebrow}>SERVICE ROUTES</span>
-              <h2 id="competition-service-title">赛事服务航线</h2>
+              <h2 id="competition-service-title">比赛数据与赛事档案</h2>
             </div>
-            <p>先看比赛数据，再进入已完成赛季；历史、文件与仲裁服务按用途归组。</p>
+            <p>查看赛程、积分与射手记录；已完成赛季与历届赛事档案在最后集中展示。</p>
           </div>
           <CompetitionServiceNav archives={archiveCards} groups={serviceGroups} />
         </div>

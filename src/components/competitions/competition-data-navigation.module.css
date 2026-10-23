@@ -1,0 +1,35 @@
+.modules { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 245px), 1fr)); gap: 20px; min-width: 0; }
+.module { position: relative; min-width: 0; display: flex; flex-direction: column; gap: 16px; min-height: 260px; padding: 26px; overflow: hidden; border: 1px solid var(--color-border-subtle); border-top: 3px solid var(--color-brand-action); border-radius: 12px; background: var(--color-surface-raised); color: var(--color-text-strong); text-decoration: none; transition: border-color .18s, box-shadow .18s; }
+.module:visited { color: var(--color-text-strong); }
+.module:nth-child(even) { border-top-color: var(--color-brand-deep); }
+.moduleTop { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--color-text-muted); font-size: .8125rem; }
+.moduleNumber { margin-right: auto; color: var(--color-brand-action); font-size: 1.125rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+.moduleTop small { padding-left: 8px; border-left: 1px solid var(--color-border-subtle); font: inherit; }
+.module h3 { color: var(--color-text-strong); font-size: clamp(1.3rem, 2vw, 1.6rem); font-weight: 750; line-height: 1.45; overflow-wrap: anywhere; }
+.module p { color: var(--color-text-muted); font-size: .9375rem; line-height: 1.7; }
+.moduleFooter { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: auto; padding-top: 20px; border-top: 1px solid var(--color-border-subtle); }
+.moduleFooter > span { color: var(--color-text-muted); font-size: .8125rem; }
+.moduleFooter strong { display: flex; align-items: center; gap: 10px; color: var(--color-brand-action); font-size: .875rem; font-weight: 650; }
+.arrow { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--color-info-surface); font-size: 1.1rem; }
+.toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; margin-bottom: 24px; padding-bottom: 18px; border-bottom: 1px solid var(--color-border-subtle); }
+.toolbar h3 { color: var(--color-text-strong); font-size: 1rem; font-weight: 650; }
+.toolbar p { margin-top: 5px; color: var(--color-text-muted); font-size: .875rem; line-height: 1.6; }
+.season { display: inline-flex; align-items: center; flex: 0 0 auto; gap: 12px; color: var(--color-text-muted); font-size: .875rem; }
+.season select { min-width: 100px; min-height: 44px; padding: 8px 32px 8px 14px; border: 1px solid var(--color-border-subtle); border-radius: 6px; background: var(--color-surface-raised); color: var(--color-text-strong); font: inherit; font-weight: 650; cursor: pointer; }
+.season button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--color-border-subtle); border-radius: 6px; background: var(--color-surface-raised); color: var(--color-brand-action); font: inherit; cursor: pointer; }
+.back { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; margin-bottom: 16px; color: var(--color-brand-action); font-size: .9375rem; font-weight: 650; }
+.back:visited { color: var(--color-brand-action); }
+.detailHeading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+.detailHeading h3 { margin-top: 8px; color: var(--color-text-strong); font-size: clamp(1.4rem, 3vw, 2rem); font-weight: 750; line-height: 1.45; }
+.detailHeading p { color: var(--color-text-muted); font-size: .875rem; line-height: 1.6; }
+.detailHeading a { display: inline-flex; align-items: center; min-height: 44px; color: var(--color-brand-action); font-weight: 650; }
+.inlineFilters { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding: 18px 24px; border-bottom: 1px solid var(--color-border-subtle); background: var(--color-surface-subtle); }
+.inlineFilters label { display: flex; align-items: center; gap: 10px; color: var(--color-text-muted); font-size: .875rem; }
+.inlineFilters label > span { flex: 0 0 auto; white-space: nowrap; }
+.inlineFilters select { min-height: 44px; max-width: 240px; min-width: 130px; padding: 8px 28px 8px 10px; border: 1px solid var(--color-border-subtle); border-radius: 6px; background: var(--color-surface-raised); color: var(--color-text-strong); font: inherit; }
+.season select, .inlineFilters select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23647794' stroke-width='1.8'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; }
+.inlineFilters > p { margin-left: auto; color: var(--color-text-muted); font-size: .8125rem; }
+.modules a:focus-visible, .back:focus-visible, .season :is(select, button):focus-visible, .inlineFilters select:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
+@media (hover: hover) { .module:hover { border-color: var(--color-brand-action); box-shadow: 0 8px 24px #1020400d; } .back:hover { text-decoration: underline; text-underline-offset: 4px; } }
+@media (max-width: 600px) { .module { min-height: 235px; padding: 22px; } .modules { gap: 14px; } .toolbar { align-items: flex-start; } .season { margin-left: auto; } .inlineFilters { align-items: stretch; padding: 16px; gap: 12px; } .inlineFilters label { min-width: 0; flex: 1 1 180px; } .inlineFilters select { min-width: 0; width: 100%; max-width: none; } .inlineFilters > p { width: 100%; margin-left: 0; } }
+@media (prefers-reduced-motion: reduce) { .module { transition: none; } }

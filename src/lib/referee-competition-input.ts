@@ -1,6 +1,7 @@
 import type { CompetitionFormat, CompetitionStatus } from "@/generated/prisma-v29/client";
 import { parseBeijingDateTime } from "@/lib/beijing-datetime";
 import { RefereeApiInputError } from "@/lib/referee-api";
+import { normalizeCompetitionLines } from "@/lib/competition-presentation";
 import {
   isRecord,
   readBoolean,
@@ -53,6 +54,11 @@ function readOptionalText(value: unknown, label: string, maxLength: number) {
   return readShortText(value, label, maxLength, false) || null;
 }
 
+function readCompetitionLines(value: unknown, label: string, maxLength: number, required = false) {
+  const text = normalizeCompetitionLines(readShortText(value, label, maxLength, required));
+  return readShortText(text, label, maxLength, required);
+}
+
 function readRegistrationUrl(value: unknown) {
   const text = readOptionalText(value, "报名入口 URL", 500);
   if (!text) return null;
@@ -93,7 +99,7 @@ function readMutationInput(value: Record<string, unknown>): CompetitionMutationI
   return {
     name: readShortText(value.name, "赛事名称", 120),
     year: readYear(value.year),
-    campus: readShortText(value.campus, "校区", 60),
+    campus: readCompetitionLines(value.campus, "校区", 60, true),
     format: readEnum(value.format, ["ELEVEN_A_SIDE", "FUTSAL", "CUSTOM"] as const, "裁判岗位模板"),
     playingFormat: readShortText(value.playingFormat, "比赛制式", 40),
     status: readEnum(
@@ -113,9 +119,9 @@ function readMutationInput(value: Record<string, unknown>): CompetitionMutationI
     registrationEndAt,
     matchStartAt,
     matchEndAt,
-    venue: readOptionalText(value.venue, "比赛场地", 120),
-    host: readOptionalText(value.host, "主办单位", 240),
-    organizer: readOptionalText(value.organizer, "承办单位", 240),
+    venue: readCompetitionLines(value.venue, "比赛场地", 120) || null,
+    host: readCompetitionLines(value.host, "主办单位", 240) || null,
+    organizer: readCompetitionLines(value.organizer, "承办单位", 240) || null,
     summary: readOptionalText(value.summary, "赛事简介", 2000),
     notice: readOptionalText(value.notice, "赛事公告/说明", 4000),
     registrationUrl: readRegistrationUrl(value.registrationUrl),

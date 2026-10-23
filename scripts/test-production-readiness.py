@@ -95,7 +95,7 @@ class Readiness(unittest.TestCase):
   for _ in range(2):
    r=subprocess.run(['/bin/bash','-c',script],env=env,capture_output=True,text=True,timeout=60);self.assertEqual(r.returncode,0,r.stdout+r.stderr);A.migration_ready(ROOT,self.old,database,True)
   logs=list((self.root/'real-prisma').glob('activation.json.migration.*.log.*'));self.assertEqual(len(logs),2);self.assertTrue(all(p.stat().st_size>0 for p in logs))
-  with sqlite3.connect(database) as db:self.assertEqual(db.execute('select count(*) from _prisma_migrations').fetchone()[0],19)
+  with sqlite3.connect(database) as db:self.assertEqual(db.execute('select count(*) from _prisma_migrations').fetchone()[0],20)
 
  def test_installed_old_startup_contract_blocks_before_service_mutation(self):
   wrapper=self.root/'old-wrapper';wrapper.write_text("print('OLD-CONTRACT')");wrapper.chmod(0o755)

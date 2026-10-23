@@ -29,6 +29,27 @@ function finishBatch<T extends { id: string }>(rows: T[], filters: RefereeListFi
     ? Buffer.from(JSON.stringify({ at, distance: distance(last), id: last.id })).toString("base64url") : null };
 }
 
+// Keep upcoming fixtures first and chronological within each bucket. Retain
+// the original anchor throughout continuation; a time boundary cannot duplicate rows.
+function chronologicalBoundary(filters: RefereeListFilters, now: Date, future: boolean) {
+  const at = filters.cursor?.at ?? now.toISOString();
+  const anchor = new Date(at);
+  const last = filters.cursor?.bucket === (future ? "upcoming" : "overdue") ? filters.cursor : undefined;
+  return { at, skip: future && filters.cursor?.bucket === "overdue", anchor, last,
+    time: last ? new Date(Date.UTC(1900, 0, 1) + last.distance) : anchor };
+}
+
+function finishChronological<T extends { id: string }>(rows: T[], filters: RefereeListFilters, now: Date, kickoff: (row: T) => Date | null, size: number) {
+  const at = filters.cursor?.at ?? now.toISOString();
+  const anchor = Date.parse(at);
+  rows.sort((a, b) => Number(kickoff(a)!.getTime() < anchor) - Number(kickoff(b)!.getTime() < anchor)
+    || kickoff(a)!.getTime() - kickoff(b)!.getTime() || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const items = rows.slice(0, size), last = items.at(-1);
+  return { items, pageSize: size, nextCursor: rows.length > size && last
+    ? Buffer.from(JSON.stringify({ at, distance: kickoff(last)!.getTime() - Date.UTC(1900, 0, 1), id: last.id,
+      bucket: kickoff(last)!.getTime() >= anchor ? "upcoming" : "overdue" })).toString("base64url") : null };
+}
+
 export async function getPublicAppointmentPage(kind: "assignments" | "history", filters: RefereeListFilters, now = new Date()) {
   const base = kind === "history" ? publicHistoricalAppointmentWhere(now) : publicUpcomingAppointmentWhere();
   const where: Prisma.RefereeAppointmentWhereInput = { AND: [
@@ -39,25 +60,28 @@ export async function getPublicAppointmentPage(kind: "assignments" | "history", 
       { positions: { some: { referee: { name: { contains: filters.q } } } } },
     ] }] : []),
   ] };
+  const chronological = kind === "assignments" && (!filters.cursor || !!filters.cursor.bucket);
   return prisma.$transaction(async (tx) => {
     const total = await tx.refereeAppointment.count({ where });
     const size = filters.cursor ? refereeContinuationSize : refereeListPageSize;
     const sides = [];
     for (const future of [true, false]) {
-      const { anchor, time, last } = boundary(filters, now, future);
+      const position = chronological ? chronologicalBoundary(filters, now, future) : boundary(filters, now, future);
+      if ("skip" in position && position.skip) continue;
+      const { anchor, time, last } = position;
       const side: Prisma.RefereeAppointmentWhereInput = { AND: [where,
         { match: { kickoff: future ? { gte: anchor } : { lt: anchor } } },
         ...(last ? [{ OR: [
-          { match: { kickoff: future ? { gt: time } : { lt: time } } },
+          { match: { kickoff: chronological || future ? { gt: time } : { lt: time } } },
           { match: { kickoff: time }, id: { gt: last.id } },
         ] }] : []),
       ] };
       sides.push(...await tx.refereeAppointment.findMany({
         where: side, select: publicAppointmentSelect, take: size + 1,
-        orderBy: [{ match: { kickoff: future ? "asc" : "desc" } }, { id: "asc" }],
+        orderBy: [{ match: { kickoff: chronological || future ? "asc" : "desc" } }, { id: "asc" }],
       }));
     }
-    const batch = finishBatch(sides, filters, now, (item) => item.match.kickoff, size);
+    const batch = (chronological ? finishChronological : finishBatch)(sides, filters, now, (item) => item.match.kickoff, size);
     // Options come only from records eligible for this public page, never private drafts.
     const competitions = await tx.competition.findMany({
       where: { matches: { some: { appointment: { is: base } } } },
@@ -77,6 +101,7 @@ function publicOpenMatchWhere(now: Date): Prisma.MatchWhereInput {
 
 export async function getPublicOpenMatchPage(filters: RefereeListFilters, now = new Date()) {
   const base = publicOpenMatchWhere(now);
+  const chronological = !filters.cursor || !!filters.cursor.bucket;
   const where: Prisma.MatchWhereInput = { AND: [
     base, refereeMatchFilters(filters),
     ...(filters.q ? [{ OR: [{ homeTeam: { name: { contains: filters.q } } }, { awayTeam: { name: { contains: filters.q } } }] }] : []),
@@ -86,24 +111,26 @@ export async function getPublicOpenMatchPage(filters: RefereeListFilters, now = 
     const size = filters.cursor ? refereeContinuationSize : refereeListPageSize;
     const sides = [];
     for (const future of [true, false]) {
-      const { anchor, time, last } = boundary(filters, now, future);
+      const position = chronological ? chronologicalBoundary(filters, now, future) : boundary(filters, now, future);
+      if ("skip" in position && position.skip) continue;
+      const { anchor, time, last } = position;
       sides.push(...await tx.match.findMany({
         where: { AND: [where, { kickoff: future ? { gte: anchor } : { lt: anchor } },
           ...(last ? [{ OR: [
-            { kickoff: future ? { gt: time } : { lt: time } },
+            { kickoff: chronological || future ? { gt: time } : { lt: time } },
             { kickoff: time, id: { gt: last.id } },
           ] }] : []),
         ] },
         take: size + 1,
         select: {
-          id: true, slug: true, stage: true, kickoff: true, venue: true, applicationDeadline: true,
+          id: true, slug: true, stage: true, round: true, structureStage: { select: { name: true } }, structureGroup: { select: { name: true } }, structureRound: { select: { name: true } }, kickoff: true, venue: true, applicationDeadline: true,
           competition: { select: competitionSelect }, homeTeam: { select: { name: true } }, awayTeam: { select: { name: true } },
           positionRequirements: { select: { count: true } },
         },
-        orderBy: [{ kickoff: future ? "asc" : "desc" }, { id: "asc" }],
+        orderBy: [{ kickoff: chronological || future ? "asc" : "desc" }, { id: "asc" }],
       }));
     }
-    const batch = finishBatch(sides, filters, now, (item) => item.kickoff, size);
+    const batch = (chronological ? finishChronological : finishBatch)(sides, filters, now, (item) => item.kickoff, size);
     const competitions = await tx.competition.findMany({ where: { matches: { some: base } }, select: competitionSelect, orderBy: competitionOrder });
     return { total, ...batch, competitions };
   });

@@ -122,6 +122,8 @@ export type PublicCompetitionView = Omit<
   publicPublished: boolean;
   homepageFeatured: boolean;
   publicOrder: number;
+  /** Shared server snapshot time for stable upcoming/past presentation. */
+  asOf: number;
   teams: PublicCompetitionTeam[];
   matches: PublicCompetitionMatch[];
   standings?: Array<{ groupId: string; groupName: string; stageName: string; rows: Array<{ id: string; name: string; played: number; won: number; drawn: number; lost: number; goalsFor: number; goalsAgainst: number; goalDifference: number; points: number }>; hasResults: boolean; tied: boolean; rankingConfirmed: boolean; qualificationStale: boolean; qualifiedTeamIds: string[] }>;
@@ -154,6 +156,7 @@ export type PublicCompetitionMatch = {
   awayScore: number | null;
   appointment: null | {
     id: string;
+    status?: "PUBLISHED" | "COMPLETED";
     recordSource?: string;
     positions: Array<{ key: string; label: string; refereeName: string }>;
   };
@@ -191,6 +194,7 @@ export type PublicFileCategory =
   | "forms";
 
 export type PublicCompetitionFile = {
+  downloadHref?: string;
   id: string;
   title: string;
   category: PublicFileCategory;

@@ -39,7 +39,7 @@ export function RefereeListBrowser({ base, filters, info, history = false, openM
     </form>
     <section id="referee-results" className={styles.results} aria-label="比赛查询结果" tabIndex={-1}>
       <div className={styles.resultHeading}><p><strong>共 {info.total} 场</strong></p>
-        <p>{history ? "最近结束的比赛在前" : "离当前时间最近的比赛在前"} · 北京时间</p></div>
+        <p>{history ? "最近结束的比赛在前" : "即将进行的比赛优先，按开赛时间排列"} · 北京时间</p></div>
       {children}
       {info.nextCursor ? <noscript><a className={styles.rowLink} href={refereeListHref(base, filters, info.nextCursor)}>继续查看比赛 →</a></noscript> : null}
     </section>
