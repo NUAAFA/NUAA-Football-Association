@@ -6,7 +6,7 @@ import {
   publicDirectoryRefereeSelect,
 } from "@/lib/referee-dto";
 
-const publicAppointmentSelect = {
+export const publicAppointmentSelect = {
   id: true,
   recordSource: true,
   recordedAt: true,
@@ -20,7 +20,7 @@ const publicAppointmentSelect = {
       kickoff: true,
       venue: true,
       status: true,
-      competition: { select: { name: true } },
+      competition: { select: { id: true, name: true, format: true, playingFormat: true } },
       homeTeam: { select: { name: true } },
       awayTeam: { select: { name: true } },
     },
@@ -45,37 +45,45 @@ export async function getPublicRefereeDirectory() {
   });
 }
 
+export function publicUpcomingAppointmentWhere(): Prisma.RefereeAppointmentWhereInput {
+  return {
+    status: "PUBLISHED",
+    recordSource: "PRE_MATCH",
+    match: {
+      status: "SCHEDULED",
+      kickoff: { not: null }, venue: { not: null },
+      isTestData: false,
+      competition: { isTestData: false },
+    },
+  };
+}
+
 export async function getPublicUpcomingAppointments() {
   return prisma.refereeAppointment.findMany({
-    where: {
-      status: "PUBLISHED",
-      recordSource: "PRE_MATCH",
-      match: {
-        status: "SCHEDULED",
-        kickoff: { not: null }, venue: { not: null },
-        isTestData: false,
-        competition: { isTestData: false },
-      },
-    },
+    where: publicUpcomingAppointmentWhere(),
     select: publicAppointmentSelect,
     orderBy: { publishedAt: "desc" },
   });
 }
 
+export function publicHistoricalAppointmentWhere(now = new Date()): Prisma.RefereeAppointmentWhereInput {
+  return {
+    status: "COMPLETED",
+    ...publicAppointmentSourceWhere,
+    match: {
+      status: "COMPLETED",
+      kickoff: { lte: now },
+      homeScore: { not: null },
+      awayScore: { not: null },
+      isTestData: false,
+      competition: { isTestData: false },
+    },
+  };
+}
+
 export async function getPublicHistoricalAppointments(now = new Date()) {
   return prisma.refereeAppointment.findMany({
-    where: {
-      status: "COMPLETED",
-      ...publicAppointmentSourceWhere,
-      match: {
-        status: "COMPLETED",
-        kickoff: { lte: now },
-        homeScore: { not: null },
-        awayScore: { not: null },
-        isTestData: false,
-        competition: { isTestData: false },
-      },
-    },
+    where: publicHistoricalAppointmentWhere(now),
     select: publicAppointmentSelect,
     orderBy: { match: { kickoff: "desc" } },
   });

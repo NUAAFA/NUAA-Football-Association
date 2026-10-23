@@ -13,6 +13,7 @@ type RefereeOpenMatchesShellProps = {
   member: { name: string; publicCode: string } | null;
   title: string;
   workspaceDescription?: string;
+  compact?: boolean;
 };
 
 export function RefereeOpenMatchesShell({
@@ -22,8 +23,9 @@ export function RefereeOpenMatchesShell({
   member,
   title,
   workspaceDescription,
+  compact = false,
 }: RefereeOpenMatchesShellProps) {
-  if (!member) return <RefereePage current="/referees/open-matches" description={description} eyebrow={eyebrow} title={title}>{children}</RefereePage>;
+  if (!member) return <RefereePage compact={compact} current="/referees/open-matches" description={description} eyebrow={eyebrow} title={title}>{children}</RefereePage>;
   return <>
     <SiteHeader />
     <main className="functional-page" id="main-content">

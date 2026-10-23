@@ -133,3 +133,27 @@
   .facts, .positions { grid-template-columns: minmax(0, 1fr); }
   .formPanel { padding: var(--spacing-4); }
 }
+
+/* Compact only the three browsable match lists, keeping their first batch in view. */
+.compactPage .header { padding-block: 14px; }
+.compactPage .eyebrow { font-size: 11px; }
+.compactPage .header h1 { margin-block: 4px; font-size: clamp(24px, 2.4vw, 32px); }
+.compactPage .lead { max-width: none; font-size: 13px; }
+.compactPage .nav ul { padding-block: 0; }
+.compactPage .nav a { min-height: 40px; }
+.compactPage .content { padding-block: 16px 32px; gap: 16px; }
+
+@media (min-width: 1024px) {
+  .compactPage .header { padding-block: 10px; }
+  .compactPage .header > .shell { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 20px; }
+  .compactPage .eyebrow { display: none; }
+  .compactPage .header h1 { margin: 0; font-size: 26px; }
+  .compactPage .lead { font-size: 12px; }
+}
+
+@media (max-width: 767px) {
+  .compactPage .header { padding-block: 10px; }
+  .compactPage .eyebrow { display: none; }
+  .compactPage .header h1 { margin-block: 0 4px; font-size: 24px; }
+  .compactPage .lead { font-size: 12px; line-height: 1.6; }
+}
