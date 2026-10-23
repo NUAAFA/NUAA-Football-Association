@@ -20,6 +20,7 @@ type ContentPostFormValue = {
   coverMediaId: string;
   pinned: boolean;
   featured: boolean;
+  competitionId?: string;
   attachments?: Array<{ mediaAssetId: string; displayName?: string | null; filename: string; visibility: string; mimeType?: string }>;
   discipline: {
     competitionId: string;
@@ -38,7 +39,7 @@ export function ContentPostForm({
   initialValue: ContentPostFormValue;
   imageMedia: Array<{ id: string; originalFilename: string }>;
   pdfMedia: Array<{ id: string; originalFilename: string }>;
-  competitions: Array<{ id: string; name: string }>;
+  competitions: Array<{ id: string; name: string; isTestData?: boolean }>;
 }) {
   const router = useRouter();
   const [type, setType] = useState<ContentType>(initialValue.type);
@@ -78,6 +79,7 @@ export function ContentPostForm({
             coverMediaId: coverId,
             pinned: form.get("pinned") === "on",
             featured: form.get("featured") === "on",
+            competitionId: form.get("reportCompetitionId"),
             status,
             discipline: type === "DISCIPLINE" ? {
               competitionId: form.get("competitionId"),
@@ -111,6 +113,7 @@ export function ContentPostForm({
           <label className="admin-form-span-2"><span>标题</span><input defaultValue={initialValue.title} maxLength={160} name="title" required /></label>
           <label className="admin-form-span-2"><span>摘要</span><textarea defaultValue={initialValue.summary} maxLength={500} name="summary" required rows={4} /></label>
           <label><span>来源 / 发布部门</span><input defaultValue={initialValue.source} maxLength={120} name="source" /></label>
+          <label><span>报道所属赛事</span><select defaultValue={initialValue.competitionId ?? ""} name="reportCompetitionId"><option value="">不关联赛事</option>{competitions.filter((competition) => !competition.isTestData).map((competition) => <option key={competition.id} value={competition.id}>{competition.name}</option>)}</select><small>新闻、公告发布后，会自动显示在所选赛事详情的“赛事报道”中；保存草稿不会公开。</small></label>
           <label><span>封面图片（需公开文件）</span><select value={coverId} onChange={(e) => setCoverId(e.target.value)} name="coverMediaId"><option value="">暂不设置</option>{[...imageMedia, ...(pickedCover && !imageMedia.some((a) => a.id === pickedCover.id) ? [pickedCover] : [])].map((asset) => <option key={asset.id} value={asset.id}>{asset.originalFilename}</option>)}</select></label>
         </div><MediaPicker mode="images" onBusy={setUploadBusy} onSelect={(a) => { setCoverId(a.id); setPickedCover(a); setDirty(true); }} />
       </section>

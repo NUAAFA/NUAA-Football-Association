@@ -38,6 +38,7 @@ export type ContentPostInput = {
   coverMediaId?: string | null;
   pinned?: boolean;
   featured?: boolean;
+  competitionId?: string | null;
   discipline?: DisciplineInput | null;
   attachments?: Array<{ mediaAssetId: string; displayName?: string | null }>;
 };
@@ -228,9 +229,17 @@ export function readContentPostInput(value: unknown): ContentPostInput {
     coverMediaId: readText(value.coverMediaId, "封面媒体", 64, false),
     pinned: value.pinned === true,
     featured: value.featured === true,
+    competitionId: readReportCompetitionId(value.competitionId),
     discipline: readDiscipline(value.discipline),
     attachments: readAttachments(value.attachments),
   };
+}
+
+// Omission keeps older clients from silently clearing an existing association.
+export function readReportCompetitionId(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  return readText(value, "报道所属赛事", 64)!;
 }
 
 export function createEmptyStructuredContent(text = ""): StructuredContent {

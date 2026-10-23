@@ -5,9 +5,10 @@ BASE = '704bf0af9e9b7f538cfbf6d3a76ec5f4148190e8'
 root = Path(tempfile.mkdtemp(prefix='nuaafa-v210x-migration-'))
 oldfile = root/'old.db'; db = sqlite3.connect(oldfile)
 paths = sorted(Path('prisma/migrations').glob('*/migration.sql'))
-assert len(paths) == 18
+assert len(paths) == 19
+assert paths[-1].parent.name == "20261023090000_competition_reports"
 ledger = []
-for p in paths[:-1]:
+for p in paths[:17]:
     original = subprocess.check_output(['git','show',f'{BASE}:{p.as_posix()}'])
     assert p.read_bytes() == original, f'Historical migration modified: {p}'
     db.executescript(p.read_text()); ledger.append((str(uuid.uuid4()), hashlib.sha256(original).hexdigest(), '2026-10-01T00:00:00Z', p.parent.name, '2026-10-01T00:00:00Z',1))
@@ -51,7 +52,7 @@ assert upgraded.execute('select gradeMode,grade from Referee').fetchone()==('UNV
 assert upgraded.execute('select recordSource,publishedAt from RefereeAppointment').fetchone()==('PRE_MATCH','2026-09-30T02:00:00Z')
 assert upgraded.execute('pragma integrity_check').fetchone()[0]=='ok'
 assert not upgraded.execute('pragma foreign_key_check').fetchall()
-assert upgraded.execute('select count(*) from _prisma_migrations').fetchone()[0]==18
+assert upgraded.execute('select count(*) from _prisma_migrations').fetchone()[0]==19
 repeat=snapshot(upgraded);migrate(clone);assert snapshot(upgraded)==repeat
 plan=upgraded.execute('EXPLAIN QUERY PLAN SELECT id FROM "Match" WHERE competitionId=? AND stageId=? AND roundId=? ORDER BY kickoff,id',('comp','stage','round')).fetchall()
 assert any('Match_structure_navigation_idx' in row[-1] for row in plan)
@@ -76,9 +77,9 @@ for table in tables:
 assert failed_prisma.execute('select count(*) from _prisma_migrations where finished_at is null').fetchone()[0]==1
 # Preserve the failed candidate and recover to a fresh path from the pre-change clone.
 recovered=root/'prisma-recovered.db';assert not recovered.exists();shutil.copy2(oldfile,recovered);migrate(recovered)
-assert sqlite3.connect(recovered).execute('select count(*) from _prisma_migrations where finished_at is not null').fetchone()[0]==18
+assert sqlite3.connect(recovered).execute('select count(*) from _prisma_migrations where finished_at is not null').fetchone()[0]==19
 # Recover to a new sibling; never overwrite an existing path or discard candidate history.
 restored=root/'restored.db';assert not restored.exists();shutil.copy2(oldfile,restored)
 assert snapshot(sqlite3.connect(restored))==before
 assert hashlib.sha256(oldfile.read_bytes()).hexdigest()==oldhash
-print(json.dumps({'status':'PASS','historical_migrations_unchanged':17,'candidate_migrations':18,'baseline_tables_preserved':len(tables),'old_cells_and_admin_credentials':'EXACT_EQUAL','repeat_deploy':'PASS','failure_atomicity':'PASS','real_prisma_failure_and_clone_recovery':'PASS','isolated_restore':'PASS','integrity_and_foreign_keys':'PASS','navigation_index_plan':[row[-1] for row in plan]},ensure_ascii=False,indent=2))
+print(json.dumps({'status':'PASS','historical_migrations_unchanged':17,'candidate_migrations':19,'baseline_tables_preserved':len(tables),'old_cells_and_admin_credentials':'EXACT_EQUAL','repeat_deploy':'PASS','failure_atomicity':'PASS','real_prisma_failure_and_clone_recovery':'PASS','isolated_restore':'PASS','integrity_and_foreign_keys':'PASS','navigation_index_plan':[row[-1] for row in plan]},ensure_ascii=False,indent=2))

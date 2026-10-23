@@ -1,7 +1,7 @@
 name: V2.10.x isolated admin validation
 on:
   push:
-    branches: [codex/v2.10x-admin-optimization, codex/security-remediation-20261022]
+    branches: [main, codex/v2.10x-admin-optimization, codex/security-remediation-20261022]
   pull_request:
     branches: [main, integration/v2.10-ui-release]
 permissions:
@@ -37,6 +37,10 @@ jobs:
           printf 'DATABASE_URL=file:%s/v210x-build.db\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
           touch "$RUNNER_TEMP/v210x-build.db"
           npm ci --no-audit --no-fund
+      - name: Competition reports, image privacy and exact migration policy
+        run: |
+          npx tsx scripts/test-competition-reports.ts
+          python3 scripts/test-competition-report-migration-policy.py
       - name: Generate, migrate and build
         run: |
           npx prisma validate
@@ -103,7 +107,7 @@ jobs:
       run:
         shell: bash
     name: Trusted Linux candidate archive and deployment safety
-    if: github.repository == 'NUAAFA/NUAA-Football-Association' && (github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/codex/security-remediation-20261022'))
+    if: github.repository == 'NUAAFA/NUAA-Football-Association' && (github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/codex/security-remediation-20261022' || github.ref == 'refs/heads/main')))
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     env:

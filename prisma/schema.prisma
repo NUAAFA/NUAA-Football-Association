@@ -184,6 +184,7 @@ model Competition {
   teamDirectorySettings TeamDirectorySettings?
   matches               Match[]
   disciplineDetails     DisciplineDetail[]
+  reports               ContentPost[]
 
   @@unique([source, externalCompetitionId])
   @@index([publicPublished, homepageFeatured, publicOrder])
@@ -687,11 +688,14 @@ model ContentPost {
   coverMedia    MediaAsset?         @relation("ContentPostCover", fields: [coverMediaId], references: [id], onDelete: Restrict)
   authorAdmin   AdminAccount?       @relation(fields: [authorAdminId], references: [id], onDelete: SetNull)
   discipline    DisciplineDetail?
+  competitionId String?
+  competition   Competition? @relation(fields: [competitionId], references: [id], onDelete: SetNull)
 
   @@index([status, type, publishedAt])
   @@index([status, pinned, publishedAt])
   @@index([authorAdminId])
   @@index([coverMediaId])
+  @@index([competitionId, status, publishedAt])
 }
 
 model DisciplineDetail {

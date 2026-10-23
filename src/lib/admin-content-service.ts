@@ -4,7 +4,7 @@ import type {
   Prisma,
 } from "@/generated/prisma-v29/client";
 import type { ContentPostInput, DisciplineInput } from "@/lib/admin-content-input";
-import { getStructuredContentMediaIds, validateStructuredContent } from "@/lib/admin-content-input";
+import { getStructuredContentMediaIds, readReportCompetitionId, validateStructuredContent } from "@/lib/admin-content-input";
 import { resolveMediaAssetFile } from "@/lib/admin-media-service";
 import { readAttachments } from "@/lib/admin-content-input";
 import { UnifiedAdminInputError } from "@/lib/unified-admin-api";
@@ -40,6 +40,8 @@ const adminContentPostSelect = {
   publishedAt: true,
   pinned: true,
   featured: true,
+  competitionId: true,
+  competition: { select: { id: true, name: true, isTestData: true } },
   createdAt: true,
   updatedAt: true,
   attachments: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }], select: { mediaAssetId: true, displayName: true, mediaAsset: { select: { id: true, originalFilename: true, mimeType: true, size: true, visibility: true } } } },
@@ -81,8 +83,17 @@ function normalizeInput(input: ContentPostInput) {
     coverMediaId: input.coverMediaId?.trim() || null,
     pinned: Boolean(input.pinned),
     featured: Boolean(input.featured),
+    competitionId: readReportCompetitionId(input.competitionId),
     discipline: input.type === "DISCIPLINE" ? input.discipline ?? {} : null,
   };
+}
+
+async function assertReportCompetition(tx: Prisma.TransactionClient, competitionId: string | null | undefined) {
+  if (!competitionId) return;
+  const competition = await tx.competition.findFirst({
+    where: { id: competitionId, isTestData: false }, select: { id: true },
+  });
+  if (!competition) throw new UnifiedAdminInputError("报道所属赛事不存在或不可关联。", 409);
 }
 
 async function assertPublishableMedia(
@@ -160,12 +171,14 @@ export async function createContentPost(input: ContentPostInput, actor: UnifiedA
   const data = normalizeInput(input);
   try {
     return await prisma.$transaction(async (tx) => {
+      await assertReportCompetition(tx, data.competitionId);
       await assertPublishableMedia(tx, data);
       await assertAttachmentFiles(tx, data, actor);
       const post = await tx.contentPost.create({
         data: {
           attachments: data.attachments ? { create: data.attachments.map((a, sortOrder) => ({ ...a, sortOrder, createdByAdminId: actor.id })) } : undefined,
           type: data.type,
+          competitionId: data.competitionId,
           slug: data.slug,
           title: data.title,
           summary: data.summary,
@@ -189,7 +202,7 @@ export async function createContentPost(input: ContentPostInput, actor: UnifiedA
           entityType: "ContentPost",
           entityId: post.id,
           summary: `${actor.displayName}创建了${contentPostTypeLabels[post.type]}《${post.title}》`,
-          metadata: JSON.stringify({ status: post.status, slug: post.slug }),
+          metadata: JSON.stringify({ status: post.status, slug: post.slug, competitionId: post.competitionId }),
         },
       });
       return post;
@@ -210,9 +223,10 @@ export async function updateContentPost(
     return await prisma.$transaction(async (tx) => {
       const current = await tx.contentPost.findUnique({
         where: { id },
-        select: { id: true, status: true, publishedAt: true, type: true, slug: true, attachments: { select: { mediaAssetId: true, displayName: true } } },
+        select: { id: true, status: true, publishedAt: true, type: true, slug: true, competitionId: true, attachments: { select: { mediaAssetId: true, displayName: true } } },
       });
       if (!current) throw new UnifiedAdminInputError("内容不存在或已被移除。", 404);
+      await assertReportCompetition(tx, data.competitionId);
       if (current.publishedAt && data.slug !== current.slug) throw new UnifiedAdminInputError("已发布内容的固定网址不可修改。", 409);
       await assertPublishableMedia(tx, data);
       await assertAttachmentFiles(tx, { ...data, attachments: data.attachments ?? current.attachments }, actor);
@@ -224,6 +238,7 @@ export async function updateContentPost(
         data: {
           attachments: data.attachments ? { deleteMany: {}, create: data.attachments.map((a, sortOrder) => ({ ...a, sortOrder, createdByAdminId: actor.id })) } : undefined,
           type: data.type,
+          competitionId: data.competitionId,
           slug: data.slug,
           title: data.title,
           summary: data.summary,
@@ -250,7 +265,7 @@ export async function updateContentPost(
           entityType: "ContentPost",
           entityId: post.id,
           summary: `${actor.displayName}更新了${contentPostTypeLabels[post.type]}《${post.title}》`,
-          metadata: JSON.stringify({ fromStatus: current.status, toStatus: post.status, slug: post.slug }),
+          metadata: JSON.stringify({ fromStatus: current.status, toStatus: post.status, slug: post.slug, fromCompetitionId: current.competitionId, competitionId: post.competitionId }),
         },
       });
       return post;

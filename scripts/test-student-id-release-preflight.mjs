@@ -28,7 +28,8 @@ async function main() {
   try {
     const migrations = (await readdir("prisma/migrations", { withFileTypes: true }))
       .filter((entry) => entry.isDirectory()).sort((a, b) => a.name.localeCompare(b.name));
-    assert.equal(migrations.length, 18);
+    assert.equal(migrations.length, 19);
+    assert.equal(migrations.at(-1).name, "20261023090000_competition_reports");
     for (const entry of migrations) db.exec(await readFile(path.join("prisma/migrations", entry.name, "migration.sql"), "utf8"));
     const insert = db.prepare('INSERT INTO "Referee" (id, publicCode, name, status, studentId, updatedAt) VALUES (?, ?, ?, ?, ?, ?)');
     const fixtures = [
@@ -86,7 +87,7 @@ async function main() {
     const walBefore = await readFile(`${databasePath}-wal`);
     assert.equal(run().report.activeMissingStudentId, 3);
     assert.deepEqual(await readFile(`${databasePath}-wal`), walBefore);
-    console.log("PASS: 17-migration fixtures; corrected semantics parity; no database/WAL changes; read-only write rejection; count-only output; blockers, missing/schema/type/path/bound/timeout failures block release.");
+    console.log("PASS: 19-migration fixtures; corrected semantics parity; no database/WAL changes; read-only write rejection; count-only output; blockers, missing/schema/type/path/bound/timeout failures block release.");
   } finally {
     await prisma.$disconnect();
     db.close();

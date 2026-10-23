@@ -9,6 +9,10 @@ import { publicSectionContacts } from "@/data/contacts";
 import { mediaCollections } from "@/data/media-collections";
 import { bilibiliPlatform } from "@/data/platforms";
 import { isDatabaseContentSource } from "@/lib/content-source";
+import { getPublicCompetitionAlbums } from "@/lib/competition-report-service";
+import { CompetitionImageGallery } from "@/components/competitions/competition-media";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/media" },
@@ -21,7 +25,8 @@ export const metadata: Metadata = {
   },
 };
 
-export default function MediaPage() {
+export default async function MediaPage() {
+  const albums = await getPublicCompetitionAlbums();
   const showReports = !isDatabaseContentSource();
   const contact = publicSectionContacts.media;
 
@@ -38,12 +43,18 @@ export default function MediaPage() {
         </header>
         <nav className={styles.navigation} aria-label="影像资料页内导航">
           <ul className={styles.shell}>
+            {albums.map((album) => <li key={album.id}><a href={`#competition-${album.id}`}>{album.name}</a></li>)}
             <li><a href="#womens-cup-2026">女子院际杯</a></li>
             <li><a href="#mens-cup-2026">男子院际杯</a></li>
             <li><a href="#douyin">官方影像平台</a></li>
           </ul>
         </nav>
         <div className={`${styles.shell} ${styles.collections}`}>
+          {albums.map((album) => <section className={styles.collection} id={`competition-${album.id}`} key={album.id} aria-labelledby={`album-${album.id}-title`}>
+            <header className={styles.collectionHeading}><h2 id={`album-${album.id}-title`}>{album.name}</h2><p>{album.campus} · 已发布报道照片</p></header>
+            <CompetitionImageGallery images={album.images} />
+            <div className={styles.collectionLinks}><a className={styles.archiveLink} href={`/competitions/${album.slug}#media`}>查看本届赛事影像 →</a></div>
+          </section>)}
           {mediaCollections.map((collection) => (
             <MediaCollection key={collection.id} collection={collection} showReport={showReports} />
           ))}

@@ -1,6 +1,8 @@
 import { PublicSchedule } from "@/components/competitions/public-schedule";
 import { PublicStandings } from "@/components/competitions/public-standings";
 import Link from "next/link";
+import { CompetitionReports } from "@/components/competitions/competition-reports";
+import { CompetitionMedia } from "@/components/competitions/competition-media";
 
 import { CompetitionArchiveLayout } from "@/components/competitions/archive/competition-archive-layout";
 import { ShareActions } from "@/components/share/share-actions";
@@ -179,19 +181,21 @@ export function CoreCompetitionPreviewPage({
             <p>REPORTS</p>
             <h2 id={`${competition.id}-reports-title`}>赛事报道</h2>
           </div>
-          <p>暂无赛事报道</p>
+          <CompetitionReports competitionId={competition.id} />
           <Link href="/news">进入新闻公告 →</Link>
         </div>
       </section>
 
       <section className="cup-archive-section cup-archive-section-tint" id="media" aria-labelledby={`${competition.id}-media-title`}>
-        <div className="page-shell core-competition-pending">
-          <div>
-            <p>MEDIA</p>
-            <h2 id={`${competition.id}-media-title`}>赛事影像</h2>
+        <div className="page-shell">
+          <div className="core-competition-section-intro">
+            <div>
+              <p>MEDIA</p>
+              <h2 id={`${competition.id}-media-title`}>赛事影像</h2>
+            </div>
           </div>
-          <p>赛事照片和视频将在影像资料页面陆续发布。</p>
-          <Link href="/media">进入影像资料 →</Link>
+          <CompetitionMedia competitionId={competition.id} />
+          <Link className="text-link core-competition-section-link" href="/media">进入影像资料 →</Link>
         </div>
       </section>
 
