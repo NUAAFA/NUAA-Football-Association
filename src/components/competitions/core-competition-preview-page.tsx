@@ -188,12 +188,14 @@ export function CoreCompetitionPreviewPage({
 
       <section className="cup-archive-section cup-archive-section-tint" id="media" aria-labelledby={`${competition.id}-media-title`}>
         <div className="page-shell">
-          <div>
-            <p>MEDIA</p>
-            <h2 id={`${competition.id}-media-title`}>赛事影像</h2>
+          <div className="core-competition-section-intro">
+            <div>
+              <p>MEDIA</p>
+              <h2 id={`${competition.id}-media-title`}>赛事影像</h2>
+            </div>
           </div>
           <CompetitionMedia competitionId={competition.id} />
-          <Link href="/media">进入影像资料 →</Link>
+          <Link className="text-link core-competition-section-link" href="/media">进入影像资料 →</Link>
         </div>
       </section>
 
