@@ -5,7 +5,7 @@ import formal from "@/components/competitions/formal-services.module.css";
 import { CompetitionFileCenter } from "@/components/competitions/competition-file-center";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
-import { publicCompetitionFiles } from "@/data/competition-center";
+import { getPublicCompetitionFiles } from "@/lib/resource-library";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/competitions/files" },
@@ -13,7 +13,10 @@ export const metadata: Metadata = {
   description: "面向赛事组织、参赛球队和公众的竞赛规则、秩序册与纪律决定下载。",
 };
 
-export default function CompetitionFilesPage() {
+export const dynamic = "force-dynamic";
+
+export default async function CompetitionFilesPage() {
+  const publicCompetitionFiles = await getPublicCompetitionFiles();
   return (
     <>
       <SiteHeader />

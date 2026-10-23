@@ -85,15 +85,19 @@ async function main() {
       assert.deepEqual(new Set(first.competitions.map((c) => c.id)), new Set(["five", "cup", "women"]));
       const seen = new Set<string>();
       let after: string | null = null;
-      let previousDistance = -1;
+      let previousDistance = -Infinity;
+      let previousBucket = 0;
       do {
         const result = await query(after ? { after } : {});
         assert(result.items.length <= (after ? 12 : 3));
         for (const item of result.items) {
           assert(!seen.has(item.id)); seen.add(item.id);
           const kickoff = "match" in item ? item.match.kickoff : item.kickoff;
-          const distance = Math.abs(kickoff!.getTime() - now.getTime());
-          assert(distance >= previousDistance); previousDistance = distance;
+          const distance = kind === "history" ? Math.abs(kickoff!.getTime() - now.getTime()) : kickoff!.getTime();
+          const bucket = kind !== "history" && kickoff!.getTime() < now.getTime() ? 1 : 0;
+          assert(bucket >= previousBucket);
+          if (bucket !== previousBucket) previousDistance = -Infinity;
+          assert(distance >= previousDistance); previousDistance = distance; previousBucket = bucket;
         }
         assert(!JSON.stringify(result).includes("PRIVATE-REFEREE-NOTE"));
         assert(!JSON.stringify(result).includes("PRIVATE-PHONE"));
@@ -106,7 +110,7 @@ async function main() {
       const fixed = await query({ after: first.nextCursor! });
       assert.deepEqual(shifted.items.map((item) => item.id), fixed.items.map((item) => item.id), "Scroll ranking must keep its original time anchor");
       if (kind === "open") assert.deepEqual(first.items.map((item) => item.id), ["open-0-00", "open-1-00", "open-2-00"]);
-      if (kind === "assignments") assert.deepEqual(first.items.map((item) => item.id), ["a-overdue", "a-open-0-00", "a-open-1-00"]);
+      if (kind === "assignments") assert.deepEqual(first.items.map((item) => item.id), ["a-open-0-00", "a-open-1-00", "a-open-2-00"]);
       assert.equal((await query({ after: "invalid-cursor" })).total, 0);
       assert.equal((await query({ competition: "private" })).total, 0);
       assert.equal((await query({ competition: "five", format: "ELEVEN_A_SIDE" })).total, 0);
@@ -117,7 +121,7 @@ async function main() {
         const parsed = filters(invalid); assert(parsed.error);
         assert.equal((await query(invalid)).total, 0);
       }
-      console.log(`PASS ${kind}: three-item initial response and bounded continuation without a display cap, global nearest-time order, mixed competitions, no duplicates, competition/format/team/referee filters, invalid input, hidden publication states and private competition options.`);
+      console.log(`PASS ${kind}: three-item initial response and bounded continuation without a display cap, chronological upcoming lists and nearest-time history, mixed competitions, no duplicates, competition/format/team/referee filters, invalid input, hidden publication states and private competition options.`);
     }
     const beijingDay = new Date(date.getTime() + 8 * 3_600_000).toISOString().slice(0, 10);
     assert.equal((await open(filters({ from: beijingDay, to: beijingDay }), now)).total, 6);
@@ -126,7 +130,8 @@ async function main() {
     const earlyHistory = new Date(at(-30).getTime() + 8 * 3_600_000).toISOString().slice(0, 10);
     assert.equal((await appointments("history", filters({ competition: "five", from: earlyHistory, to: earlyHistory }), now)).items.length, 2);
     const sorted = await appointments("assignments", filters({ competition: "five" }), now);
-    assert.equal(sorted.items[0].id, "a-overdue", "Uncompleted scheduled matches remain public even after kickoff");
+    assert.equal(sorted.items[0].id, "a-open-0-00", "Upcoming matches precede uncompleted overdue records");
+    assert.equal((await appointments("assignments", filters({ q: "" }), now)).total, 53);
     for (let i = 1; i < sorted.items.length; i += 1) assert(sorted.items[i - 1].match.kickoff! <= sorted.items[i].match.kickoff!);
     const history = await appointments("history", filters({ competition: "five" }), now);
     assert.equal(history.items[0].recordSource, "POST_MATCH_ENTRY");

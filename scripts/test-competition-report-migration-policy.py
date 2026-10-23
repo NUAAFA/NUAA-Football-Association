@@ -20,6 +20,9 @@ class CompetitionMigrationPolicy(unittest.TestCase):
             new, old = parent / 'candidate', parent / 'previous'
             for target in (new, old):
                 shutil.copytree(ROOT / 'prisma', target / 'prisma', ignore=shutil.ignore_patterns('*.db*'))
+            for target in (new, old):
+                shutil.rmtree(target / 'prisma/migrations' / next(iter(A.RESOURCE_DOCUMENT_MIGRATION)))
+            (new / 'prisma/schema.prisma').write_bytes(subprocess.check_output(['git', '-C', str(ROOT), 'show', '845b8215ef056289f4e545151bc291925cc331ec:prisma/schema.prisma']))
             name = next(iter(A.COMPETITION_REPORT_MIGRATION))
             shutil.rmtree(old / 'prisma/migrations' / name)
             (old / 'prisma/schema.prisma').write_bytes(subprocess.check_output(['git', '-C', str(ROOT), 'show', '5c86ad7c042efcac0256f20caa8644999ae37f34:prisma/schema.prisma']))

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { normalizeCompetitionLines } from "@/lib/competition-presentation";
 
 import {
   competitionFormatLabels,
@@ -127,7 +128,7 @@ export function AdminCompetitionForm({ competition }: { competition?: AdminCompe
         <p className="admin-competition-slug-help">用于生成赛事固定网址，仅支持小写英文字母、数字和连字符；创建后不建议修改。</p>
         <label><span>赛事简称</span><input defaultValue={competition?.shortName} maxLength={60} name="shortName" placeholder="例如：新生杯" /></label>
         <label><span>赛季年份</span><input defaultValue={competition?.year ?? ""} max={2200} min={1900} name="year" placeholder="2026" type="number" /></label>
-        <label><span>校区</span><input defaultValue={competition?.campus ?? "天目湖校区"} maxLength={60} name="campus" required /></label>
+        <label><span>校区</span><textarea defaultValue={normalizeCompetitionLines(competition?.campus ?? "天目湖校区")} maxLength={60} name="campus" required rows={2} placeholder={"天目湖校区\n将军路校区"} /><small>每行填写一个校区，官网按行展示。</small></label>
         <label><span>比赛制式</span><input defaultValue={competition?.playingFormat ?? ""} list="competition-playing-formats" maxLength={40} name="playingFormat" placeholder="例如：七人制" required /><datalist id="competition-playing-formats"><option value="十一人制" /><option value="五人制" /><option value="六人制" /><option value="七人制" /><option value="八人制" /><option value="九人制" /></datalist><small>用于官网展示，可输入未来其他有效制式。</small></label>
         <label><span>裁判岗位模板</span><select defaultValue={competition?.format ?? "ELEVEN_A_SIDE"} name="format">{Object.entries(competitionFormatLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><small>仅控制裁判岗位与能力校验，不会改变官网比赛制式。</small></label>
         <label><span>赛事状态</span><select defaultValue={competition?.status ?? "PREPARING"} name="status">{Object.entries(competitionStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
@@ -188,15 +189,15 @@ export function AdminCompetitionForm({ competition }: { competition?: AdminCompe
       <div className="admin-form-grid">
         <label><span>比赛开始时间 · 北京时间（UTC+8）</span><input defaultValue={competition?.matchStartAt} name="matchStartAt" type="datetime-local" /></label>
         <label><span>比赛结束时间 · 北京时间（UTC+8）</span><input defaultValue={competition?.matchEndAt} name="matchEndAt" type="datetime-local" /></label>
-        <label className="admin-form-span-2"><span>比赛场地</span><input defaultValue={competition?.venue} maxLength={120} name="venue" /></label>
+        <label className="admin-form-span-2"><span>比赛场地</span><textarea defaultValue={normalizeCompetitionLines(competition?.venue ?? "")} maxLength={120} name="venue" rows={3} placeholder={"天目湖校区西操场（东操场备用）\n将军路校区西操场（慧园足球场、东操场备用）"} /><small>每行填写一个校区的场地及备用场地，官网按行展示。</small></label>
       </div>
     </section>
 
     <section className="admin-form-section">
       <header><h2>赛事公开资料</h2><p>这些内容仅在赛事明确公开发布后向公众展示。</p></header>
       <div className="admin-form-grid">
-        <label><span>主办单位</span><input defaultValue={competition?.host} maxLength={240} name="host" /></label>
-        <label><span>承办单位</span><input defaultValue={competition?.organizer} maxLength={240} name="organizer" /></label>
+        <label><span>主办单位</span><textarea defaultValue={normalizeCompetitionLines(competition?.host ?? "")} maxLength={240} name="host" rows={3} /><small>每行填写一个单位，官网按行展示。</small></label>
+        <label><span>承办单位</span><textarea defaultValue={normalizeCompetitionLines(competition?.organizer ?? "")} maxLength={240} name="organizer" rows={3} placeholder={"南京航空航天大学天目湖学生足球协会\n南京航空航天大学将军路学生足球协会"} /><small>每行填写一个单位，官网按行展示。</small></label>
         <label className="admin-form-span-2"><span>赛事简介</span><textarea defaultValue={competition?.summary} maxLength={2000} name="summary" rows={5} /></label>
         <label className="admin-form-span-2"><span>赛事公告/说明</span><textarea defaultValue={competition?.notice} maxLength={4000} name="notice" rows={6} /></label>
       </div>

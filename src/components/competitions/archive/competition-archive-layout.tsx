@@ -19,7 +19,7 @@ export const competitionArchiveNavigation = [
 ] as const;
 
 type ArchiveAction = { href: string; label: string; download?: boolean };
-type ArchiveSummary = { label: string; value: string };
+type ArchiveSummary = { label: string; value: ReactNode };
 
 type CompetitionArchiveLayoutProps = {
   className?: string;

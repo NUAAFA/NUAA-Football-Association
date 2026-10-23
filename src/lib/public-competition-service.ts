@@ -5,6 +5,7 @@ import type { CompetitionStatus, Prisma } from "@/generated/prisma-v29/client";
 import { formatBeijingDateTime, formatBeijingWindow } from "@/lib/beijing-datetime";
 import { getCompetitionGroupStandings } from "@/lib/competition-structure-service";
 import { prisma } from "@/lib/prisma";
+import { comparePublicMatches } from "@/lib/competition-presentation";
 import { isAllowedCompetitionRegistrationUrl } from "@/lib/referee-competition-input";
 import type {
   CompetitionNextMatch,
@@ -110,6 +111,7 @@ function publicMatch(match: PublicCompetitionRow["matches"][number]): PublicComp
   const appointment = match.kickoff && match.appointment && isPublicAppointmentRecord(match.appointment) && (match.appointment.recordSource === "POST_MATCH_ENTRY" || match.venue?.trim())
     ? {
         id: match.appointment.id,
+        status: match.appointment.status as "PUBLISHED" | "COMPLETED",
         recordSource: match.appointment.recordSource,
         positions: match.appointment.positions.flatMap((position) => position.referee
           ? [{ key: `${position.key}-${position.slot}`, label: `${position.label}${position.slot > 1 ? ` ${position.slot}` : ""}`, refereeName: position.referee.name }]
@@ -168,7 +170,7 @@ export function selectCompetitionNextMatch(
 function databaseView(row: PublicCompetitionRow, now = new Date()): PublicCompetitionView {
   const presentation = statusPresentation[row.status];
   const detailHref = `/competitions/${row.slug}`;
-  const matches = row.matches.map(publicMatch);
+  const matches = row.matches.map(publicMatch).sort((a, b) => comparePublicMatches(a, b, now.getTime()));
   return {
     id: row.id,
     currentEditionId: row.id,
@@ -200,6 +202,7 @@ function databaseView(row: PublicCompetitionRow, now = new Date()): PublicCompet
     publicPublished: row.publicPublished,
     homepageFeatured: row.homepageFeatured,
     publicOrder: row.publicOrder,
+    asOf: now.getTime(),
     detailHref,
     filesHref: "/competitions/files",
     links: {

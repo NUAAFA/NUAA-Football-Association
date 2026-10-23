@@ -23,6 +23,8 @@ export function getUnifiedAdminRoutePermission(pathname: string): UnifiedAdminPe
   if (pathname === "/admin/login") return null;
   if (pathname.startsWith("/admin/content/")) return pathname.endsWith("/preview") ? "content:read" : "content:write";
   if (pathname === "/admin/media" || pathname.startsWith("/admin/media/")) return "media:read";
+  if (pathname === "/admin/resources") return "content:read";
+  if (pathname.startsWith("/admin/resources/")) return "content:write";
   if (pathname === "/admin/competitions/import" || pathname.startsWith("/admin/competitions/import/")) return "competitions:write";
   if (pathname === "/admin/competitions/new" || /\/admin\/competitions\/[^/]+\/edit$/.test(pathname)) return "competitions:write";
   if (pathname === "/admin/matches/new" || /\/admin\/matches\/[^/]+\/edit$/.test(pathname)) return "competitions:write";

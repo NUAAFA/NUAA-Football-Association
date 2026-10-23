@@ -5,7 +5,6 @@ import {
   MatchCentreShell,
 } from "@/components/competitions/match-centre-shell";
 import { CompetitionRecordExplorer } from "@/components/competitions/competition-record-explorer";
-import { Notice } from "@/components/ui/foundation-primitives";
 import { competitionRecords } from "@/data/competition-records";
 
 import styles from "@/components/competitions/match-centre.module.css";
@@ -13,7 +12,8 @@ import styles from "@/components/competitions/match-centre.module.css";
 export const metadata: Metadata = {
   alternates: { canonical: "/competitions/scorers" }, title: "射手记录", description: "赛事射手与奖项记录入口。" };
 
-export default function CompetitionScorersPage() {
+export default async function CompetitionScorersPage({ searchParams }: { searchParams: Promise<{ season?: string; archive?: string }> }) {
+  const query = await searchParams;
   return (
     <MatchCentreShell
       active="scorers"
@@ -24,15 +24,12 @@ export default function CompetitionScorersPage() {
     >
       <section className={styles.section} aria-labelledby="scoring-records-title">
         <MatchCentreSectionHeading
-          description="保留公开顺序、姓名、球队、号码和进球数；来源未提供的数据不会被补算或推测。"
+          description="按年份选择赛事，查看该赛事公开的射手数据与金靴荣誉。"
           eyebrow="VERIFIED PUBLIC RECORDS"
           id="scoring-records-title"
           title="公开射手与奖项记录"
         />
-        <Notice className={styles.truthNotice} title="数据完整性">
-          <p>男子数据仅为公开 Top 10，不代表完整射手榜；女子资料只确认两位金靴得主，未公开个人进球数及完整排名。</p>
-        </Notice>
-        <CompetitionRecordExplorer records={competitionRecords} mode="scorers" />
+        <CompetitionRecordExplorer records={competitionRecords} mode="scorers" season={query.season} competitionId={query.archive} />
       </section>
     </MatchCentreShell>
   );

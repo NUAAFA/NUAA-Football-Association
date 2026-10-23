@@ -60,6 +60,9 @@ jobs:
       - name: Existing application and real HTTP regressions
         run: |
           npm run test:team-directory-order
+          npm run test:competition-presentation
+          npm run test:resource-library
+          npm run test:referee-public-lists
           npm run test:home-notices
           npm run test:security-remediation
           npm run test:security-remediation:http
@@ -151,6 +154,7 @@ jobs:
       - name: Migration policy, actual Bash failure and existing deployment regressions
         run: |
           python3 scripts/test-production-readiness.py
+          python3 scripts/test-resource-readiness.py
           python3 scripts/test-prebuilt-pack.py
           python3 scripts/test-prebuilt-artifact.py
           python3 scripts/test-deploy-recovery-health.py

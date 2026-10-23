@@ -233,12 +233,19 @@ export async function storeMediaAssetUpload(input: { fileName: string; mimeType:
 
 export async function mediaUsage(db: Prisma.TransactionClient = prisma) {
   const posts = await db.contentPost.findMany({ select: { id: true, title: true, type: true, status: true, content: true, coverMediaId: true, discipline: { select: { officialMediaId: true } }, attachments: { select: { mediaAssetId: true } } } });
-  const usage = new Map<string, Map<string, { id: string; title: string; status: string; type: string; ways: string[] }>>();
+  const usage = new Map<string, Map<string, { id: string; title: string; status: string; type: string; ways: string[]; href?: string }>>();
   for (const post of posts) {
     const add = (id: string | null | undefined, way: string) => { if (!id) return; const map = usage.get(id) ?? new Map(); const row = map.get(post.id) ?? { id: post.id, title: post.title, status: post.status, type: post.type, ways: [] }; if (!row.ways.includes(way)) row.ways.push(way); map.set(post.id, row); usage.set(id, map); };
     add(post.coverMediaId, "封面"); add(post.discipline?.officialMediaId, "正式文件");
     for (const a of post.attachments) add(a.mediaAssetId, "附件");
     for (const id of getStructuredContentMediaIds(post.content)) add(id, "正文图片");
+  }
+  const resources = await db.resourceDocument.findMany({ where: { mediaAssetId: { not: null } }, select: { id: true, title: true, status: true, mediaAssetId: true } });
+  for (const resource of resources) {
+    const id = resource.mediaAssetId!;
+    const entries = usage.get(id) ?? new Map();
+    entries.set(`resource:${resource.id}`, { id: `resource:${resource.id}`, title: resource.title, status: resource.status, type: "RESOURCE", ways: ["资料文件"], href: `/admin/resources/${resource.id}` });
+    usage.set(id, entries);
   }
   return usage;
 }

@@ -1,0 +1,35 @@
+.standings { min-width: 0; color: var(--color-text-strong); }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 28px; padding-bottom: 20px; }
+.groups { display: flex; flex-wrap: wrap; gap: 8px; }
+.groups button { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 14px; border: 1px solid transparent; border-radius: 6px; color: var(--color-text-muted); background: transparent; font: inherit; font-size: .9375rem; cursor: pointer; }
+.groups button[aria-pressed="true"] { border-color: var(--color-border-subtle); background: var(--color-info-surface); color: var(--color-brand-action); font-weight: 650; }
+.groups button:hover { background: var(--color-surface-subtle); }
+.groups button > span { font-size: .75rem; opacity: .75; }
+.search { display: flex; align-items: center; gap: 10px; width: 240px; min-height: 44px; border-bottom: 1px solid var(--color-border-strong); color: var(--color-text-muted); }
+.search input { min-width: 0; width: 100%; min-height: 44px; border: 0; background: transparent; color: var(--color-text-strong); font: inherit; font-size: .9375rem; }
+.tables { display: grid; gap: 28px; }
+.group { min-width: 0; overflow: hidden; border: 1px solid var(--color-border-subtle); border-top: 3px solid var(--color-brand-action); border-radius: 10px; background: var(--color-surface-raised); }
+.groupHeading { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 22px 24px; background: var(--color-surface-subtle); }
+.groupHeading > div > span { color: var(--color-text-muted); font-size: .8125rem; }
+.groupHeading h3 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 16px; margin-top: 4px; color: var(--color-text-strong); font-size: 1.5rem; font-weight: 750; line-height: 1.4; }
+.groupHeading h3 small, .tableState { color: var(--color-text-muted); font-size: .8125rem; font-weight: 400; }
+.tableScroll { max-width: 100%; overflow-x: auto; }
+.tableScroll table { width: 100%; min-width: 750px; border-collapse: separate; border-spacing: 0; text-align: center; font-size: .9375rem; font-variant-numeric: tabular-nums; }
+.tableScroll :is(td, th) { padding: 16px 12px; border-top: 1px solid var(--color-border-subtle); }
+.tableScroll thead th { background: var(--color-surface-raised); color: var(--color-text-muted); font-size: .8125rem; font-weight: 500; white-space: nowrap; }
+.tableScroll thead th:nth-child(2) { text-align: left; }
+.tableScroll td { color: var(--color-text-body); background: var(--color-surface-raised); }
+.tableScroll .team { min-width: 200px; background: var(--color-surface-raised); color: var(--color-text-strong); text-align: left; font-weight: 600; }
+.team small { display: block; margin-top: 4px; color: var(--color-brand-action); font-size: .75rem; font-weight: 400; }
+.rank { width: 60px; }
+.rank span { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 5px; background: var(--color-surface-subtle); color: var(--color-text-muted); font-weight: 650; }
+.tableScroll tbody tr:first-child .rank span { background: var(--color-info-surface); color: var(--color-brand-action); }
+.tableScroll .points { width: 76px; background: var(--color-info-surface); color: var(--color-brand-action); font-size: 1.125rem; font-weight: 750; }
+.tableScroll tr.matched :is(td, th) { background: var(--color-info-surface); }
+.note { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 20px; padding: 16px 24px; border-top: 1px solid var(--color-border-subtle); color: var(--color-text-muted); font-size: .8125rem; line-height: 1.6; }
+.note strong { color: var(--color-text-body); font-weight: 650; }
+.empty { display: grid; gap: 12px; padding: 28px 24px; border: 1px solid var(--color-border-subtle); border-radius: 8px; background: var(--color-surface-subtle); }
+.empty p { color: var(--color-text-muted); }
+.empty button { justify-self: start; min-height: 44px; padding: 8px 16px; color: var(--color-brand-action); font: inherit; cursor: pointer; }
+.standings :is(button, input, [tabindex]):focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
+@media (max-width: 760px) { .search { width: 100%; } .groupHeading { padding: 18px 16px; } .note { padding: 14px 16px; } .tableScroll :is(td, th) { padding-inline: 10px; } .tableScroll .team { min-width: 155px; max-width: 190px; position: sticky; left: 0; z-index: 1; box-shadow: 3px 0 5px #10204009; } .tableScroll thead th:nth-child(2) { position: sticky; left: 0; z-index: 2; background: var(--color-surface-raised); } .tableScroll thead th:last-child { position: sticky; right: 0; z-index: 2; background: var(--color-info-surface); color: var(--color-brand-action); } .tableScroll .points { position: sticky; right: 0; box-shadow: -3px 0 5px #10204009; } }

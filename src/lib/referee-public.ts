@@ -20,7 +20,11 @@ export const publicAppointmentSelect = {
       kickoff: true,
       venue: true,
       status: true,
-      competition: { select: { id: true, name: true, format: true, playingFormat: true } },
+      competition: { select: { id: true, name: true, shortName: true, format: true, playingFormat: true } },
+      structureStage: { select: { name: true } },
+      structureGroup: { select: { name: true } },
+      structureRound: { select: { name: true } },
+      round: true,
       homeTeam: { select: { name: true } },
       awayTeam: { select: { name: true } },
     },
@@ -62,7 +66,7 @@ export async function getPublicUpcomingAppointments() {
   return prisma.refereeAppointment.findMany({
     where: publicUpcomingAppointmentWhere(),
     select: publicAppointmentSelect,
-    orderBy: { publishedAt: "desc" },
+    orderBy: [{ match: { kickoff: "asc" } }, { id: "asc" }],
   });
 }
 
