@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { consumeRequestQuota } from "@/lib/request-budget";
 
 import type { Prisma, RefereeAdmissionApplicationStatus } from "@/generated/prisma-v29/client";
 import { prisma } from "@/lib/prisma";
@@ -82,63 +83,27 @@ async function withAdmissionIdentityLocks<T>(keys: string[], work: () => Promise
   }
 }
 
-async function consumeAdmissionAddressQuota(
-  tx: Prisma.TransactionClient,
-  rateLimitKey: string,
-  now: Date,
-) {
-  const current = await tx.loginAttempt.findUnique({
-    where: { scope_keyHash: { scope: admissionRateLimitScope, keyHash: rateLimitKey } },
-  });
-  if (current?.blockedUntil && current.blockedUntil > now) {
-    if (current.failures >= admissionAddressMaximumSubmissions) {
-      throw new RefereeServiceError("申请提交过于频繁，请稍后再试。", 429);
-    }
-    await tx.loginAttempt.update({
-      where: { id: current.id },
-      data: { failures: current.failures + 1 },
-    });
-    return;
-  }
-  const windowEnd = new Date(now.getTime() + admissionAddressWindowMs);
-  await tx.loginAttempt.upsert({
-    where: { scope_keyHash: { scope: admissionRateLimitScope, keyHash: rateLimitKey } },
-    create: {
-      scope: admissionRateLimitScope,
-      keyHash: rateLimitKey,
-      failures: 1,
-      blockedUntil: windowEnd,
-    },
-    update: { failures: 1, blockedUntil: windowEnd },
-  });
-}
 
 export async function submitRefereeAdmissionApplication(
   input: unknown,
   options: { rateLimitKey?: string; now?: Date } = {},
 ) {
+  const now = options.now ?? new Date();
+  // Abuse accounting commits independently of validation/deduplication.
+  if (options.rateLimitKey) await consumeRequestQuota(admissionRateLimitScope, options.rateLimitKey, admissionAddressMaximumSubmissions, admissionAddressWindowMs, now);
   const { name, studentId, phone, qq, note } = readAdmissionApplicationInput(input);
   const normalized = { name, studentId, phone, qq, note };
-  const now = options.now ?? new Date();
   return withAdmissionIdentityLocks(admissionIdentityKeys(normalized), () => prisma.$transaction(async (tx) => {
-    const duplicateIdentifiers = [
-      studentId ? { studentId } : null,
-      phone ? { name, phone } : null,
-      qq ? { name, qq } : null,
-    ].filter((item): item is NonNullable<typeof item> => item !== null);
     const duplicate = await tx.refereeAdmissionApplication.findFirst({
       where: {
         status: "PENDING",
         createdAt: { gte: new Date(now.getTime() - admissionDuplicateCooldownMs) },
-        OR: duplicateIdentifiers,
+        name, studentId: studentId || null, phone: phone || null, qq: qq || null, note: note || null,
       },
       select: { id: true },
     });
     if (duplicate) {
-      throw new RefereeServiceError("相同申请信息近期已有待审核记录，请勿重复提交。", 409);
-    }
-    if (options.rateLimitKey) {
-      await consumeAdmissionAddressQuota(tx, options.rateLimitKey, now);
+      return { id: duplicate.id, status: "PENDING" as const };
     }
     return tx.refereeAdmissionApplication.create({
       data: {

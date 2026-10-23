@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/bounded-json";
 import { NextResponse } from "next/server";
 
 import { authorizeLegacyAdminRequest } from "@/lib/legacy-admin-authorization";
@@ -11,7 +12,7 @@ export async function POST(request: Request) {
   if (!authorization.ok) return authorization.response;
   try {
     const competition = await createCompetition(
-      readCompetitionCreateInput(await request.json()),
+      readCompetitionCreateInput(await readBoundedJson(request)),
       authorization.actor,
     );
     revalidatePublicCompetitionPaths(competition.slug);

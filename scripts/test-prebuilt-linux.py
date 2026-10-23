@@ -18,11 +18,14 @@ import re
 import secrets
 import shutil
 import sqlite3
+import socket
 import stat
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
+import urllib.request
 from unittest.mock import patch
 
 sys.dont_write_bytecode = True
@@ -1050,6 +1053,109 @@ class HarnessTests(unittest.TestCase):
                 resource.cleanup()
 
 
+def native_systemd_runtime(runtime, wrapper, node, user, uid):
+    """Start only this invocation's sealed fictional runtime in a transient CI unit."""
+    if Path('/proc/1/comm').read_text().strip() != 'systemd':
+        raise ValueError('native systemd PID 1 required; simulation is not acceptance')
+    root = LinuxPermissions.root
+    LinuxPermissions.resources.check_root_identity()
+    trusted_path(root)
+    if not root.name.startswith('nuaafa-permission-') or not runtime.is_relative_to(root):
+        raise ValueError('only the owned disposable Linux fixture is allowed')
+    unit_prefix = 'nuaafa-ci-' + secrets.token_hex(12)
+    unit = unit_prefix + '-1.service'
+    systemctl, systemd_run = '/usr/bin/systemctl', '/usr/bin/systemd-run'
+    for command in (systemctl, systemd_run):
+        trusted_path(command, kind='file')
+    properties = ['LoadState', 'ActiveState', 'SubState', 'MainPID', 'ControlGroup',
+                  'NRestarts', 'Result', 'MemoryMax', 'TasksMax', 'CPUQuotaPerSecUSec',
+                  'KillMode', 'SendSIGKILL', 'User', 'FragmentPath']
+    def show():
+        result = subprocess.run([systemctl, 'show', unit, '--no-pager',
+                                 '--property=' + ','.join(properties)], capture_output=True, text=True, check=True, timeout=10)
+        return dict(line.split('=', 1) for line in result.stdout.splitlines() if '=' in line)
+    def get(path):
+        with urllib.request.urlopen('http://127.0.0.1:3001' + path, timeout=2) as response:
+            if response.status != 200: raise ValueError('systemd HTTP probe failed')
+            return response.read(2 * 1024 * 1024)
+    command = [systemd_run, '--unit=' + unit, '--property=Type=exec', '--property=User=' + user,
+               '--property=WorkingDirectory=/', '--property=Restart=no', '--property=NoNewPrivileges=yes',
+               '--property=KillMode=control-group', '--property=SendSIGKILL=no', '--property=TimeoutStopSec=20s',
+               '--property=SuccessExitStatus=143', '--property=MemoryMax=1073741824', '--property=TasksMax=128',
+               '--property=CPUQuota=100%', '--setenv=NODE_OPTIONS=--require=/must-not-load',
+               '/usr/bin/python3', '-I', str(wrapper)]
+    # No persistent unit, timers, production paths, daemon reload, or deployer invocation.
+    started = False
+    observations = []
+    try:
+        started = True  # A partial systemd-run failure must still be stopped.
+        subprocess.run(command, check=True, capture_output=True, text=True, timeout=15)
+        for generation in range(2):
+            deadline = time.monotonic() + 30
+            while True:
+                state = show()
+                if state.get('ActiveState') == 'failed':
+                    raise ValueError('transient candidate service failed: ' + json.dumps(state))
+                try:
+                    if json.loads(get('/api/health')) == {'status': 'ok'}: break
+                except (OSError, ValueError):
+                    pass
+                if time.monotonic() >= deadline: raise TimeoutError('systemd candidate health timeout')
+                time.sleep(0.2)
+            state = show()
+            pid = int(state['MainPID'])
+            if pid <= 1 or state['ActiveState'] != 'active' or state['SubState'] != 'running':
+                raise ValueError('candidate service not active/running')
+            process = Path('/proc') / str(pid)
+            if (process / 'cwd').resolve() != runtime or (process / 'exe').resolve() != node.resolve():
+                raise ValueError('systemd PID runtime/executable identity mismatch')
+            status = (process / 'status').read_text()
+            if int(re.search(r'^Uid:\s+(\d+)', status, re.M)[1]) != uid:
+                raise ValueError('systemd process is not the synthetic application user')
+            if state['NRestarts'] != '0' or state['User'] != user or state['KillMode'] != 'control-group' or state['SendSIGKILL'] != 'no':
+                raise ValueError('unexpected systemd identity or stop policy')
+            cgroup_name = state['ControlGroup']
+            if not cgroup_name.endswith('/' + unit) or '..' in cgroup_name:
+                raise ValueError('candidate cgroup identity mismatch')
+            cgroup = Path('/sys/fs/cgroup') / cgroup_name.lstrip('/')
+            limits = {name: (cgroup / name).read_text().strip() for name in ('memory.max', 'pids.max', 'cpu.max')}
+            if limits['memory.max'] != '1073741824' or limits['pids.max'] != '128':
+                raise ValueError('memory/task cgroup limits not applied')
+            quota, period = limits['cpu.max'].split()
+            if quota == 'max' or int(quota) != int(period): raise ValueError('CPU quota not applied')
+            if str(pid) not in (cgroup / 'cgroup.procs').read_text().split():
+                raise ValueError('main PID missing from cgroup')
+            if '0::' + cgroup_name not in (process / 'cgroup').read_text():
+                raise ValueError('process cgroup differs from service')
+            for path in ('/', '/referees', '/referees/history'):
+                get(path)
+            observations.append(dict(generation=generation + 1, main_pid=pid, properties=state, limits=limits,
+                                     cwd=str(runtime), uid=uid, http='PASS'))
+            subprocess.run([systemctl, 'stop', unit], check=True, capture_output=True, text=True, timeout=30)
+            started = False
+            if process.exists() or (cgroup.exists() and (cgroup / 'cgroup.procs').read_text().strip()):
+                raise ValueError('candidate PID/cgroup did not stop naturally')
+            with socket.socket() as probe:
+                probe.settimeout(1)
+                if probe.connect_ex(('127.0.0.1', 3001)) == 0: raise ValueError('listener remains after stop')
+            if generation == 0:
+                unit = unit_prefix + '-2.service'
+                command[1] = '--unit=' + unit
+                started = True
+                subprocess.run(command, check=True, capture_output=True, text=True, timeout=15)
+        return dict(status='PASS', pid1='systemd', transient_unit=unit, observations=observations,
+                    natural_stop='PASS', listener_closed='PASS', production_access=False)
+    except BaseException:
+        diagnostic = subprocess.run(['/usr/bin/journalctl', '--unit=' + unit, '--no-pager', '-n', '60'],
+                                    capture_output=True, text=True, timeout=10)
+        print('Synthetic systemd unit journal: ' + diagnostic.stdout[-16000:], file=sys.stderr)
+        raise
+    finally:
+        if started:
+            # Stop this unique transient unit only. Never force-kill or touch other units.
+            subprocess.run([systemctl, 'stop', unit], check=True, capture_output=True, text=True, timeout=30)
+
+
 def relocated_runtime(archive, commit, sha256):
     # Real CI ELF files are tested here; no platform/native mocks.
     with runtime_fixture_lifecycle(), A.timing_session():
@@ -1106,6 +1212,9 @@ test ! -e "$prebuilt_approvals"
         if result.returncode:
             F.emit_failure_diagnostic("real-archive-runtime", result)
             raise RuntimeError(result.stdout + result.stderr)
+        systemd_result = (native_systemd_runtime(runtime, wrapper, LinuxPermissions.node,
+                          LinuxPermissions.user, LinuxPermissions.account.pw_uid)
+                          if os.environ.get('NUAAFA_TEST_SYSTEMD') == '1' else {'status': 'NOT RUN'})
         verify_runtime_fixture(driver_identity)
         # The app must leave caller-owned work for root cleanup, preserving the
         # non-writable shared parent; never grant it permission to remove work.
@@ -1123,7 +1232,7 @@ test ! -e "$prebuilt_approvals"
         shutil.rmtree(work)
         if work.exists() or shared.stat().st_uid != 0:
             raise ValueError("root fixture cleanup failed")
-        final_result = dict(result="PASS", runtime=json.loads(result.stdout), git_transfer=identity,
+        final_result = dict(result="PASS", runtime=json.loads(result.stdout), systemd=systemd_result, git_transfer=identity,
                             wrapper_adaptation=adaptation, runtime_fixture=driver_identity, runtime_access=access, first_and_repeat_import=True,
                             final_seal_shared_tree_archive_verification="PASS", root_work_cleanup="PASS")
     if root.exists(): raise ValueError("Linux fixture root was not removed")

@@ -36,9 +36,9 @@ export async function GET(_request: Request, context: RouteContext<"/media/[id]"
     const body = Readable.toWeb(createReadStream(asset.filePath)) as ReadableStream<Uint8Array>;
     return new Response(body, {
       headers: {
-        "Cache-Control": asset.visibility === "PUBLIC"
-          ? "public, max-age=300, must-revalidate"
-          : "private, no-store",
+        "Cache-Control": "private, no-store",
+        "CDN-Cache-Control": "no-store",
+        "Vercel-CDN-Cache-Control": "no-store",
         "Content-Disposition": `inline; filename="${fallbackFilename(asset.mimeType)}"; filename*=UTF-8''${rfc5987(asset.originalFilename)}`,
         "Content-Length": String(asset.size),
         "Content-Type": asset.mimeType,

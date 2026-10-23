@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/bounded-json";
 import { NextResponse } from "next/server";
 
 import { authorizeLegacyAdminRequest } from "@/lib/legacy-admin-authorization";
@@ -17,7 +18,7 @@ export async function PATCH(
     const { id } = await context.params;
     const competition = await updateCompetition(
       id,
-      readCompetitionUpdateInput(await request.json()),
+      readCompetitionUpdateInput(await readBoundedJson(request)),
       authorization.actor,
     );
     revalidatePublicCompetitionPaths(competition.slug);
@@ -35,7 +36,7 @@ export async function DELETE(
   const authorization = await authorizeLegacyAdminRequest(request, "competitions:write");
   if (!authorization.ok) return authorization.response;
   try {
-    const body: unknown = await request.json();
+    const body: unknown = await readBoundedJson(request);
     if (!isRecord(body)) throw new RefereeApiInputError("删除内容格式不正确。");
     const { id } = await context.params;
     const deleted = await deleteCompetitionSafely(

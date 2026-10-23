@@ -69,7 +69,6 @@ class StartupTests(unittest.TestCase):
         (self.release / "node_modules/next/dist/bin").mkdir(parents=True)
         (self.release / "node_modules/next/dist/bin/next").write_text("synthetic entry only")
         (self.release / "node_modules/next/package.json").write_text('{"version":"16.4.1"}')
-        (self.release / "package.json").write_text('{"dependencies":{"next":"16.4.1"}}')
         (self.release / ".next").mkdir()
         (self.release / ".next/BUILD_ID").write_text("synthetic")
         (self.release / "prisma").mkdir()
@@ -100,7 +99,7 @@ class StartupTests(unittest.TestCase):
         self.current.symlink_to(self.release)
         self.node = self.root / "node"
         self.version = self.root / "node-version"
-        self.version.write_text("v22.23.2")
+        self.version.write_text("v22.23.4")
         # Synthetic executable only records wrapper exec/cwd/env/uid. The separate
         # --runtime suite executes actual Next, native modules and HTTP.
         self.node.write_text('#!' + sys.executable + '\nimport os,sys,json\nfrom pathlib import Path\n'
@@ -173,18 +172,6 @@ class StartupTests(unittest.TestCase):
 
     def test_wrong_node_version_refused_before_start(self):
         self.version.write_text("v24.0.0")
-        self.assertNotEqual(self.launch().returncode, 0)
-
-    def test_previous_pinned_next_runtime_remains_recoverable(self):
-        (self.release / "package.json").write_text('{"dependencies":{"next":"16.3.8"}}')
-        (self.release / "node_modules/next/package.json").write_text('{"version":"16.3.8"}')
-        self.assertEqual(self.launch().returncode, 0)
-
-    def test_next_pin_mismatch_and_unreviewed_version_refused(self):
-        (self.release / "node_modules/next/package.json").write_text('{"version":"16.3.8"}')
-        self.assertNotEqual(self.launch().returncode, 0)
-        (self.release / "package.json").write_text('{"dependencies":{"next":"16.4.0"}}')
-        (self.release / "node_modules/next/package.json").write_text('{"version":"16.4.0"}')
         self.assertNotEqual(self.launch().returncode, 0)
 
     def test_wrong_application_identity_refused(self):

@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/bounded-json";
 import { NextResponse } from "next/server";
 
 import { authorizeLegacyAdminRequest } from "@/lib/legacy-admin-authorization";
@@ -9,7 +10,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   const authorization = await authorizeLegacyAdminRequest(request, "referees:write");
   if (!authorization.ok) return authorization.response;
   try {
-    const body: unknown = await request.json();
+    const body: unknown = await readBoundedJson(request);
     if (!isRecord(body)) throw new RefereeApiInputError("处理内容格式不正确。");
     const { id } = await context.params;
     await resolveAppointmentConflictReport(

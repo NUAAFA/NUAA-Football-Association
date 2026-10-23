@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/bounded-json";
 import { NextResponse } from "next/server";
 import { authorizeUnifiedAdminServiceRequest, unifiedAdminErrorResponse, UnifiedAdminInputError } from "@/lib/unified-admin-api";
 import { scheduleMatch } from "@/lib/match-scheduling-service";
@@ -6,7 +7,7 @@ import { revalidatePublicCompetitionById } from "@/lib/public-competition-revali
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const { authorization } = await authorizeUnifiedAdminServiceRequest(request, "competitions:write", { mutation: true });
-    const body: unknown = await request.json();
+    const body: unknown = await readBoundedJson(request);
     if (!isRecord(body)) throw new UnifiedAdminInputError("排期格式无效。");
     const match = await scheduleMatch((await context.params).id, { kickoff: readDate(body.kickoff, "开球时间")!, endAt: readDate(body.endAt, "结束时间", false), venue: readShortText(body.venue, "比赛场地", 120) }, authorization);
     await revalidatePublicCompetitionById(match.competitionId);

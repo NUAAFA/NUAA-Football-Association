@@ -172,9 +172,9 @@ async function main() {
       "Successful password change did not replace the hash or clear the required flag.",
     );
     assert(
-      await verifier.adminSession.count({ where: { id: currentRequiredSession.id } }) === 1 &&
+      await verifier.adminSession.count({ where: { id: currentRequiredSession.id } }) === 0 &&
       await verifier.adminSession.count({ where: { id: otherRequiredSession.id } }) === 0,
-      "Successful password change did not preserve only the current session.",
+      "Successful password change did not revoke all old sessions.",
     );
     assert(
       await verifier.auditLog.count({

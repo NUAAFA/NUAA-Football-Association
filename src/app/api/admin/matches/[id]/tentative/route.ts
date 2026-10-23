@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/bounded-json";
 import { NextResponse } from "next/server";
 import { authorizeUnifiedAdminRequest, unifiedAdminErrorResponse, UnifiedAdminInputError } from "@/lib/unified-admin-api";
 import { prisma } from "@/lib/prisma";
@@ -6,7 +7,7 @@ import { isRecord } from "@/lib/referee-validation";
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const actor = await authorizeUnifiedAdminRequest(request,"competitions:write",{mutation:true});
-    const body: unknown = await request.json();
+    const body: unknown = await readBoundedJson(request);
     if (!isRecord(body) || typeof body.tentativeDate !== "string" || typeof body.tentativeSchedule !== "string" || body.tentativeSchedule.length > 500) throw new UnifiedAdminInputError("暂定安排格式无效。");
     const date = body.tentativeDate, note = body.tentativeSchedule;
     if (date && (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !parseCompetitionImportDate(`${date} 00:00`,"date","暂定日期",[],false))) throw new UnifiedAdminInputError("暂定日期无效。");

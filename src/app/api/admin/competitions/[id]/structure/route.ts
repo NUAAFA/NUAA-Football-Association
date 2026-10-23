@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/bounded-json";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { authorizeUnifiedAdminRequest, unifiedAdminErrorResponse, UnifiedAdminInputError } from "@/lib/unified-admin-api";
@@ -17,7 +18,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   try {
     const actor = await authorizeUnifiedAdminRequest(request, "competitions:write", { mutation: true });
     const id = (await context.params).id;
-    const body: unknown = await request.json();
+    const body: unknown = await readBoundedJson(request);
     if (!isRecord(body) || typeof body.action !== "string") throw new UnifiedAdminInputError("操作格式无效。");
     const text = (k: string) => { const v = body[k]; if (typeof v !== "string" || v.length > 500) throw new UnifiedAdminInputError("字段格式无效。"); return v; };
     const ids = () => { if (!Array.isArray(body.teamIds) || body.teamIds.length > 500 || body.teamIds.some((v) => typeof v !== "string" || v.length > 64)) throw new UnifiedAdminInputError("球队名单无效。"); return body.teamIds as string[]; };

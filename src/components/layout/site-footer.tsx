@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/ui/site-image";
 import Link from "next/link";
 import { BrandMark } from "@/components/ui/brand-mark";
 import { associationIdentity } from "@/data/association";

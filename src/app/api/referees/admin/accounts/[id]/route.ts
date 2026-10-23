@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/bounded-json";
 import { NextResponse } from "next/server";
 
 import { authorizeLegacyAdminRequest } from "@/lib/legacy-admin-authorization";
@@ -30,7 +31,7 @@ export async function PATCH(
   const authorization = await authorize(request);
   if (authorization instanceof Response) return authorization;
   try {
-    const body: unknown = await request.json();
+    const body: unknown = await readBoundedJson(request);
     if (!isRecord(body)) throw new RefereeApiInputError("账号内容格式不正确。");
     const { id } = await context.params;
     await updateRefereeAccount(id, {
@@ -86,7 +87,7 @@ export async function POST(
   const authorization = await authorize(request);
   if (authorization instanceof Response) return authorization;
   try {
-    const body: unknown = await request.json();
+    const body: unknown = await readBoundedJson(request);
     if (!isRecord(body)) throw new RefereeApiInputError("密码内容格式不正确。");
     const { id } = await context.params;
     await resetRefereePassword(

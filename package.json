@@ -81,7 +81,9 @@
     "test:v210x-regressions": "node scripts/test-v210x-regressions.mjs",
     "test:v210x-browser": "node --import tsx scripts/test-v210x-browser.mjs",
     "test:v210x-migration": "python3 scripts/test-v210x-migration.py",
-    "test:v210x-http-regressions": "node scripts/test-v210x-http-regressions.mjs"
+    "test:v210x-http-regressions": "node scripts/test-v210x-http-regressions.mjs",
+    "test:security-remediation": "tsx scripts/test-security-remediation.ts",
+    "test:security-remediation:http": "tsx scripts/test-security-remediation-http.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",
@@ -96,7 +98,8 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "read-excel-file": "^9.3.10",
-    "saxen": "11.1.1"
+    "saxen": "11.1.1",
+    "fflate": "0.8.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

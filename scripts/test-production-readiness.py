@@ -81,7 +81,7 @@ class Readiness(unittest.TestCase):
   with self.assertRaises((ValueError,FileNotFoundError)):A.runtime_ready(self.old,self.database,path)
 
  def test_real_prisma_through_deployer_and_preserved_logs(self):
-  if subprocess.check_output(['node','--version'],text=True).strip()!='v22.23.2':self.skipTest('requires exact Node22.23.2')
+  if subprocess.check_output(['node','--version'],text=True).strip()!='v22.23.4':self.skipTest('requires exact Node22.23.4')
   with sqlite3.connect(self.database) as db:
    rows=db.execute('SELECT migration_name,checksum,started_at,finished_at,rolled_back_at FROM _prisma_migrations ORDER BY started_at').fetchall()
    db.execute('DROP TABLE _prisma_migrations');db.execute('CREATE TABLE _prisma_migrations (id TEXT PRIMARY KEY,checksum TEXT NOT NULL,finished_at DATETIME,migration_name TEXT NOT NULL,logs TEXT,rolled_back_at DATETIME,started_at DATETIME NOT NULL,applied_steps_count INTEGER NOT NULL DEFAULT 0)')

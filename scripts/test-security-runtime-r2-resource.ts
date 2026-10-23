@@ -301,7 +301,7 @@ async function measure(root: string, databasePath: string, fixture: Awaited<Retu
 }
 
 async function main() {
-  assert(process.version === "v22.23.2", `Node v22.23.2 is required; received ${process.version}.`);
+  assert(process.version === "v22.23.4", `Node v22.23.4 is required; received ${process.version}.`);
   await readFile(path.resolve(".next/BUILD_ID"), "utf8");
   const root = await mkdtemp(path.join(os.tmpdir(), "nuaafa-security-r2-resource-"));
   const databasePath = path.join(root, "resource.db");

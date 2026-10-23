@@ -23,9 +23,7 @@ import time
 FORMAT = 1
 MANIFEST = "nuaafa-artifact.json"
 REPOSITORY = "NUAAFA/NUAA-Football-Association"
-VERSIONS = {"node": "22.23.2", "next": "16.4.1", "prisma": "7.9.1"}
-# Existing sealed receipts can be verified for rollback, never imported anew.
-RECOVERY_VERSIONS = {"node": "22.23.2", "next": "16.3.8", "prisma": "7.9.1"}
+VERSIONS = {"node": "22.23.4", "next": "16.4.1", "prisma": "7.9.1"}
 SOURCE_ROOTS = {"src", "scripts", "prisma", "public"}
 SOURCE_FILES = {".gitignore", "package.json", "package-lock.json", "next.config.ts", "prisma.config.ts", "tsconfig.json"}
 REQUIRED = SOURCE_FILES | {
@@ -611,8 +609,7 @@ def validate_entries(entries, *, recovery=False):
 def validate_manifest(m, commit, *, recovery=False):
     require(set(m) == {"format", "repository", "commit", "runtime", "versions", "platform", "lock_sha256", "sources", "native_files", "release_allowed", "files"}, "invalid manifest shape")
     require(type(m["format"]) is int and m["format"] == FORMAT and m["repository"] == REPOSITORY and m["commit"] == commit and
-            m["runtime"] == "next-start" and (m["versions"] == VERSIONS or recovery and m["versions"] == RECOVERY_VERSIONS) and
-            m["release_allowed"] is False, "manifest identity mismatch or release claim")
+            m["runtime"] == "next-start" and m["versions"] == VERSIONS and m["release_allowed"] is False, "manifest identity mismatch or release claim")
     validate_platform(m["platform"])
     validate_entries(m["files"], recovery=recovery)
     require(m["lock_sha256"] == m["files"]["package-lock.json"]["sha256"], "lockfile digest mismatch")
@@ -801,7 +798,7 @@ def verify_tree(root, m, commit, *, recovery=False):
                 continue
             actual.add(relative)
     require(actual == expected_files, "missing or extra runtime/source/configuration file")
-    for name, expected in (("next", m["versions"]["next"]), ("prisma", m["versions"]["prisma"]), ("@prisma/client", m["versions"]["prisma"])):
+    for name, expected in (("next", VERSIONS["next"]), ("prisma", VERSIONS["prisma"]), ("@prisma/client", VERSIONS["prisma"])):
         require(load_json((root / "node_modules" / name / "package.json").read_bytes())["version"] == expected, "runtime package version mismatch")
 
 

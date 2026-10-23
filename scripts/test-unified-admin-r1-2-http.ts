@@ -348,13 +348,25 @@ async function verifyRequiredPasswordChange() {
   );
 
   const newContentPassword = "Required-Content-New-2026!";
+  const oldContentCookie = requiredCookies.content;
+  const passwordChanged = await passwordRequest(oldContentCookie, password, newContentPassword);
   expectStatus(
     "required password endpoint success",
-    (await passwordRequest(requiredCookies.content, password, newContentPassword)).status,
+    passwordChanged.status,
     200,
   );
+  const rotatedCookie = passwordChanged.headers.getSetCookie()
+    .filter((value) => value.startsWith("nuaa_referee_admin=") && !value.startsWith("nuaa_referee_admin=;"))
+    .at(-1)?.split(";", 1)[0];
+  if (!rotatedCookie || rotatedCookie === oldContentCookie) throw new Error("Password change did not rotate the current session cookie.");
+  expectStatus(
+    "old current session invalidated after password change",
+    (await apiRequest({ path: "/api/admin/content/posts", method: "GET", cookie: oldContentCookie })).status,
+    401,
+  );
+  requiredCookies.content = rotatedCookie;
   expectAllowedStatus(
-    "current session restored after password change",
+    "rotated current session restored after password change",
     (await apiRequest({ path: "/api/admin/content/posts", method: "GET", cookie: requiredCookies.content })).status,
   );
   expectStatus(
@@ -464,7 +476,8 @@ async function verifyMedia(cookies: Record<RoleName, string>) {
   const publicResponse = await fetch(`${baseUrl}/media/${publicMediaId}`);
   expectStatus("PUBLIC media", publicResponse.status, 200);
   if (publicResponse.headers.get("x-content-type-options") !== "nosniff") throw new Error("PUBLIC media missing nosniff");
-  if (!publicResponse.headers.get("cache-control")?.includes("max-age=300")) throw new Error("PUBLIC media cache policy mismatch");
+  if (publicResponse.headers.get("cache-control") !== "private, no-store") throw new Error("PUBLIC media cache policy mismatch");
+  if (publicResponse.headers.get("cdn-cache-control") !== "no-store") throw new Error("PUBLIC media CDN cache policy mismatch");
   if (!publicResponse.headers.get("content-disposition")?.includes("filename*=UTF-8''")) throw new Error("PUBLIC media RFC 5987 filename missing");
 
   const pdf = new Uint8Array(20 * 1024 * 1024);
@@ -502,9 +515,8 @@ async function main() {
     await verifyRequiredPasswordChange();
     return;
   }
-  const cookies = Object.fromEntries(await Promise.all(
-    (Object.keys(usernames) as RoleName[]).map(async (role) => [role, await login(role)] as const),
-  )) as Record<RoleName, string>;
+  const cookies = {} as Record<RoleName, string>;
+  for (const role of Object.keys(usernames) as RoleName[]) cookies[role] = await login(role);
   await verifyLegacyApiMatrix(cookies);
   await verifyAdminPageMatrix(cookies);
   await verifyLegacyRedirectMatrix(cookies.super);

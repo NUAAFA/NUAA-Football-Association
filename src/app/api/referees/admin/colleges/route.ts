@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/bounded-json";
 import { NextResponse } from "next/server";
 
 import { authorizeLegacyAdminRequest } from "@/lib/legacy-admin-authorization";
@@ -10,7 +11,7 @@ export async function POST(request: Request) {
   if (!authorization.ok) return authorization.response;
   const actor = authorization.actor;
   try {
-    const body: unknown = await request.json();
+    const body: unknown = await readBoundedJson(request);
     if (!isRecord(body)) throw new RefereeApiInputError("学院内容格式不正确。");
     const action = readEnum(body.action, ["create-college", "upsert-mapping"] as const, "操作");
     const result = action === "create-college"

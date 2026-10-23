@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/ui/site-image";
 import type { ReactNode } from "react";
 
 import { validateStructuredContent, type StructuredContentNode, type StructuredTextNode } from "@/lib/admin-content-input";

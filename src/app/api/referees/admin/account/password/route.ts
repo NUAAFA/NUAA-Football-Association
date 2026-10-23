@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getAdminSession } from "@/lib/referee-auth";
+import { getAdminSession, destroyAdminSession, createAdminSession } from "@/lib/referee-auth";
 import { refereeApiErrorResponse, readRefereeApiJson, RefereeApiInputError } from "@/lib/referee-api";
 import { authorizeLegacyAdminRequest } from "@/lib/legacy-admin-authorization";
 import { changeAdminPassword } from "@/lib/referee-r1-service";
@@ -37,7 +37,9 @@ export async function POST(request: Request) {
       currentPassword: input.currentPassword,
       newPassword: input.newPassword,
     }, authorization.authorization);
-    return NextResponse.json({ ok: true });
+    await destroyAdminSession();
+    const refreshed = await createAdminSession(session.adminAccount.username, input.newPassword);
+    return NextResponse.json({ ok: true, reauthenticationRequired: !refreshed });
   } catch (error) {
     return refereeApiErrorResponse(error, "密码修改失败，请稍后再试。");
   }

@@ -68,12 +68,9 @@ contract. Nothing was installed or changed in systemd/Nginx this round.
 ExecStart must be the root-controlled wrapper, User `nuaafa`, WorkingDirectory
 `/srv/nuaafa/current`. The wrapper verifies application UID, canonical direct
 current link, trusted parent/build/CLI metadata, exact shared links, configuration
-permissions and Next `16.4.1`. Previously sealed Next `16.3.8` releases remain
-verifiable only for recovery; new imports require `16.4.1`. Startup also checks
-that the installed Next version matches the release's exact dependency pin.
-It rejects extra `.env*` before executing Next,
+permissions and Next `16.4.1`. It rejects extra `.env*` before executing Next,
 clears inherited environment, uses host
-`/usr/bin/node` version `22.23.2`, and starts packaged Next on `127.0.0.1:3001`.
+`/usr/bin/node` version `22.23.4`, and starts packaged Next on `127.0.0.1:3001`.
 Unit fragment/drop-ins must be root controlled. Additional start/stop commands,
 environment sources, alternate filesystem roots and bind mounts are rejected.
 
@@ -149,7 +146,7 @@ are adapted; root metadata/UID enforcement is retained on Linux. It also validat
 real journal sequences and pre-stop rejection. No persistent service or production access.
 On macOS it exits `2`: **NOT RUN**.
 
-The workflow uses pinned Actions, Ubuntu 24.04 x64, Node 22.23.2 and clean locked
+The workflow uses pinned Actions, Ubuntu 24.04 x64, Node 22.23.4 and clean locked
 install. Safety/cross-user fixtures and real packaging/import-twice/wrapper runtime
 validation always run after successful prior checks. Authenticated digest summary
 and candidate upload alone are default-off and recheck the same tested digest.

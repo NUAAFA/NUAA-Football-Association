@@ -1,11 +1,14 @@
 name: V2.10.x isolated admin validation
 on:
   push:
-    branches: [codex/v2.10x-admin-optimization]
+    branches: [codex/v2.10x-admin-optimization, codex/security-remediation-20261022]
   pull_request:
     branches: [main, integration/v2.10-ui-release]
 permissions:
   contents: read
+defaults:
+  run:
+    shell: bash
 concurrency:
   group: v210x-admin-${{ github.ref }}
   cancel-in-progress: false
@@ -26,7 +29,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
-          node-version: 22.23.2
+          node-version: 22.23.4
           package-manager-cache: false
       - name: Isolated database and locked installation
         shell: bash
@@ -53,8 +56,14 @@ jobs:
       - name: Existing application and real HTTP regressions
         run: |
           npm run test:team-directory-order
+          npm run test:security-remediation
+          npm run test:security-remediation:http
           npm run test:v210x-regressions
           npm run test:v210x-http-regressions
+          SECURITY_R4A_F006_DATABASE_PATH="$RUNNER_TEMP/f006.db" node --import tsx scripts/test-security-r4a-f006-worker.ts
+          node --import tsx scripts/test-restore-target-safety.ts
+          npm run restore:rehearsal
+          npm run test:clean-install
       - name: Install pinned browser test runtime in runner temp
         shell: bash
         run: |
@@ -80,7 +89,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
-          node-version: 22.23.2
+          node-version: 22.23.4
           package-manager-cache: false
       - run: npm ci --no-audit --no-fund
       - run: npm audit
@@ -91,7 +100,7 @@ jobs:
       run:
         shell: bash
     name: Trusted Linux candidate archive and deployment safety
-    if: github.event_name == 'pull_request' && github.repository == 'NUAAFA/NUAA-Football-Association'
+    if: github.repository == 'NUAAFA/NUAA-Football-Association' && (github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/codex/security-remediation-20261022'))
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     env:
@@ -104,20 +113,25 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
-          node-version: 22.23.2
+          node-version: 22.23.4
           package-manager-cache: false
       - name: Exact head, locked install and synthetic build
         env:
-          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
           test "$(uname -sm)" = 'Linux x86_64'
-          test "$(node --version)" = v22.23.2
+          test "$(node --version)" = v22.23.4
+          test "$(cat /proc/1/comm)" = systemd
+          cat /etc/os-release
+          ldd --version
+          node -p 'JSON.stringify(process.versions)'
+          systemctl --version
           mkdir -p "$RUNNER_TEMP/prebuilt-output"
           git rev-parse HEAD > "$RUNNER_TEMP/prebuilt-output/checkout-identity.txt"
           printf 'DATABASE_URL=file:%s/readiness-build.db\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
@@ -133,15 +147,16 @@ jobs:
           python3 scripts/test-prebuilt-pack.py
           python3 scripts/test-prebuilt-artifact.py
           python3 scripts/test-deploy-recovery-health.py
+          sudo env "PATH=$PATH" PYTHONDONTWRITEBYTECODE=1 NUAAFA_TEST_ROOT=/var/lib "NUAAFA_TEST_APP_USER=$(id -un)" python3 scripts/test-start-prebuilt.py
           npm run test:deployer
           sudo env "PATH=$PATH" PYTHONDONTWRITEBYTECODE=1 "NUAAFA_TEST_EVIDENCE=$NUAAFA_TEST_EVIDENCE" python3 scripts/test-prebuilt-linux.py
       - name: Seal, verify, actually import twice and start exact Linux runtime
         env:
-          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           python3 ops/deploy/prebuilt-artifact.py pack --source="$GITHUB_WORKSPACE" --commit="$EXPECTED_SOURCE_SHA" --output="$RUNNER_TEMP/prebuilt-output/nuaafa-$EXPECTED_SOURCE_SHA.tar.gz"
           digest="$(sha256sum "$RUNNER_TEMP/prebuilt-output/nuaafa-$EXPECTED_SOURCE_SHA.tar.gz" | cut -d ' ' -f 1)"
-          sudo env "PATH=$PATH" PYTHONDONTWRITEBYTECODE=1 "NUAAFA_TEST_EVIDENCE=$NUAAFA_TEST_EVIDENCE" python3 scripts/test-prebuilt-linux.py --archive="$RUNNER_TEMP/prebuilt-output/nuaafa-$EXPECTED_SOURCE_SHA.tar.gz" --commit="$EXPECTED_SOURCE_SHA" --sha256="$digest" | tee "$RUNNER_TEMP/prebuilt-output/runtime-validation.json"
+          sudo env "PATH=$PATH" PYTHONDONTWRITEBYTECODE=1 NUAAFA_TEST_SYSTEMD=1 "NUAAFA_TEST_EVIDENCE=$NUAAFA_TEST_EVIDENCE" python3 scripts/test-prebuilt-linux.py --archive="$RUNNER_TEMP/prebuilt-output/nuaafa-$EXPECTED_SOURCE_SHA.tar.gz" --commit="$EXPECTED_SOURCE_SHA" --sha256="$digest" | tee "$RUNNER_TEMP/prebuilt-output/runtime-validation.json"
           (cd "$RUNNER_TEMP/prebuilt-output" && sha256sum -c ./*.sha256)
           # Trusted root tools stay separate from untrusted runtime payloads.
           mkdir "$RUNNER_TEMP/prebuilt-output/trusted-tools"
@@ -158,7 +173,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: nuaafa-prebuilt-${{ github.event.pull_request.head.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: nuaafa-prebuilt-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/prebuilt-output/
           if-no-files-found: error
           retention-days: 3
