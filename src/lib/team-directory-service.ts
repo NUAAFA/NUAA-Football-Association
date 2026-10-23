@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { sortTeamDirectory, teamDirectoryUnitSelect } from "@/lib/team-directory-order";
 
 export function formatTeamDirectoryTitle(name: string, year: number | null) {
   const cleanName = name.trim();
@@ -26,10 +27,10 @@ export async function getPublicTeamDirectory() {
           isTestData: true,
           teams: {
             where: { directoryIsPublic: true },
-            orderBy: [{ directoryPublicOrder: "asc" }, { name: "asc" }],
             select: {
               id: true,
               name: true,
+              unitAffiliations: { select: { unit: { select: teamDirectoryUnitSelect } } },
               publicStatus: true,
               publicContactName: true,
               publicContactRole: true,
@@ -57,6 +58,9 @@ export async function getPublicTeamDirectory() {
       name: active.name,
       href: active.publicPublished ? `/competitions/${active.slug}` : null,
     } : null,
-    teams: active?.teams ?? [],
+    teams: sortTeamDirectory(active?.teams ?? []).map(({ unitAffiliations, ...team }) => {
+      void unitAffiliations;
+      return team;
+    }),
   };
 }
