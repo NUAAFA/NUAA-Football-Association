@@ -12,6 +12,7 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "test:referee-flow": "tsx scripts/test-referee-flow.ts",
+    "test:home-notices": "tsx scripts/test-home-notices.ts",
     "test:referee-public-lists": "tsx scripts/test-referee-public-lists.ts",
     "test:referee-admission": "tsx scripts/test-referee-admission.ts",
     "test:referee-r1-3a": "tsx scripts/test-referee-r1-3a.ts",

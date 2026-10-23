@@ -330,7 +330,7 @@ function encodeCursor(value: PublicCursor) {
 
 export async function getPublishedContentPage(input: {
   cursor?: string;
-  type?: ContentPostType;
+  type?: ContentPostType | ContentPostType[];
   year?: number;
   now?: Date;
   pageSize?: number;
@@ -344,7 +344,7 @@ export async function getPublishedContentPage(input: {
   const baseWhere: Prisma.ContentPostWhereInput = {
     status: "PUBLISHED",
     publishedAt: { lte: now, ...(yearRange ?? {}) },
-    ...(input.type ? { type: input.type } : {}),
+    ...(input.type ? { type: Array.isArray(input.type) ? { in: input.type } : input.type } : {}),
   };
   const where: Prisma.ContentPostWhereInput = cursor
     ? {

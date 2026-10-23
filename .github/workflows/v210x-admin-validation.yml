@@ -56,6 +56,7 @@ jobs:
       - name: Existing application and real HTTP regressions
         run: |
           npm run test:team-directory-order
+          npm run test:home-notices
           npm run test:security-remediation
           npm run test:security-remediation:http
           npm run test:v210x-regressions
@@ -73,7 +74,9 @@ jobs:
       - name: Browser timezone, privacy, workflow and responsive acceptance
         env:
           V210X_BROWSER_CHANNEL: chromium
-        run: npm run test:v210x-browser
+        run: |
+          npm run test:v210x-browser
+          REFEREE_LIST_BROWSER_CHANNEL=chromium REFEREE_LIST_BROWSER_ENGINES=chrome npm run test:referee-public-lists
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

@@ -12,7 +12,9 @@ async function main() {
  // Include compact and roomy windows for 13-, 15- and 16-inch MacBooks.
  const macbookSizes=[[1280,700],[1440,800],[1470,820],[1536,860],[1710,980],[1728,980],[1920,1000]];
  const sizes=[[360,640],[390,844],[430,932],[768,1024],[1024,768],[1280,700],[1366,768],[1440,800],[1440,900],[1470,820],[1536,860],[1710,980],[1728,980],[1728,1117],[1920,1000],[1920,1080],[2560,1440]];
- for (const engine of ['chrome','webkit']) {
+ const engines=(process.env.REFEREE_LIST_BROWSER_ENGINES || 'chrome,webkit').split(',');
+ assert(engines.length && engines.every(engine=>['chrome','webkit'].includes(engine)));
+ for (const engine of engines) {
   const browser=await (engine==='chrome'?chromium.launch({channel:process.env.REFEREE_LIST_BROWSER_CHANNEL || 'chrome',headless:true}):webkit.launch({headless:true}));
   try {
    const context=await browser.newContext(); const page=await context.newPage();
