@@ -116,7 +116,7 @@ for (const [engineName, engine] of [["chromium", chromium], ["webkit", webkit]])
     results.push(`${engineName}: visible group standings, group tabs, search, ranking context PASS`);
     for (const route of ["assignments", "open-matches"]) {
       const expected = route === "assignments" ? fixture.assignmentOrder : fixture.openOrder;
-      const list = () => page.getByRole("list", { name: "公开选派记录", exact: true });
+      const list = () => page.getByRole("list", { name: "按时间排序的比赛", exact: true });
       for (const width of widths) {
         await page.setViewportSize({ width, height: 1000 });
         await goto(page, `/referees/${route}`);
@@ -141,7 +141,7 @@ for (const [engineName, engine] of [["chromium", chromium], ["webkit", webkit]])
       await goto(page, `/referees/${route}?competition=unknown`);
       assert.equal(await page.getByRole("combobox", { name: "赛事", exact: true }).inputValue(), "unknown");
       assert.equal(await list().count(), 0);
-      results.push(`${engineName}: ${route} six widths, time order, three then all, three distinct competition filters, refresh, empty category PASS`);
+      results.push(`${engineName}: ${route} ${widths.length} widths, time order, three then all, three distinct competition filters, refresh, empty category PASS`);
     }
   }
   await goto(page, "/competitions/presentation-futsal"); await expect(rows(page)).toHaveCount(0); assert(await page.getByText("当前暂无赛程赛果", { exact: true }).isVisible());
@@ -199,7 +199,7 @@ for (const [engineName, engine] of [["chromium", chromium], ["webkit", webkit]])
   if (fixture.refereeCompetitions?.length) {
     for (const route of ["assignments", "open-matches"]) {
       await goto(noJSPage, `/referees/${route}`);
-      const list = noJSPage.getByRole("list", { name: "公开选派记录", exact: true });
+      const list = noJSPage.getByRole("list", { name: "按时间排序的比赛", exact: true });
       assert.equal(await list.locator(":scope > li").count(), 3);
       await noJSPage.getByRole("combobox", { name: "赛事", exact: true }).selectOption(fixture.refereeCompetitions[0].id);
       await noJSPage.getByRole("button", { name: "筛选", exact: true }).click(); await stable(noJSPage);
