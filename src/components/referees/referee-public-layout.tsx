@@ -18,9 +18,9 @@ const publicLinks = [
   ["/referees/recruitment", "加入裁判队伍"],
 ] as const;
 
-export function RefereePage({ title, description, eyebrow, current, children, actions, headerAside }: {
+export function RefereePage({ title, description, eyebrow, current, children, actions, headerAside, compact = false }: {
   title: ReactNode; description: ReactNode; eyebrow: string; current: string;
-  children: ReactNode; actions?: ReactNode; headerAside?: ReactNode;
+  children: ReactNode; actions?: ReactNode; headerAside?: ReactNode; compact?: boolean;
 }) {
   const headerCopy = <>
     <p className={styles.eyebrow}>{eyebrow}</p>
@@ -31,7 +31,7 @@ export function RefereePage({ title, description, eyebrow, current, children, ac
 
   return <>
     <SiteHeader />
-    <main className={styles.page} id="main-content">
+    <main className={`${styles.page}${compact ? ` ${styles.compactPage}` : ""}`} id="main-content">
       <header className={headerAside ? `${styles.header} ${styles.headerWithAside}` : styles.header}>
         <div className={headerAside ? `${styles.shell} ${styles.headerGrid}` : styles.shell}>
           {headerAside ? <><div className={styles.headerCopy}>{headerCopy}</div>{headerAside}</> : headerCopy}
