@@ -55,6 +55,7 @@ jobs:
           npm run test:v210x-migration
       - name: Existing application and real HTTP regressions
         run: |
+          npm run test:team-directory-order
           npm run test:security-remediation
           npm run test:security-remediation:http
           npm run test:v210x-regressions
