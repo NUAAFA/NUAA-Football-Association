@@ -59,6 +59,9 @@ jobs:
           npm run test:v210x-migration
       - name: Existing application and real HTTP regressions
         run: |
+          npm run test:audit-business
+          npm run test:referee-submission-requests
+          npm run test:audit-public
           npm run test:team-directory-order
           npm run test:competition-presentation
           npm run test:resource-library
@@ -82,6 +85,9 @@ jobs:
         env:
           V210X_BROWSER_CHANNEL: chromium
         run: |
+          AUDIT_BROWSER_CHANNEL=chromium npm run test:audit-business:http
+          F06_BROWSER_CHANNEL=chromium npm run test:audit-network:browser
+          AUDIT_BROWSER_CHANNEL=chromium npm run test:audit-public:http
           npm run test:v210x-browser
           REFEREE_LIST_BROWSER_CHANNEL=chromium REFEREE_LIST_BROWSER_ENGINES=chrome npm run test:referee-public-lists
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

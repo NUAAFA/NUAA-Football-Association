@@ -189,9 +189,11 @@ async function main() {
     await prisma.competition.update({where:{id:competition.id},data:{isTestData:true}});
     const excluded=await structure.getGroupStandings(group.id);assert(!excluded.rankingConfirmed);assert.equal(excluded.confirmationCompatibility.ranking,"LEGACY_UNVERIFIED");
     check("F03 legacy proof does not authorize a group excluded by current formal/test eligibility");
+    await prisma.refereeApplication.update({where:{id:lb.id},data:{status:"APPOINTED"}});
+    await prisma.refereeApplication.update({where:{id:sb.id},data:{status:"APPROVED"}});
     const digest=async()=>createHash("sha256").update(await readFile(database)).digest("hex");const before=await digest();
     const diag=async()=>{const child=spawn(process.execPath,["--import","tsx","scripts/diagnose-audit-remediation.mjs",`--database=${database}`],{env:{...process.env},stdio:["ignore","pipe","pipe"]});let out="",err="";child.stdout.on("data",c=>out+=c);child.stderr.on("data",c=>err+=c);const [code]=await once(child,"exit");assert.equal(code,0,err);return JSON.parse(out);};
-    const diagnostic=await diag();await diag();assert.equal(await digest(),before);assert(diagnostic.readOnly);output.diagnostic=diagnostic;
+    const diagnostic=await diag();await diag();assert.equal(await digest(),before);assert(diagnostic.readOnly);assert(diagnostic.applicationMismatches.some((r: { id: string })=>r.id===lb.id));assert(diagnostic.applicationMismatches.some((r: { id: string })=>r.id===sb.id));output.diagnostic=diagnostic;
     check("D01 read-only diagnostic reports compatibility and application drift without changing database bytes");
     output.status="PASS";output.F03={rankingConfirmed:true,oldStaleRetained:true,historyCount:await prisma.groupConfirmation.count({where:{groupId:group.id}})};
     const evidence=process.env.NUAAFA_AUDIT_EVIDENCE; if(evidence) await writeFile(path.join(evidence,"business-after.json"),JSON.stringify(output,null,2));
