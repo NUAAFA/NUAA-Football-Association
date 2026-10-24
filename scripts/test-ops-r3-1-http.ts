@@ -53,7 +53,7 @@ async function main() {
  await request(`/api/referees/admin/appointments/${match.id}`,'POST',{action:'publish',reason:'合成正式发布'},refCookie);
  const loginResponse=await fetch(origin+'/api/referees/login',{method:'POST',headers:{origin:mutationOrigin,'content-type':'application/json'},body:JSON.stringify({studentId:'16268888',password:accounts.password})});assert.equal(loginResponse.status,200);const memberCookie=loginResponse.headers.get('set-cookie')!.split(';')[0];
  assert((await html('/referees/workspace',memberCookie)).includes('合成球队'));
- const appointment=await db.refereeAppointment.findUniqueOrThrow({where:{matchId:match.id}});await request(`/api/referees/appointments/${appointment.id}/acknowledge`,'POST',{},memberCookie);
+ const appointment=await db.refereeAppointment.findUniqueOrThrow({where:{matchId:match.id},include:{versions:{orderBy:{revision:'desc'},take:1}}});await request(`/api/referees/appointments/${appointment.id}/acknowledge`,'POST',{expectedVersionId:appointment.versions[0].id},memberCookie);
  const result={homeScore:0,awayScore:0,homePenaltyScore:null,awayPenaltyScore:null,expectedVersion:0,actualEnded:true,reason:'合成实际完赛'};
  await request(`/api/admin/matches/${match.id}/result`,'POST',result,compCookie,409);await request(`/api/referees/admin/appointments/${match.id}`,'POST',{action:'publish'},compCookie,403);
  const patch={slug:match.slug,competitionId:id,stage:'小组赛',stageId:match.stageId,groupId:match.groupId,roundId:match.roundId,kickoff:new Date(now-7200000).toISOString(),endAt:new Date(now-3600000).toISOString(),venue:match.venue,round:match.round,source:'MANUAL',homeTeamId:match.homeTeamId,awayTeamId:match.awayTeamId,status:'SCHEDULED',applicationWindowStatus:'CLOSED',positionCounts:{REFEREE:1}};

@@ -1,3 +1,4 @@
+import { effectiveApplicationStatus } from "@/lib/referee-application-state";
 import { BeijingDayRefresh } from "@/components/referees/admin/beijing-day-refresh";
 import { getEffectiveRefereeGrade } from "@/lib/referee-grade";
 import type { Metadata } from "next";
@@ -29,14 +30,14 @@ export default async function RefereeWorkspacePage() {
   if (!session) redirect("/referees/login");
   if (session.referee.mustChangePassword) redirect("/referees/workspace/account");
   const now = new Date();
-  const [applications, assignedPositions, availability, openMatchCount] = await Promise.all([
+  const [storedApplications, assignedPositions, availability, openMatchCount] = await Promise.all([
     prisma.refereeApplication.findMany({
       where: { refereeId: session.refereeId },
       include: { match: { include: { competition: true, homeTeam: true, awayTeam: true } } },
       orderBy: { createdAt: "desc" },
     }),
     prisma.appointmentPosition.findMany({
-      where: { refereeId: session.refereeId, appointment: { status: { in: ["PUBLISHED", "COMPLETED"] } } },
+      where: { refereeId: session.refereeId, appointment: { status: { in: ["PUBLISHED", "COMPLETED"] }, match: { status: { not: "CANCELLED" } } } },
       include: {
         appointment: {
           include: {
@@ -56,6 +57,8 @@ export default async function RefereeWorkspacePage() {
     prisma.refereeAvailability.findMany({ where: { refereeId: session.refereeId, endAt: { gte: now } }, orderBy: { startAt: "asc" }, take: 5 }),
     prisma.match.count({ where: { status: "SCHEDULED", applicationWindowStatus: "OPEN", applicationDeadline: { gt: now } } }),
   ]);
+  const officialMatchIds = new Set(assignedPositions.map((position) => position.appointment.match.id));
+  const applications = storedApplications.map((application) => ({ ...application, status: effectiveApplicationStatus(application.status, officialMatchIds.has(application.matchId), application.match.status === "SCHEDULED" && application.match.applicationWindowStatus === "OPEN" && Boolean(application.match.applicationDeadline && application.match.applicationDeadline > now)) }));
   const sortedPositions = [...assignedPositions].sort((left, right) => (left.appointment.match.kickoff?.getTime() ?? Infinity) - (right.appointment.match.kickoff?.getTime() ?? Infinity));
   const upcomingPositions = sortedPositions.filter((item) => item.appointment.status === "PUBLISHED" && item.appointment.match.status === "SCHEDULED" && item.appointment.match.kickoff !== null && Boolean(item.appointment.match.venue?.trim()));
   const historicalPositions = sortedPositions.filter((item) => item.appointment.status === "COMPLETED").reverse();
@@ -67,12 +70,12 @@ export default async function RefereeWorkspacePage() {
       <section className="functional-section"><div className="detail-shell referee-dashboard">
         <section className="referee-dashboard-priority">
           <header className="functional-section-heading"><div><p>OPEN MATCHES & INTEREST</p><h2>可报名场次 / 我的执裁意向</h2></div><Link href="/referees/open-matches">查看 {openMatchCount} 场开放比赛 →</Link></header>
-          {applications.length ? <div className="referee-personal-list">{applications.slice(0, 5).map((application) => <article key={application.id}><div><span>{application.match.competition.name}</span><h3>{application.match.homeTeam.name} vs {application.match.awayTeam.name}</h3><p>{formatRefereeDateTime(application.match.kickoff)}</p></div><strong data-status={application.status}>{applicationStatusLabels[application.status]}</strong>{application.match.applicationDeadline && application.match.applicationDeadline > now && !["APPOINTED", "WITHDRAWN"].includes(application.status) ? <ApplicationWithdrawButton applicationId={application.id} /> : null}</article>)}</div> : <div className="functional-empty functional-empty-compact"><strong>尚未提交执裁意向</strong><p>开放场次会在这里形成报名与审核记录。</p><Link href="/referees/open-matches">浏览开放场次</Link></div>}
+          {applications.length ? <div className="referee-personal-list">{applications.slice(0, 5).map((application) => <article key={application.id}><div><span>{application.match.competition.name}</span><h3>{application.match.homeTeam.name} vs {application.match.awayTeam.name}</h3><p>{formatRefereeDateTime(application.match.kickoff)}</p></div><strong data-status={application.status}>{applicationStatusLabels[application.status]}</strong>{application.match.status === "SCHEDULED" && application.match.applicationDeadline && application.match.applicationDeadline > now && !["APPOINTED", "WITHDRAWN"].includes(application.status) ? <ApplicationWithdrawButton applicationId={application.id} /> : null}</article>)}</div> : <div className="functional-empty functional-empty-compact"><strong>尚未提交执裁意向</strong><p>开放场次会在这里形成报名与审核记录。</p><Link href="/referees/open-matches">浏览开放场次</Link></div>}
         </section>
 
         <section id="official-tasks">
           <header className="functional-section-heading"><div><p>UPCOMING OFFICIAL DUTIES</p><h2>正式任务 · 待执裁 / 待完赛确认</h2></div><span>{upcomingPositions.length} 项</span></header>
-          {upcomingPositions.length ? <div className="referee-task-list">{upcomingPositions.map((position, index) => { const version = position.appointment.versions[0]; return <article className={index === 0 ? "is-nearest" : ""} key={position.id}><div><span>{index === 0 ? "最近任务 · " : ""}{position.appointment.match.competition.name}</span><h3>{position.appointment.match.homeTeam.name} vs {position.appointment.match.awayTeam.name}</h3><p>{formatRefereeDateTime(position.appointment.match.kickoff)} · {position.appointment.match.venue}</p></div><strong>{position.label}{position.appointment.match.kickoff && position.appointment.match.kickoff <= now ? " · 待完赛确认" : ""}</strong><RefereeTaskActions appointmentId={position.appointment.id} acknowledgedAt={version?.acknowledgements[0] ? formatRefereeDateTime(version.acknowledgements[0].acknowledgedAt) : null} reportStatus={version?.conflictReports[0]?.status ?? null} /></article>; })}</div> : <div className="functional-empty functional-empty-compact"><strong>暂无正式任务 · 待执裁 / 待完赛确认</strong><p>只有管理员正式发布且未撤回的选派会显示在这里。</p></div>}
+          {upcomingPositions.length ? <div className="referee-task-list">{upcomingPositions.map((position, index) => { const version = position.appointment.versions[0]; return <article className={index === 0 ? "is-nearest" : ""} key={position.id}><div><span>{index === 0 ? "最近任务 · " : ""}{position.appointment.match.competition.name}</span><h3>{position.appointment.match.homeTeam.name} vs {position.appointment.match.awayTeam.name}</h3><p>{formatRefereeDateTime(position.appointment.match.kickoff)} · {position.appointment.match.venue}</p></div><strong>{position.label}{position.appointment.match.kickoff && position.appointment.match.kickoff <= now ? " · 待完赛确认" : ""}</strong><RefereeTaskActions appointmentId={position.appointment.id} versionId={version?.id ?? null} acknowledgedAt={version?.acknowledgements[0] ? formatRefereeDateTime(version.acknowledgements[0].acknowledgedAt) : null} reportStatus={version?.conflictReports[0]?.status ?? null} /></article>; })}</div> : <div className="functional-empty functional-empty-compact"><strong>暂无正式任务 · 待执裁 / 待完赛确认</strong><p>只有管理员正式发布且未撤回的选派会显示在这里。</p></div>}
         </section>
 
         <div className="referee-dashboard-secondary">
