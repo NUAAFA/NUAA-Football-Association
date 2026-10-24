@@ -32,7 +32,7 @@ import { newsArticleJsonLd } from "@/lib/structured-data";
 import { SITE_NAME } from "@/lib/site-metadata";
 import { getPublishedContentDetailBySlug } from "@/lib/admin-content-service";
 import { isDatabaseContentSource } from "@/lib/content-source";
-import { isPublishedStaticContent } from "@/lib/content-publication";
+import { isPublishedStaticContent, staticContentPublishedAt } from "@/lib/content-publication";
 
 import jointMeeting from "../../../../public/images/competitions/2026-mens-intercollege-cup/joint-meeting.jpg";
 import sunset from "../../../../public/images/competitions/2026-mens-intercollege-cup/stadium-sunset.jpg";
@@ -68,9 +68,10 @@ export function generateStaticParams() {
   ].map((story) => ({ slug: story.id }));
 }
 
-function contentDate(dateLabel: string) {
-  const normalized = dateLabel.replaceAll(".", "-").trim();
-  return normalized.includes(" ") ? `${normalized.replace(" ", "T")}:00+08:00` : `${normalized}T12:00:00+08:00`;
+function contentDate(story: { dateLabel: string; publishedAt?: string }) {
+  const date = staticContentPublishedAt(story);
+  if (!date) throw new Error("Invalid confirmed historical publication date.");
+  return date.toISOString();
 }
 
 export async function generateMetadata({ params }: NewsDetailPageProps): Promise<Metadata> {
@@ -110,8 +111,8 @@ export async function generateMetadata({ params }: NewsDetailPageProps): Promise
       title: story.title,
       description: story.summary,
       url: canonicalPath,
-      publishedTime: "publishedAt" in story ? story.publishedAt : contentDate(story.dateLabel),
-      modifiedTime: "updatedAt" in story ? story.updatedAt : contentDate(story.dateLabel),
+      publishedTime: contentDate(story),
+      modifiedTime: "updatedAt" in story ? story.updatedAt : contentDate(story),
       images: [{ url: image, alt: imageAlt }],
     },
     twitter: {
@@ -162,12 +163,10 @@ export default async function NewsDetailPage({ params, searchParams }: NewsDetai
   const imageAlt = "imageAlt" in story
     ? story.imageAlt
     : "南京航空航天大学天目湖足球协会正式标识";
-  const publishedAt = "publishedAt" in story
-    ? story.publishedAt ?? contentDate(story.dateLabel)
-    : contentDate(story.dateLabel);
+  const publishedAt = contentDate(story);
   const updatedAt = "updatedAt" in story
-    ? story.updatedAt ?? contentDate(story.dateLabel)
-    : contentDate(story.dateLabel);
+    ? story.updatedAt ?? contentDate(story)
+    : contentDate(story);
 
   const competition = isFreshmanCupStory
     ? { label: "2026新生杯赛事详情", href: "/competitions/freshman-cup" }

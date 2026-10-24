@@ -1,10 +1,11 @@
+import { conflictSnapshot, type RefereeConflictSnapshot } from "@/lib/referee-conflict-snapshot";
 import { prisma } from "@/lib/prisma";
 import { RefereeServiceError } from "@/lib/referee-service-error";
 
 export type RefereeTaskSubmissionState = {
   versionId: string;
   acknowledgement: { id: string } | null;
-  report: { id: string; reasonCode: string | null; explanation: string | null; status: string } | null;
+  report: RefereeConflictSnapshot | null;
 };
 
 export type RefereeApplicationSubmissionState = {
@@ -21,7 +22,7 @@ export async function getRefereeTaskSubmissionState(appointmentId: string, refer
         select: {
           id: true, revision: true,
           acknowledgements: { where: { refereeId }, select: { id: true } },
-          conflictReports: { where: { refereeId }, select: { id: true, reasonCode: true, explanation: true, status: true } },
+          conflictReports: { where: { refereeId }, select: { id: true, reasonCode: true, explanation: true, status: true, reportedAt: true, resolvedAt: true } },
         },
       },
     },
@@ -30,7 +31,7 @@ export async function getRefereeTaskSubmissionState(appointmentId: string, refer
   if (!row || !version || row.revision !== version.revision || version.id !== expectedVersionId) {
     throw new RefereeServiceError("任务版本或岗位已变化，请重新打开工作区核对后操作。", 409);
   }
-  return { versionId: version.id, acknowledgement: version.acknowledgements[0] ?? null, report: version.conflictReports[0] ?? null };
+  return { versionId: version.id, acknowledgement: version.acknowledgements[0] ?? null, report: version.conflictReports[0] ? conflictSnapshot(version.conflictReports[0]) : null };
 }
 
 export async function getRefereeApplicationSubmissionState(matchId: string, refereeId: string): Promise<RefereeApplicationSubmissionState> {

@@ -1,3 +1,4 @@
+import { conflictSnapshot } from "@/lib/referee-conflict-snapshot";
 import { NextResponse } from "next/server";
 
 import { refereeApiErrorResponse, readRefereeApiJson, RefereeApiInputError } from "@/lib/referee-api";
@@ -13,7 +14,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (!isRecord(body)) throw new RefereeApiInputError("冲突报告格式不正确。");
     const { id } = await context.params;
     const expectedVersionId = readShortText(body.expectedVersionId, "任务版本，请刷新工作区", 100);
-    await reportAppointmentConflict(
+    const report = await reportAppointmentConflict(
       id,
       authorization.session.refereeId,
       {
@@ -22,7 +23,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       },
       expectedVersionId,
     );
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, report: conflictSnapshot(report) }, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {
     return refereeApiErrorResponse(error, "报告失败，请稍后重试。");
   }
