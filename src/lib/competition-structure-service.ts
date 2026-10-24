@@ -142,15 +142,16 @@ export function standingsForGroup(group: StandingsGroup, knockoutMatches: Knocko
   const rows = calculateStandings(group.members.map((m) => m.team), group.stage.type === "GROUP" && !group.stage.competition.isTestData ? matches : []);
   const hasResults = rows.some((r) => r.played > 0);
   const tied = hasResults && rows.some((r, i) => rows.some((other, j) => i !== j && other.points === r.points));
-  const rankingValid = latestRanking?.fingerprint === fingerprint || latestRanking?.fingerprint === legacyFingerprint;
+  const legacyProofEligible = group.stage.type === "GROUP" && !group.stage.competition.isTestData;
+  const rankingValid = latestRanking?.fingerprint === fingerprint || (legacyProofEligible && latestRanking?.fingerprint === legacyFingerprint);
   const ranking = latestRanking?.kind === "RANKING" && rankingValid ? latestRanking : null;
   const latestQualification = confirmations.find((c) => c.kind === "QUALIFICATION");
-  const qualification = latestQualification && [qualificationFingerprint, legacyQualificationFingerprint].includes(latestQualification.fingerprint) ? latestQualification : null;
+  const qualification = latestQualification && (latestQualification.fingerprint === qualificationFingerprint || (legacyProofEligible && latestQualification.fingerprint === legacyQualificationFingerprint)) ? latestQualification : null;
   const compatibility = (record: typeof latestRanking, valid: boolean) => !record ? "NONE" : record.fingerprint.startsWith("v2:") ? valid ? "V2_VALID" : "V2_STALE" : valid ? "LEGACY_VALID" : "LEGACY_UNVERIFIED";
   const confirmationCompatibility = { ranking: compatibility(latestRanking, rankingValid), qualification: compatibility(latestQualification, Boolean(qualification)) };
   const compatibleLegacyConfirmations = [
-    ...(latestRanking && latestRanking.fingerprint === legacyFingerprint ? [{ id: latestRanking.id, before: legacyFingerprint, after: fingerprint }] : []),
-    ...(latestQualification?.fingerprint === legacyQualificationFingerprint ? [{ id: latestQualification.id, before: legacyQualificationFingerprint, after: qualificationFingerprint }] : []),
+    ...(legacyProofEligible && latestRanking && latestRanking.fingerprint === legacyFingerprint ? [{ id: latestRanking.id, before: legacyFingerprint, after: fingerprint }] : []),
+    ...(legacyProofEligible && latestQualification?.fingerprint === legacyQualificationFingerprint ? [{ id: latestQualification.id, before: legacyQualificationFingerprint, after: qualificationFingerprint }] : []),
   ];
   const order = ranking?.teamIds as string[] | undefined;
   const staleTeamIds = latestQualification && !qualification ? latestQualification.teamIds as string[] : [];

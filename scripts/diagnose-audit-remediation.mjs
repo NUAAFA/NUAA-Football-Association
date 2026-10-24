@@ -21,7 +21,8 @@ try {
     const ranking = records.find(r => ['RANKING','AUTO'].includes(r.kind));
     const qualification = records.find(r => r.kind === 'QUALIFICATION');
     const f = confirmationFingerprints({ group: [group.id,group.stageId,group.competitionId,group.type,Boolean(group.isTestData)], members, matches }, ranking?.id ?? '');
-    const classify = (record, current, legacy) => !record ? { status: 'NONE' } : { id: record.id, status: record.fingerprint === current ? 'V2_VALID' : record.fingerprint === legacy ? 'LEGACY_VALID' : record.fingerprint.startsWith('v2:') ? 'V2_STALE' : 'LEGACY_UNVERIFIED', wouldPromoteOnVerifiedMatchEdit: record.fingerprint === legacy, reason: [current,legacy].includes(record.fingerprint) ? 'Current facts prove this confirmation.' : 'Current facts cannot prove this record; retain it for review.' };
+    const legacyProofEligible = group.type === "GROUP" && !group.isTestData;
+    const classify = (record, current, legacy) => !record ? { status: 'NONE' } : { id: record.id, status: record.fingerprint === current ? 'V2_VALID' : legacyProofEligible && record.fingerprint === legacy ? 'LEGACY_VALID' : record.fingerprint.startsWith('v2:') ? 'V2_STALE' : 'LEGACY_UNVERIFIED', wouldPromoteOnVerifiedMatchEdit: legacyProofEligible && record.fingerprint === legacy, reason: [current,legacy].includes(record.fingerprint) ? 'Current facts prove this confirmation.' : 'Current facts cannot prove this record; retain it for review.' };
     return { groupId: group.id, ranking: classify(ranking,f.fingerprint,f.legacyFingerprint), qualification: classify(qualification,f.qualificationFingerprint,f.legacyQualificationFingerprint) };
   });
   const applications = db.prepare(`SELECT a.id,a.matchId,a.refereeId,a.status,

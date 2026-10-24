@@ -184,6 +184,11 @@ async function main() {
     assert((await structure.getGroupStandings(group.id)).rankingConfirmed);
     check("F03 new-format confirmation is valid and existing confirmation history is retained");
 
+    const latestFact=await legacyFacts();const legacyCurrent=createHash("sha256").update(JSON.stringify({members:teams.slice(0,2).map(t=>t.id).sort(),matches:[[latestFact.id,latestFact.homeTeamId,latestFact.awayTeamId,latestFact.homeScore,latestFact.awayScore,latestFact.status,latestFact.resultVersion,latestFact.updatedAt]]})).digest("hex");
+    await prisma.groupConfirmation.create({data:{groupId:group.id,kind:"RANKING",teamIds:table.rows.map(r=>r.id),fingerprint:legacyCurrent,reason:"旧格式资格边界样本"}});
+    await prisma.competition.update({where:{id:competition.id},data:{isTestData:true}});
+    const excluded=await structure.getGroupStandings(group.id);assert(!excluded.rankingConfirmed);assert.equal(excluded.confirmationCompatibility.ranking,"LEGACY_UNVERIFIED");
+    check("F03 legacy proof does not authorize a group excluded by current formal/test eligibility");
     const digest=async()=>createHash("sha256").update(await readFile(database)).digest("hex");const before=await digest();
     const diag=async()=>{const child=spawn(process.execPath,["--import","tsx","scripts/diagnose-audit-remediation.mjs",`--database=${database}`],{env:{...process.env},stdio:["ignore","pipe","pipe"]});let out="",err="";child.stdout.on("data",c=>out+=c);child.stderr.on("data",c=>err+=c);const [code]=await once(child,"exit");assert.equal(code,0,err);return JSON.parse(out);};
     const diagnostic=await diag();await diag();assert.equal(await digest(),before);assert(diagnostic.readOnly);output.diagnostic=diagnostic;
