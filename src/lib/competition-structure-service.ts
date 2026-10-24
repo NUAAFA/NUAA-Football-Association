@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { confirmationFingerprints } from "@/lib/competition-confirmation-fingerprint";
 import type { Prisma } from "@/generated/prisma-v29/client";
 import { prisma } from "@/lib/prisma";
 import { RefereeServiceError } from "@/lib/referee-service-error";
@@ -133,22 +133,39 @@ export async function getCompetitionGroupStandings(competitionId: string, db: Db
   ]);
   return groups.map((g) => standingsForGroup(g, matches));
 }
-function standingsForGroup(group: StandingsGroup, knockoutMatches: KnockoutMatch[]) {
+export function standingsForGroup(group: StandingsGroup, knockoutMatches: KnockoutMatch[]) {
   const memberIds = new Set(group.members.map((m) => m.teamId));
   const matches = group.matches.filter((m) => !m.isTestData && m.stageId === group.stageId && m.competitionId === group.stage.competitionId && m.homeTeamId !== m.awayTeamId && memberIds.has(m.homeTeamId) && memberIds.has(m.awayTeamId));
-  const fingerprint = createHash("sha256").update(JSON.stringify({ members: group.members.map((m) => m.teamId), matches: matches.map((m) => [m.id, m.homeTeamId, m.awayTeamId, m.homeScore, m.awayScore, m.status, m.resultVersion, m.updatedAt]) })).digest("hex");
+  const confirmations = [...group.confirmations].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || b.id.localeCompare(a.id));
+  const latestRanking = confirmations.find((c) => c.kind === "RANKING" || c.kind === "AUTO");
+  const { fingerprint, legacyFingerprint, qualificationFingerprint, legacyQualificationFingerprint } = confirmationFingerprints({ group: [group.id, group.stageId, group.stage.competitionId, group.stage.type, group.stage.competition.isTestData], members: group.members.map((m) => m.teamId), matches }, latestRanking?.id ?? "");
   const rows = calculateStandings(group.members.map((m) => m.team), group.stage.type === "GROUP" && !group.stage.competition.isTestData ? matches : []);
   const hasResults = rows.some((r) => r.played > 0);
   const tied = hasResults && rows.some((r, i) => rows.some((other, j) => i !== j && other.points === r.points));
-  const latestRanking = group.confirmations.find((c) => c.kind === "RANKING" || c.kind === "AUTO");
-  const ranking = latestRanking?.kind === "RANKING" && latestRanking.fingerprint === fingerprint ? latestRanking : null;
-  const latestQualification = group.confirmations.find((c) => c.kind === "QUALIFICATION");
-  const qualificationFingerprint = createHash("sha256").update(fingerprint + (latestRanking?.id ?? "")).digest("hex");
-  const qualification = latestQualification?.fingerprint === qualificationFingerprint ? latestQualification : null;
+  const rankingValid = latestRanking?.fingerprint === fingerprint || latestRanking?.fingerprint === legacyFingerprint;
+  const ranking = latestRanking?.kind === "RANKING" && rankingValid ? latestRanking : null;
+  const latestQualification = confirmations.find((c) => c.kind === "QUALIFICATION");
+  const qualification = latestQualification && [qualificationFingerprint, legacyQualificationFingerprint].includes(latestQualification.fingerprint) ? latestQualification : null;
+  const compatibility = (record: typeof latestRanking, valid: boolean) => !record ? "NONE" : record.fingerprint.startsWith("v2:") ? valid ? "V2_VALID" : "V2_STALE" : valid ? "LEGACY_VALID" : "LEGACY_UNVERIFIED";
+  const confirmationCompatibility = { ranking: compatibility(latestRanking, rankingValid), qualification: compatibility(latestQualification, Boolean(qualification)) };
+  const compatibleLegacyConfirmations = [
+    ...(latestRanking && latestRanking.fingerprint === legacyFingerprint ? [{ id: latestRanking.id, before: legacyFingerprint, after: fingerprint }] : []),
+    ...(latestQualification?.fingerprint === legacyQualificationFingerprint ? [{ id: latestQualification.id, before: legacyQualificationFingerprint, after: qualificationFingerprint }] : []),
+  ];
   const order = ranking?.teamIds as string[] | undefined;
   const staleTeamIds = latestQualification && !qualification ? latestQualification.teamIds as string[] : [];
   const affectedMatches = knockoutMatches.filter((m) => staleTeamIds.includes(m.homeTeamId) || staleTeamIds.includes(m.awayTeamId));
-  return { group: { id: group.id, name: group.name, stageId: group.stageId, stageName: group.stage.name, competitionId: group.stage.competitionId }, rows: order ? [...rows].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id)) : rows, fingerprint, qualificationFingerprint, hasResults, tied, rankingConfirmed: Boolean(ranking), rankingStale: latestRanking?.kind === "RANKING" && !ranking, qualificationStale: Boolean(latestQualification && !qualification), qualifiedTeamIds: (qualification?.teamIds ?? []) as string[], affectedMatches, allCompleted: matches.length > 0 && matches.every((m) => (m.status === "COMPLETED" && m.homeScore !== null && m.awayScore !== null) || m.status === "CANCELLED") };
+  return { group: { id: group.id, name: group.name, stageId: group.stageId, stageName: group.stage.name, competitionId: group.stage.competitionId }, confirmationCompatibility, compatibleLegacyConfirmations, rows: order ? [...rows].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id)) : rows, fingerprint, qualificationFingerprint, hasResults, tied, rankingConfirmed: Boolean(ranking), rankingStale: latestRanking?.kind === "RANKING" && !ranking, qualificationStale: Boolean(latestQualification && !qualification), qualifiedTeamIds: (qualification?.teamIds ?? []) as string[], affectedMatches, allCompleted: matches.length > 0 && matches.every((m) => (m.status === "COMPLETED" && m.homeScore !== null && m.awayScore !== null) || m.status === "CANCELLED") };
+}
+
+export async function preserveVerifiedLegacyConfirmations(db: Db, groupId: string | null, actorId: string | null) {
+  if (!groupId) return;
+  const table = await getGroupStandings(groupId, db);
+  for (const proof of table.compatibleLegacyConfirmations) {
+    const changed = await db.groupConfirmation.updateMany({ where: { id: proof.id, fingerprint: proof.before }, data: { fingerprint: proof.after } });
+    if (changed.count !== 1) throw new RefereeServiceError("排名确认已变化，请刷新核对后重试。", 409);
+    await db.auditLog.create({ data: { actorType: "ADMIN", actorId, action: "GROUP_CONFIRMATION_FINGERPRINT_UPGRADED", entityType: "GroupConfirmation", entityId: proof.id, summary: "编辑比赛前保留已验证的旧排名依据；人工结论与历史时间不变", metadata: JSON.stringify({ groupId, before: proof.before, after: proof.after, verifiedBeforeBusinessWrite: true }) } });
+  }
 }
 
 export async function confirmGroup(competitionId: string, groupId: string, input: { kind: "RANKING" | "AUTO" | "QUALIFICATION"; teamIds: string[]; fingerprint: string; reason: string }, actor: UnifiedAdminActor) {

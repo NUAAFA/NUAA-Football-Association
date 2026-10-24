@@ -1,3 +1,5 @@
+import { applicationReviewStatuses, applicationPublicationSnapshot, hasOfficialApplicationTask, releasePublishedApplications } from "@/lib/referee-application-state";
+import { refereeStateTransaction } from "@/lib/referee-state-transaction";
 import { consumeRequestQuota } from "@/lib/request-budget";
 import { assertMatchScheduled, isMatchScheduled, validateMatchSchedule } from "@/lib/match-scheduling";
 import { isKnockoutPlaceholder, validMatchNumber } from "@/lib/competition-match-number";
@@ -15,7 +17,7 @@ import type {
   RefereeStatus,
   TrainingStatus,
 } from "@/generated/prisma-v29/client";
-import { assertMatchStructure } from "@/lib/competition-structure-service";
+import { assertMatchStructure, preserveVerifiedLegacyConfirmations } from "@/lib/competition-structure-service";
 import { prisma } from "@/lib/prisma";
 import {
   requireAdminServiceAuthorization,
@@ -511,11 +513,14 @@ export async function createRefereeApplication(input: {
 }
 
 export async function withdrawRefereeApplication(id: string, refereeId: string) {
-  return prisma.$transaction(async (tx) => {
+  return refereeStateTransaction(async (tx) => {
+    const owned = await tx.refereeApplication.findFirst({ where: { id, refereeId }, select: { id: true, matchId: true } });
+    if (!owned) throw new RefereeServiceError("报名记录不存在。", 404);
+    if (await hasOfficialApplicationTask(tx, owned.matchId, refereeId)) throw new RefereeServiceError("已有正式裁判任务，请通过正式撤回或改派流程处理。", 409);
     const changed = await tx.refereeApplication.updateMany({
       where: {
-        id, refereeId, status: { notIn: ["APPOINTED", "WITHDRAWN"] },
-        match: { applicationDeadline: { gt: new Date() } },
+        id, refereeId, status: { not: "WITHDRAWN" },
+        match: { status: "SCHEDULED", applicationDeadline: { gt: new Date() } },
       },
       data: { status: "WITHDRAWN" },
     });
@@ -594,20 +599,19 @@ export async function reviewApplication(
   id: string,
   status: ApplicationStatus,
   reviewNote: string,
+  authorization: AdminServiceAuthorization<"referees:write">,
 ) {
-  const existing = await prisma.refereeApplication.findUnique({ where: { id } });
-  if (!existing) throw new RefereeServiceError("报名记录不存在。", 404);
-  const result = await prisma.refereeApplication.update({
-    where: { id },
-    data: { status, reviewNote: reviewNote || null, reviewedAt: new Date() },
+  const actor = requireAdminServiceAuthorization(authorization, "referees:write");
+  if (!(applicationReviewStatuses as readonly string[]).includes(status)) throw new RefereeServiceError("该状态由正式选派流程决定，不能通过报名审核设置。", 400);
+  return refereeStateTransaction(async (tx) => {
+    const existing = await tx.refereeApplication.findUnique({ where: { id } });
+    if (!existing) throw new RefereeServiceError("报名记录不存在。", 404);
+    if (existing.status === "WITHDRAWN") throw new RefereeServiceError("报名已由本人撤回；如需补录，请使用人工例外流程。", 409);
+    if (await hasOfficialApplicationTask(tx, existing.matchId, existing.refereeId)) throw new RefereeServiceError("已有正式裁判任务，请先通过正式撤回或改派流程处理。", 409);
+    const result = await tx.refereeApplication.update({ where: { id }, data: { status, reviewNote: reviewNote || null, reviewedAt: new Date() } });
+    await writeAudit({ action: "APPLICATION_REVIEWED", actorId: actor.id ?? undefined, entityType: "RefereeApplication", entityId: id, summary: `报名审核状态更新为 ${status}`, metadata: { before: existing.status, status } }, tx);
+    return result;
   });
-  await writeAudit({
-    action: "APPLICATION_REVIEWED",
-    entityType: "RefereeApplication",
-    entityId: id,
-    summary: `报名审核状态更新为 ${status}`,
-  });
-  return result;
 }
 
 export async function createMatch(input: {
@@ -783,7 +787,7 @@ export async function updateMatch(
     throw new RefereeServiceError("比赛球队不属于所选赛事。");
   }
   if (competition.teams.filter((t) => [input.homeTeamId, input.awayTeamId].includes(t.id)).some((t) => isKnockoutPlaceholder(t.name))) throw new RefereeServiceError("请人工选择真实球队，不可使用淘汰赛占位球队。");
-  const match = await prisma.$transaction(async (tx) => {
+  const match = await refereeStateTransaction(async (tx) => {
     const current = await tx.match.findUnique({ where: { id }, include: { positionRequirements: true } });
     if (!current) throw new RefereeServiceError("比赛不存在。", 404);
     if (input.status === "COMPLETED" && (current.status !== "COMPLETED" || (!input.kickoff || input.kickoff > new Date()) || (input.endAt && input.endAt > new Date()) || current.homeScore === null || current.awayScore === null)) throw new RefereeServiceError("请通过确认赛果入口标记比赛完赛。", 409);
@@ -804,6 +808,7 @@ export async function updateMatch(
     await assertMatchStructure(tx, { ...input, stageId: input.stageId === undefined ? existing.stageId : input.stageId, groupId: input.groupId === undefined ? existing.groupId : input.groupId, roundId: input.roundId === undefined ? existing.roundId : input.roundId });
     const structureChanged = input.stageId !== undefined && input.stageId !== existing.stageId || input.groupId !== undefined && input.groupId !== existing.groupId || input.roundId !== undefined && input.roundId !== existing.roundId;
     if (existing.status === "COMPLETED" && structureChanged && (!input.structureChangeReason?.trim() || input.structureChangeReason.length > 500)) throw new RefereeServiceError("已完赛比赛重新归类将影响积分及人工确认，请填写核对原因。", 409);
+    await preserveVerifiedLegacyConfirmations(tx, existing.groupId, actor?.id ?? null);
     await tx.matchPositionRequirement.deleteMany({ where: { matchId: id } });
     const updated = await tx.match.update({
       where: { id },
@@ -839,6 +844,7 @@ export async function updateMatch(
         const reason = input.cancellationReason?.trim() || "比赛取消派生撤销任务";
         const version = await saveAppointmentVersion(tx, appointment.id, "CANCELLED", reason, "", actor?.id);
         await tx.refereeAppointment.update({ where: { id: appointment.id }, data: { status: "CANCELLED", cancelledAt: new Date(), cancellationReason: reason, lastChangeReason: reason } });
+        await releasePublishedApplications(tx, appointment.id, id, actor?.id ?? null);
         await writeAudit({ action: "APPOINTMENT_CANCELLED_FROM_MATCH", entityType: "RefereeAppointment", entityId: appointment.id, actorId: actor?.id ?? undefined, summary: "比赛取消派生撤销任务", metadata: { matchId: id, versionId: version.id } }, tx);
       }
     }
@@ -899,6 +905,7 @@ export async function deleteMatchSafely(
       throw new RefereeServiceError(matchDeletionProtectedMessage, 409);
     }
 
+    await preserveVerifiedLegacyConfirmations(tx, match.groupId, actor?.id ?? null);
     await tx.matchPositionRequirement.deleteMany({ where: { matchId: id } });
     await tx.match.delete({ where: { id } });
 
@@ -991,7 +998,7 @@ export async function saveAppointmentDraft(input: {
   positions: PositionInput[];
 }, authorization: AdminServiceAuthorization<"referees:write">) {
   const actor = authorizedAdminActor(authorization, "referees:write");
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await refereeStateTransaction(async (tx) => {
     const match = await tx.match.findUnique({
       where: { id: input.matchId },
       include: { competition: true, positionRequirements: true },
@@ -1145,7 +1152,7 @@ export async function publishAppointment(
   authorization: AdminServiceAuthorization<"referees:write">,
 ) {
   const actor = authorizedAdminActor(authorization, "referees:write");
-  return prisma.$transaction(async (tx) => {
+  return refereeStateTransaction(async (tx) => {
     const appointment = await tx.refereeAppointment.findUnique({
       where: { matchId },
       include: { positions: true, match: { include: { competition: true } } },
@@ -1187,13 +1194,15 @@ export async function publishAppointment(
       overrideReason,
       actor?.id,
     );
+    const applicationStates = await applicationPublicationSnapshot(tx, matchId);
+    if (applicationStates.some((row) => refereeIds.includes(row.refereeId) && ["WITHDRAWN", "REJECTED"].includes(row.status)) && !reason.trim()) throw new RefereeServiceError("所选裁判已有撤回或未通过记录，请填写正式人工例外原因后发布。", 409);
     const selectedIds = refereeIds;
     const reconciledAt = new Date();
     await tx.refereeApplication.updateMany({
       where: {
         matchId,
         refereeId: { in: selectedIds },
-        status: { in: ["PENDING", "REVIEWING", "APPROVED", "NOT_SELECTED", "APPOINTED"] },
+        status: { in: ["PENDING", "REVIEWING", "APPROVED", "REJECTED", "WITHDRAWN", "NOT_SELECTED", "APPOINTED"] },
       },
       data: { status: "APPOINTED", reviewedAt: reconciledAt },
     });
@@ -1225,6 +1234,7 @@ export async function publishAppointment(
       actorId: actor?.id ?? undefined,
       metadata: {
         matchId,
+        applicationStates, reconciledAt: reconciledAt.toISOString(),
         versionId: version.id,
         reason: reason || null,
         overrideReason: overrideReason || null,
@@ -1241,7 +1251,7 @@ export async function withdrawAppointment(
   authorization: AdminServiceAuthorization<"referees:write">,
 ) {
   const actor = authorizedAdminActor(authorization, "referees:write");
-  return prisma.$transaction(async (tx) => {
+  return refereeStateTransaction(async (tx) => {
     const appointment = await tx.refereeAppointment.findUnique({ where: { matchId } });
     assertAppointmentTransition(appointment?.status ?? "NONE", "withdraw");
     if (!appointment) throw new RefereeServiceError("当前没有可撤回的已发布选派。", 409);
@@ -1255,6 +1265,7 @@ export async function withdrawAppointment(
         lastChangeReason: reason,
       },
     });
+    await releasePublishedApplications(tx, appointment.id, matchId, actor?.id ?? null);
     await writeAudit({
       action: "APPOINTMENT_WITHDRAWN",
       entityType: "RefereeAppointment",
@@ -1303,7 +1314,7 @@ export async function cancelAppointment(
   authorization: AdminServiceAuthorization<"referees:write">,
 ) {
   const actor = authorizedAdminActor(authorization, "referees:write");
-  return prisma.$transaction(async (tx) => {
+  return refereeStateTransaction(async (tx) => {
     const appointment = await tx.refereeAppointment.findUnique({ where: { matchId } });
     assertAppointmentTransition(appointment?.status ?? "NONE", "cancel");
     if (!appointment) throw new RefereeServiceError("当前选派不能取消。", 409);
@@ -1318,6 +1329,7 @@ export async function cancelAppointment(
         lastChangeReason: reason,
       },
     });
+    await releasePublishedApplications(tx, appointment.id, matchId, actor?.id ?? null);
     await writeAudit({
       action: "APPOINTMENT_CANCELLED",
       entityType: "RefereeAppointment",

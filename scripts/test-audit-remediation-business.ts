@@ -1,0 +1,195 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { mkdtemp, mkdir, readFile, readdir, realpath, writeFile, stat } from "node:fs/promises";
+import path from "node:path";
+import os from "node:os";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
+import { createClient } from "@libsql/client";
+
+const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const worker = process.argv.indexOf("--publish-worker");
+async function raceWorker() {
+  const [matchId, barrier, output] = process.argv.slice(worker + 1);
+  assert(process.env.DATABASE_URL?.startsWith("file:") && process.env.NUAAFA_ISOLATED_SECURITY_TEST === "1");
+  const caps = await import("./security-r4a-test-capabilities");
+  const { publishAppointment } = await import("../src/lib/referee-service");
+  const { prisma } = await import("../src/lib/prisma");
+  await writeFile(output + ".ready", "ready");
+  for (let i = 0; i < 150; i++) { if (await stat(barrier).catch(() => null)) break; await pause(50); }
+  try {
+    await publishAppointment(matchId, "", "", caps.issueTestAdminServiceAuthorization("referees:write"));
+    await writeFile(output, JSON.stringify({ published: true }));
+  } catch (error) {
+    await writeFile(output, JSON.stringify({ published: false, status: error && typeof error === "object" && "status" in error ? error.status : null, message: error instanceof Error ? error.message : "unknown" }));
+  } finally { await prisma.$disconnect(); }
+}
+
+async function main() {
+  const parent = await realpath(process.env.NUAAFA_AUDIT_SANDBOX ?? os.tmpdir());
+  const root = await realpath(await mkdtemp(path.join(parent, "audit-business-")));
+  const database = path.join(root, "synthetic.db");
+  const uploads = path.join(root, "uploads"); await mkdir(uploads);
+  Object.assign(process.env, { DATABASE_URL: `file:${database}`, NUAAFA_UPLOAD_DIR: uploads, NODE_ENV: "test", NUAAFA_ISOLATED_SECURITY_TEST: "1" });
+  const raw = createClient({ url: process.env.DATABASE_URL! });
+  for (const entry of (await readdir("prisma/migrations", { withFileTypes: true })).filter(e => e.isDirectory()).sort((a,b) => a.name.localeCompare(b.name))) await raw.executeMultiple(await readFile(path.join("prisma/migrations", entry.name, "migration.sql"), "utf8"));
+  raw.close();
+  const { prisma } = await import("../src/lib/prisma");
+  const service = await import("../src/lib/referee-service");
+  const structure = await import("../src/lib/competition-structure-service");
+  const { detectAppointmentWarnings } = await import("../src/lib/referee-conflicts");
+  const { confirmationFingerprints } = await import("../src/lib/competition-confirmation-fingerprint");
+  const caps = await import("./security-r4a-test-capabilities");
+  const actor = { ...caps.testUnifiedAdminActor(), role: "SUPER_ADMIN" as const };
+  const grant = caps.issueTestAdminServiceAuthorization("referees:write", actor);
+  const scoreGrant = caps.issueTestAdminServiceAuthorization("competitions:write", actor);
+  const output: Record<string, unknown> = { status: "RUNNING", synthetic: true, checks: [] };
+  const checks = output.checks as string[];
+  const check = (value: string) => { checks.push(value); console.log("PASS " + value); };
+  const reject = (fn: () => Promise<unknown>, status: number) => assert.rejects(fn, (e: unknown) => e instanceof service.RefereeServiceError && e.status === status);
+  let seq = 0;
+  try {
+    const competition = await prisma.competition.create({ data: { slug: "audit-business", name: "虚构整改赛事", campus: "虚构校区", format: "FUTSAL", status: "ONGOING", publicPublished: true } });
+    const teams = await Promise.all(["虚构甲", "虚构乙", "虚构丙", "虚构丁"].map(name => prisma.team.create({ data: { competitionId: competition.id, name } })));
+    const referee = async () => prisma.referee.create({ data: { publicCode: `AUDIT-${++seq}`, name: `虚构裁判${seq}`, status: "ACTIVE", assignmentEligibility: "ELIGIBLE", mustChangePassword: false, capabilities: { create: { format: "FUTSAL", positionKey: "REFEREE", status: "READY" } } } });
+    const at = (hours: number) => new Date(Date.now() + hours * 3_600_000);
+    const matchInput = (kickoff: Date, endAt: Date | null = null) => ({ slug: `audit-match-${++seq}`, competitionId: competition.id, stage: "友谊赛", kickoff, endAt: endAt ?? undefined, venue: `虚构场地${seq}`, homeTeamId: teams[0].id, awayTeamId: teams[1].id, status: "SCHEDULED" as const, applicationWindowStatus: "OPEN" as const, applicationDeadline: new Date(kickoff.getTime() - 3_600_000), positionCounts: { REFEREE: 1 } });
+    const make = async (kickoff: Date, endAt: Date | null = null) => service.createMatch(matchInput(kickoff,endAt),actor);
+    const draft = (matchId: string, refereeId: string, changeReason = "") => service.saveAppointmentDraft({ matchId, publicationNote: "虚构公示", changeReason, positions: [{ key: "REFEREE", refereeId }] },grant);
+    const publish = (id: string, reason = "") => service.publishAppointment(id,reason,"",grant);
+
+    const r1 = await referee(); const kickoff = at(48);
+    const a = await make(kickoff), b = await make(kickoff);
+    await draft(a.id,r1.id); await publish(a.id);
+    await reject(() => draft(b.id,r1.id),409);
+    assert((await detectAppointmentWarnings(b.id,[{ key: "REFEREE", refereeId:r1.id }])).some(w => w.code === "MATCH_OVERLAP" && w.severity === "HARD"));
+    check("F01 simultaneous kickoff without either end is blocked");
+    const r2 = await referee(), start = at(72);
+    const known = await make(start,new Date(start.getTime()+2*3_600_000)); const unknown = await make(new Date(start.getTime()+3_600_000));
+    await draft(known.id,r2.id);await publish(known.id);await reject(() => draft(unknown.id,r2.id),409);
+    const adjacent = await make(new Date(start.getTime()+2*3_600_000));
+    const adjacentWarnings = await detectAppointmentWarnings(adjacent.id,[{ key:"REFEREE",refereeId:r2.id }]);
+    assert(adjacentWarnings.some(w => w.code === "ADJACENT_MATCH"));assert(!adjacentWarnings.some(w => w.code === "MATCH_OVERLAP"));
+    await draft(adjacent.id,r2.id); await publish(adjacent.id);
+    check("F01 known interval with unknown later end, half-open endpoint adjacency, and non-overlap preserved");
+    const incomplete = await make(at(96));
+    const uncertainty = await detectAppointmentWarnings(incomplete.id,[{ key:"REFEREE",refereeId:r2.id }]);
+    assert(uncertainty.some(w => w.code === "TIME_UNCERTAIN"));
+    assert.equal((await prisma.match.findUniqueOrThrow({where:{id:incomplete.id}})).endAt,null);
+    const original = await prisma.match.findUniqueOrThrow({where:{id:a.id}});
+    await reject(() => service.updateMatch(a.id,{...matchInput(at(80)),slug:original.slug},actor),409);
+    assert.equal((await prisma.match.findUniqueOrThrow({where:{id:a.id}})).kickoff?.getTime(),original.kickoff?.getTime());
+    check("F01 uncertain duration is visible; published reschedule is already protected and leaves original values");
+    await service.withdrawAppointment(a.id,"虚构撤回",grant);await draft(b.id,r1.id);await publish(b.id);
+    await service.cancelAppointment(b.id,"虚构取消",grant);const c=await make(kickoff);await draft(c.id,r1.id);await publish(c.id);
+    check("F01 withdrawn/cancelled appointments and their retained versions do not block replacement");
+    const r3=await referee(), race1=await make(at(120)),race2=await make(race1.kickoff!);
+    await draft(race1.id,r3.id);await draft(race2.id,r3.id);
+    const barrier=path.join(root,"publish.start");
+    const files=[path.join(root,"publish-a.json"),path.join(root,"publish-b.json")];
+    const children=[race1,race2].map((m,i)=>spawn(process.execPath,["--import","tsx",path.resolve("scripts/test-audit-remediation-business.ts"),"--publish-worker",m.id,barrier,files[i]],{env:{...process.env},stdio:["ignore","pipe","pipe"]}));
+    const stopped=children.map(child=>once(child,"exit"));
+    for(let i=0;i<150;i++){if((await Promise.all(files.map(f=>stat(f+".ready").catch(()=>null)))).every(Boolean))break;await pause(50);}
+    await writeFile(barrier,"start");await Promise.all(stopped);
+    const race=await Promise.all(files.map(async f=>JSON.parse(await readFile(f,"utf8"))));
+    assert.equal(race.filter(r=>r.published).length,1);assert.equal(race.find(r=>!r.published).status,409);
+    assert.equal(await prisma.refereeAppointment.count({where:{status:"PUBLISHED",positions:{some:{refereeId:r3.id}}}}),1);
+    output.F01Concurrent=race;check("F01 two independent Node processes cannot both publish a conflicting task; loser receives 409");
+
+    const r4=await referee(),r5=await referee(),appMatch=await make(at(150));
+    const app=await service.createRefereeApplication({matchId:appMatch.id,refereeId:r4.id,preferredPositions:["REFEREE"]});
+    const nonselected=await service.createRefereeApplication({matchId:appMatch.id,refereeId:r5.id,preferredPositions:["REFEREE"]});
+    await service.reviewApplication(app.id,"APPROVED","原审核结论",grant);
+    await reject(()=>service.reviewApplication(app.id,"APPOINTED","虚构",grant),400);
+    await reject(()=>service.reviewApplication(app.id,"NOT_SELECTED","虚构",grant),400);
+    await reject(()=>service.reviewApplication(app.id,"APPROVED","",{} as typeof grant),403);
+    await draft(appMatch.id,r4.id);await publish(appMatch.id);
+    await reject(()=>service.reviewApplication(app.id,"APPROVED","绕过任务",grant),409);
+    // Synthetic legacy drift must not bypass the authoritative task check.
+    await prisma.refereeApplication.update({where:{id:app.id},data:{status:"APPROVED"}});
+    await reject(()=>service.withdrawRefereeApplication(app.id,r4.id),409);
+    await prisma.refereeApplication.update({where:{id:app.id},data:{status:"APPOINTED"}});
+    await reject(()=>service.withdrawRefereeApplication(app.id,r5.id),404);
+    await service.withdrawAppointment(appMatch.id,"虚构正式撤回",grant);
+    assert.equal((await prisma.refereeApplication.findUniqueOrThrow({where:{id:app.id}})).status,"APPROVED");
+    assert.equal((await prisma.refereeApplication.findUniqueOrThrow({where:{id:nonselected.id}})).status,"PENDING");
+    assert.equal((await prisma.refereeApplication.findUniqueOrThrow({where:{id:app.id}})).reviewNote,"原审核结论");
+    check("F02 review cannot create derived states, bypass real tasks, or modify another referee; withdrawal restores proven review decisions");
+    await draft(appMatch.id,r5.id,"虚构改派");await publish(appMatch.id,"虚构改派");
+    assert.equal((await prisma.refereeApplication.findUniqueOrThrow({where:{id:nonselected.id}})).status,"APPOINTED");
+    assert.equal((await prisma.refereeApplication.findUniqueOrThrow({where:{id:app.id}})).status,"NOT_SELECTED");
+    await service.cancelAppointment(appMatch.id,"虚构正式取消",grant);
+    assert.equal((await prisma.refereeApplication.findUniqueOrThrow({where:{id:app.id}})).status,"APPROVED");
+    assert.equal((await prisma.refereeApplication.findUniqueOrThrow({where:{id:nonselected.id}})).status,"PENDING");
+    assert(await prisma.appointmentVersion.count({where:{appointment:{matchId:appMatch.id}}})>=4);
+    check("F02 reassignment/cancellation restore base states and preserve task history");
+    const r6=await referee(),cross=await make(at(180));const crossApp=await service.createRefereeApplication({matchId:cross.id,refereeId:r6.id,preferredPositions:["REFEREE"]});await draft(cross.id,r6.id);
+    await Promise.allSettled([publish(cross.id),service.withdrawRefereeApplication(crossApp.id,r6.id)]);
+    const task=await prisma.refereeAppointment.findUniqueOrThrow({where:{matchId:cross.id}});const appState=await prisma.refereeApplication.findUniqueOrThrow({where:{id:crossApp.id}});
+    assert(task.status==="PUBLISHED"?appState.status==="APPOINTED":appState.status==="WITHDRAWN");
+    check("F02 publication and self-withdrawal interleaving preserves one authoritative result");
+
+    const lateInput=matchInput(at(210));const late=await service.createMatch(lateInput,actor);const lr=await referee(),lother=await referee();
+    const la=await service.createRefereeApplication({matchId:late.id,refereeId:lr.id,preferredPositions:["REFEREE"]});
+    const lb=await service.createRefereeApplication({matchId:late.id,refereeId:lother.id,preferredPositions:["REFEREE"]});
+    await service.reviewApplication(la.id,"APPROVED","已审核通过",grant);await draft(late.id,lr.id);await publish(late.id);
+    await service.updateMatch(late.id,{...lateInput,applicationWindowStatus:"CLOSED",applicationDeadline:at(-1)},actor);
+    await service.withdrawAppointment(late.id,"截止后正式撤回",grant);
+    assert.equal((await prisma.refereeApplication.findUniqueOrThrow({where:{id:la.id}})).status,"APPROVED");
+    assert.equal((await prisma.refereeApplication.findUniqueOrThrow({where:{id:lb.id}})).status,"NOT_SELECTED");
+    const cancelledInput=matchInput(at(220));const cancelled=await service.createMatch(cancelledInput,actor);const cr=await referee();
+    const ca=await service.createRefereeApplication({matchId:cancelled.id,refereeId:cr.id,preferredPositions:["REFEREE"]});
+    await draft(cancelled.id,cr.id);await publish(cancelled.id);
+    await service.updateMatch(cancelled.id,{...cancelledInput,status:"CANCELLED",cancellationReason:"虚构赛事取消"},actor);
+    assert.equal((await prisma.refereeApplication.findUniqueOrThrow({where:{id:ca.id}})).status,"NOT_SELECTED");
+    assert.equal((await prisma.refereeAppointment.findUniqueOrThrow({where:{matchId:cancelled.id}})).status,"CANCELLED");
+    check("F02 after deadline approved remains approved, undecided closes as not selected; match cancellation never reopens a pending application");
+    const swap=await make(at(240)),saRef=await referee(),sbRef=await referee();
+    const sa=await service.createRefereeApplication({matchId:swap.id,refereeId:saRef.id,preferredPositions:["REFEREE"]});
+    const sb=await service.createRefereeApplication({matchId:swap.id,refereeId:sbRef.id,preferredPositions:["REFEREE"]});
+    await draft(swap.id,saRef.id);await publish(swap.id);await service.withdrawAppointment(swap.id,"虚构改派前撤回",grant);await draft(swap.id,sbRef.id,"虚构改派原因");
+    await Promise.allSettled([publish(swap.id,"虚构正式改派"),service.reviewApplication(sb.id,"APPROVED","并发审核",grant)]);
+    assert.equal((await prisma.refereeApplication.findUniqueOrThrow({where:{id:sb.id}})).status,"APPOINTED");
+    assert.equal((await prisma.refereeApplication.findUniqueOrThrow({where:{id:sa.id}})).status,"NOT_SELECTED");
+    check("F02 review and formal reassignment interleaving preserves selected and nonselected projections");
+
+    const stage=await prisma.competitionStage.create({data:{competitionId:competition.id,name:"虚构小组赛",type:"GROUP"}});
+    const group=await prisma.competitionGroup.create({data:{stageId:stage.id,name:"虚构A组"}});
+    await prisma.teamGroupMembership.createMany({data:teams.slice(0,2).map(t=>({teamId:t.id,stageId:stage.id,groupId:group.id}))});
+    const pastInput={...matchInput(at(-48),at(-46)),slug:"audit-result",stageId:stage.id,groupId:group.id,applicationWindowStatus:"CLOSED" as const,applicationDeadline:undefined};
+    const m=await service.createMatch(pastInput,actor);
+    await service.confirmMatchResult(m.id,{homeScore:1,awayScore:1,homePenaltyScore:null,awayPenaltyScore:null,expectedVersion:0,actualEnded:true,reason:"虚构完赛"},scoreGrant);
+    let table=await structure.getGroupStandings(group.id);
+    const legacyFacts=()=>prisma.match.findUniqueOrThrow({where:{id:m.id}});
+    const current=await legacyFacts();
+    const old=createHash("sha256").update(JSON.stringify({members:teams.slice(0,2).map(t=>t.id).sort(),matches:[[current.id,current.homeTeamId,current.awayTeamId,current.homeScore,current.awayScore,current.status,current.resultVersion,current.updatedAt]]})).digest("hex");
+    const ranking=await prisma.groupConfirmation.create({data:{groupId:group.id,kind:"RANKING",teamIds:[teams[1].id,teams[0].id],fingerprint:old,reason:"旧有效人工同分次序"}});
+    await prisma.groupConfirmation.create({data:{groupId:group.id,kind:"QUALIFICATION",teamIds:[teams[1].id],fingerprint:createHash("sha256").update(old+ranking.id).digest("hex"),reason:"旧有效出线"}});
+    table=await structure.getGroupStandings(group.id);assert(table.rankingConfirmed);assert.equal(table.confirmationCompatibility.ranking,"LEGACY_VALID");
+    const beforeRead=await prisma.groupConfirmation.findMany({where:{groupId:group.id}});await structure.getGroupStandings(group.id);assert.deepEqual(await prisma.groupConfirmation.findMany({where:{groupId:group.id}}),beforeRead);
+    await service.updateMatch(m.id,{...pastInput,status:"COMPLETED",internalNote:"无关内部备注",publicNote:"无关公开说明"},actor);
+    table=await structure.getGroupStandings(group.id);assert(table.rankingConfirmed);assert.equal(table.rows[0].id,teams[1].id);assert.deepEqual(table.qualifiedTeamIds,[teams[1].id]);assert.equal(table.confirmationCompatibility.ranking,"V2_VALID");
+    await service.updateMatch(m.id,{...pastInput,status:"COMPLETED",internalNote:"再次无关编辑"},actor);
+    assert((await structure.getGroupStandings(group.id)).rankingConfirmed);
+    check("F03 exact legacy proof remains valid, reads do not write, first and repeated note edits preserve manual order/qualification via audited v2 transition");
+    const facts={group:[group.id,stage.id,competition.id,"GROUP",false] as [string,string,string,string,boolean],members:teams.slice(0,2).map(t=>t.id),matches:[await legacyFacts()]};
+    assert.deepEqual(confirmationFingerprints(facts,ranking.id),confirmationFingerprints({...facts,members:[...facts.members].reverse(),matches:[...facts.matches].reverse()},ranking.id));
+    await service.confirmMatchResult(m.id,{homeScore:2,awayScore:1,homePenaltyScore:null,awayPenaltyScore:null,expectedVersion:1,actualEnded:true,reason:"虚构真实更正"},scoreGrant);
+    table=await structure.getGroupStandings(group.id);assert(table.rankingStale);assert(table.qualificationStale);assert.deepEqual(table.qualifiedTeamIds,[]);
+    const stale=await prisma.groupConfirmation.create({data:{groupId:group.id,kind:"RANKING",teamIds:[teams[1].id,teams[0].id],fingerprint:old,reason:"旧过期记录，不能复活"}});
+    await service.updateMatch(m.id,{...pastInput,status:"COMPLETED",internalNote:"旧过期记录之后的无关修改"},actor);
+    table=await structure.getGroupStandings(group.id);assert(table.rankingStale);assert.equal(table.confirmationCompatibility.ranking,"LEGACY_UNVERIFIED");assert.equal((await prisma.groupConfirmation.findUniqueOrThrow({where:{id:stale.id}})).fingerprint,old);
+    check("F03 real score corrections invalidate v2; old stale/unknown records never resurrect; canonical order is stable");
+    const fresh=await structure.getGroupStandings(group.id);await structure.confirmGroup(competition.id,group.id,{kind:"RANKING",teamIds:fresh.rows.map(r=>r.id),fingerprint:fresh.fingerprint,reason:"新格式确认"},actor);
+    assert((await structure.getGroupStandings(group.id)).rankingConfirmed);
+    check("F03 new-format confirmation is valid and existing confirmation history is retained");
+
+    const digest=async()=>createHash("sha256").update(await readFile(database)).digest("hex");const before=await digest();
+    const diag=async()=>{const child=spawn(process.execPath,["--import","tsx","scripts/diagnose-audit-remediation.mjs",`--database=${database}`],{env:{...process.env},stdio:["ignore","pipe","pipe"]});let out="",err="";child.stdout.on("data",c=>out+=c);child.stderr.on("data",c=>err+=c);const [code]=await once(child,"exit");assert.equal(code,0,err);return JSON.parse(out);};
+    const diagnostic=await diag();await diag();assert.equal(await digest(),before);assert(diagnostic.readOnly);output.diagnostic=diagnostic;
+    check("D01 read-only diagnostic reports compatibility and application drift without changing database bytes");
+    output.status="PASS";output.F03={rankingConfirmed:true,oldStaleRetained:true,historyCount:await prisma.groupConfirmation.count({where:{groupId:group.id}})};
+    const evidence=process.env.NUAAFA_AUDIT_EVIDENCE; if(evidence) await writeFile(path.join(evidence,"business-after.json"),JSON.stringify(output,null,2));
+  } finally { await prisma.$disconnect(); }
+}
+(worker>=0?raceWorker():main()).catch(error=>{console.error(error);process.exitCode=1;});
