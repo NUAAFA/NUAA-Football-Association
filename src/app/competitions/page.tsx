@@ -12,6 +12,8 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function CompetitionsPage() {
-  const competitions = await getPublicCompetitionCatalog();
-  return <><SiteHeader /><CompetitionHub competitions={competitions} /><SiteFooter /></>;
+  let competitions: Awaited<ReturnType<typeof getPublicCompetitionCatalog>> = [];
+  let unavailable = false;
+  try { competitions = await getPublicCompetitionCatalog(); } catch { unavailable = true; }
+  return <><SiteHeader /><CompetitionHub competitions={competitions} unavailable={unavailable} /><SiteFooter /></>;
 }

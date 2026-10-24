@@ -1,10 +1,7 @@
 import type { MetadataRoute } from "next";
-
-import { publishedNews, publicAnnouncements } from "@/data/content";
+import { getPublicDiscoveryItems } from "@/lib/public-content-discovery";
 import { getPublicCompetitionCatalog } from "@/lib/public-competition-service";
 import { absoluteSiteUrl } from "@/lib/site-metadata";
-
-export const dynamic = "force-dynamic";
 
 const publicRoutes = [
   "/",
@@ -38,28 +35,20 @@ const publicRoutes = [
   "/teams",
 ] as const;
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const competitions = await getPublicCompetitionCatalog();
+export async function getPublicSitemap(): Promise<MetadataRoute.Sitemap> {
+  // Either source failing rejects the whole feed; incomplete success is never cached.
+  const [competitions, stories] = await Promise.all([getPublicCompetitionCatalog(), getPublicDiscoveryItems()]);
   const staticEntries: MetadataRoute.Sitemap = publicRoutes.map((pathname) => ({
     url: absoluteSiteUrl(pathname),
     changeFrequency: pathname === "/" || pathname === "/news" ? "weekly" : "monthly",
     priority: pathname === "/" ? 1 : pathname.split("/").length === 2 ? 0.8 : 0.6,
   }));
-
-  const newsEntries: MetadataRoute.Sitemap = [
-    ...publishedNews,
-    ...publicAnnouncements.filter((item) => item.href.startsWith("/news/")),
-  ].map((story) => ({
-    url: absoluteSiteUrl(story.href),
-    changeFrequency: "yearly",
-    priority: 0.7,
+  const newsEntries: MetadataRoute.Sitemap = stories.map((story) => ({
+    url: absoluteSiteUrl(story.href), lastModified: story.updatedAt,
+    changeFrequency: "yearly", priority: 0.7,
   }));
-
   const competitionEntries: MetadataRoute.Sitemap = competitions.map((competition) => ({
-    url: absoluteSiteUrl(competition.detailHref),
-    changeFrequency: "weekly",
-    priority: 0.8,
+    url: absoluteSiteUrl(competition.detailHref), changeFrequency: "weekly", priority: 0.8,
   }));
-
-  return [...staticEntries, ...competitionEntries, ...newsEntries];
+  return [...new Map([...staticEntries, ...competitionEntries, ...newsEntries].map((entry) => [entry.url, entry])).values()];
 }

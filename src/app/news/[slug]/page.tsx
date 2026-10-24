@@ -32,6 +32,7 @@ import { newsArticleJsonLd } from "@/lib/structured-data";
 import { SITE_NAME } from "@/lib/site-metadata";
 import { getPublishedContentDetailBySlug } from "@/lib/admin-content-service";
 import { isDatabaseContentSource } from "@/lib/content-source";
+import { isPublishedStaticContent } from "@/lib/content-publication";
 
 import jointMeeting from "../../../../public/images/competitions/2026-mens-intercollege-cup/joint-meeting.jpg";
 import sunset from "../../../../public/images/competitions/2026-mens-intercollege-cup/stadium-sunset.jpg";
@@ -92,7 +93,7 @@ export async function generateMetadata({ params }: NewsDetailPageProps): Promise
     getMensCupNewsItem(slug) ??
     getWomensCupNewsItem(slug) ??
     getDisciplineDecision(slug);
-  if (!story) return { robots: { index: false, follow: false } };
+  if (!story || !isPublishedStaticContent(story)) return { robots: { index: false, follow: false } };
   const canonicalPath = `/news/${slug}`;
   const image = "image" in story ? story.image : "/brand/nuaa-fa-logo.jpg";
   const imageAlt = "imageAlt" in story
@@ -144,7 +145,7 @@ export default async function NewsDetailPage({ params, searchParams }: NewsDetai
     getMensCupArticle(slug) ??
     getWomensCupArticle(slug) ??
     getDisciplineDecisionArticle(slug);
-  if (!story || !article) notFound();
+  if (!story || !article || !isPublishedStaticContent(story)) notFound();
 
   const related = [
     freshmanCupPreparationNews,

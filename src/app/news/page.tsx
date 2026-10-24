@@ -10,6 +10,7 @@ import { publicSectionContacts } from "@/data/contacts";
 import { newsFeed, publicAnnouncements } from "@/data/content";
 import { getPublishedContentPage } from "@/lib/admin-content-service";
 import { isDatabaseContentSource } from "@/lib/content-source";
+import { isPublishedStaticContent } from "@/lib/content-publication";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/news" },
@@ -21,10 +22,11 @@ export const dynamic = "force-dynamic";
 
 export default async function NewsPage({ searchParams }: PageProps<"/news">) {
   const params = await searchParams;
+  const now = new Date();
   const cursor = typeof params.cursor === "string" ? params.cursor : undefined;
   const filter = typeof params.filter === "string" ? params.filter : undefined;
   const databasePage = isDatabaseContentSource()
-    ? await getPublishedContentPage({ cursor, pageSize: 10 })
+    ? await getPublishedContentPage({ cursor, pageSize: 10, now })
     : null;
   return (
     <>
@@ -38,7 +40,7 @@ export default async function NewsPage({ searchParams }: PageProps<"/news">) {
           </header>
           {databasePage
             ? <DatabaseNewsBoard items={databasePage.items} nextCursor={databasePage.nextCursor} cursor={cursor} filter={filter} />
-            : <PublicNewsBoard news={newsFeed} notices={publicAnnouncements} />}
+            : <PublicNewsBoard news={newsFeed.filter((item) => isPublishedStaticContent(item, now))} notices={publicAnnouncements.filter((item) => isPublishedStaticContent(item, now))} />}
           <div className={styles.contact}>
             <SectionContactCard contact={publicSectionContacts.news} note="新闻投稿与内容纠错" />
           </div>

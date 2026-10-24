@@ -7,11 +7,20 @@ import {
   Card,
   LinkButton,
 } from "@/components/ui/foundation-primitives";
-import { homeNews } from "@/data/content";
+import { getPublicDiscoveryItems, type PublicDiscoveryItem } from "@/lib/public-content-discovery";
+import { PublicLoadRetry } from "@/components/public-load-retry";
 
-export function NewsMediaSection() {
-  const featuredNews = homeNews.find((item) => !item.image.startsWith("/brand/")) ?? homeNews[0];
-  const secondaryNews = homeNews.filter((item) => item.id !== featuredNews.id).slice(0, 2);
+function formatStoryDate(value: Date) {
+  return new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(value);
+}
+
+export async function NewsMediaSection() {
+  let homeNews: PublicDiscoveryItem[] = [];
+  let unavailable = false;
+  try { homeNews = await getPublicDiscoveryItems({ type: "NEWS", take: 3 }); }
+  catch { unavailable = true; }
+  const featuredNews = homeNews[0];
+  const secondaryNews = homeNews.slice(1, 3);
 
   return (
     <section className={`${styles.section} ${styles.latestStories}`} id="home-news" aria-labelledby="home-news-media-title">
@@ -25,7 +34,7 @@ export function NewsMediaSection() {
             查看全部新闻 <span aria-hidden="true">→</span>
           </LinkButton>
         </div>
-        <div className={styles.storyLayout}>
+        {unavailable ? <PublicLoadRetry label="最新故事" /> : !featuredNews ? <div className="functional-empty"><strong>暂无已发布报道</strong><p>正式报道发布后将在这里显示。</p></div> : <div className={styles.storyLayout}>
           <article className={styles.featuredStory}>
             <Link className={styles.featuredStoryImage} href={featuredNews.href} aria-label={`阅读：${featuredNews.title}`}>
               <Image
@@ -40,7 +49,7 @@ export function NewsMediaSection() {
               <div className={styles.storyMeta}>
                 <Badge>{featuredNews.badge}</Badge>
                 <span>{featuredNews.category}</span>
-                <time>{featuredNews.dateLabel}</time>
+                <time dateTime={featuredNews.publishedAt.toISOString()}>{formatStoryDate(featuredNews.publishedAt)}</time>
               </div>
               <h3><Link href={featuredNews.href}>{featuredNews.title}</Link></h3>
               <p>{featuredNews.summary}</p>
@@ -65,7 +74,7 @@ export function NewsMediaSection() {
                   <span className={styles.secondaryStoryCopy}>
                     <span className={styles.storyMeta}>
                       <span>{item.category}</span>
-                      <time>{item.dateLabel}</time>
+                      <time dateTime={item.publishedAt.toISOString()}>{formatStoryDate(item.publishedAt)}</time>
                     </span>
                     <strong>{item.title}</strong>
                     <span className={styles.storyArrow} aria-hidden="true">→</span>
@@ -74,7 +83,7 @@ export function NewsMediaSection() {
               </Card>
             ))}
           </div>
-        </div>
+        </div>}
       </div>
     </section>
   );

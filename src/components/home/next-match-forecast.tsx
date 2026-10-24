@@ -1,3 +1,4 @@
+import { PublicLoadRetry } from "@/components/public-load-retry";
 import Link from "next/link";
 import styles from "@/components/home/home-page.module.css";
 import { Badge, LinkButton, Panel } from "@/components/ui/foundation-primitives";
@@ -27,7 +28,9 @@ function ForecastCard({ competition, index }: { competition: PublicCompetitionVi
 }
 
 export async function NextMatchForecast() {
-  const competitions = await getHomepagePublicCompetitions();
+  let competitions: PublicCompetitionView[] = [];
+  let unavailable = false;
+  try { competitions = await getHomepagePublicCompetitions(); } catch { unavailable = true; }
   return <section aria-labelledby="home-next-match-title" className={`${styles.section} ${styles.currentFootball}`} id="home-current-football">
     <div className={`page-shell ${styles.sectionShell}`}>
       <Panel className={styles.currentFootballPanel}>
@@ -38,7 +41,7 @@ export async function NextMatchForecast() {
           <LinkButton className={styles.currentFootballAction} href="/competitions/schedule#published-matches" tone="secondary">查看赛程与赛果 <span aria-hidden="true">→</span></LinkButton>
         </div>
         <div className={styles.currentCompetitionGrid} data-count={competitions.length}>
-          {competitions.length ? competitions.map((competition, index) => <ForecastCard competition={competition} index={index} key={competition.id} />) : <div className="functional-empty"><strong>当前暂无首页重点赛事</strong><p>请前往赛事中心查看全部赛事与最新安排。</p></div>}
+          {unavailable ? <PublicLoadRetry label="当前赛事安排" /> : competitions.length ? competitions.map((competition, index) => <ForecastCard competition={competition} index={index} key={competition.id} />) : <div className="functional-empty"><strong>当前暂无首页重点赛事</strong><p>请前往赛事中心查看全部赛事与最新安排。</p></div>}
         </div>
       </Panel>
     </div>
