@@ -61,6 +61,9 @@ jobs:
         run: |
           npm run test:audit-business
           npm run test:referee-submission-requests
+          TZ=UTC npm run test:targeted-followup
+          TZ=Europe/London npm run test:targeted-followup
+          TZ=Asia/Shanghai npm run test:targeted-followup
           npm run test:audit-public
           npm run test:team-directory-order
           npm run test:competition-presentation
@@ -87,6 +90,7 @@ jobs:
         run: |
           AUDIT_BROWSER_CHANNEL=chromium npm run test:audit-business:http
           F06_BROWSER_CHANNEL=chromium npm run test:audit-network:browser
+          TARGETED_BROWSER_CHANNEL=chromium npm run test:targeted-followup:browser
           AUDIT_BROWSER_CHANNEL=chromium npm run test:audit-public:http
           npm run test:v210x-browser
           REFEREE_LIST_BROWSER_CHANNEL=chromium REFEREE_LIST_BROWSER_ENGINES=chrome npm run test:referee-public-lists

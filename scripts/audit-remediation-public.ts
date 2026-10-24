@@ -9,6 +9,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { createClient } from "@libsql/client";
 import type { Prisma } from "../src/generated/prisma-v29/client";
+import { expectedStaticHistory } from "./static-history-expectations";
 
 const results: Array<Record<string, unknown>> = [];
 const evidence = process.env.NUAAFA_TEST_EVIDENCE ? path.resolve(process.env.NUAAFA_TEST_EVIDENCE) : undefined;
@@ -239,7 +240,8 @@ async function main() {
     }
     process.env.NUAAFA_CONTENT_SOURCE = "static";
     const staticItems = await getPublicDiscoveryItems();
-    assert(staticItems.some((item) => item.href === "/news/2026-freshman-cup-preparation-started"));
+    assert.deepEqual(staticItems.map((item) => item.href).sort(), expectedStaticHistory.map(([id]) => `/news/${id}`).sort());
+    assert.equal(staticItems.find((item) => item.href === "/news/2026-womens-intercollege-cup-closing")?.publishedAt.toISOString(), "2026-06-22T08:53:00.000Z");
     assert.equal((await getPublicDiscoveryItems({ now: new Date("2000-01-01T00:00:00Z") })).length, 0);
     assert.equal(new Set(staticItems.map((item) => item.href)).size, staticItems.length);
     results.push({ case: "explicit-static-mode-history-and-time", result: "PASS", preservedHistoricalArticles: staticItems.length, archivedCmsNotUsedAsFallback: true });
