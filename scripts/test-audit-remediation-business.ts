@@ -83,6 +83,8 @@ async function main() {
     await service.withdrawAppointment(a.id,"虚构撤回",grant);await draft(b.id,r1.id);await publish(b.id);
     await service.cancelAppointment(b.id,"虚构取消",grant);const c=await make(kickoff);await draft(c.id,r1.id);await publish(c.id);
     check("F01 withdrawn/cancelled appointments and their retained versions do not block replacement");
+    await reject(()=>service.createRefereeApplication({matchId:c.id,refereeId:r1.id,preferredPositions:["REFEREE"]}),409);
+    check("F02 an already assigned referee cannot create a second pending application authority");
     const r3=await referee(), race1=await make(at(120)),race2=await make(race1.kickoff!);
     await draft(race1.id,r3.id);await draft(race2.id,r3.id);
     const barrier=path.join(root,"publish.start");

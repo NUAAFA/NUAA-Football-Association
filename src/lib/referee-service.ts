@@ -457,12 +457,13 @@ export async function createRefereeApplication(input: {
   preferredPositions: AppointmentPositionKey[];
   note?: string;
 }) {
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await refereeStateTransaction(async (tx) => {
     const match = await tx.match.findUnique({
       where: { id: input.matchId },
       include: { competition: true },
     });
     if (!match) throw new RefereeServiceError("比赛不存在。", 404);
+    if (await hasOfficialApplicationTask(tx, match.id, input.refereeId)) throw new RefereeServiceError("已有本场正式裁判任务，无需重复提交执裁意向。", 409);
     assertMatchScheduled(match);
     if (match.status !== "SCHEDULED" || match.applicationWindowStatus !== "OPEN") {
       throw new RefereeServiceError("该场比赛当前不接受执裁意向。", 409);
@@ -548,12 +549,13 @@ export async function createAdminApplicationException(input: {
   if (!input.exceptionReason.trim()) {
     throw new RefereeServiceError("请填写人工例外原因。");
   }
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await refereeStateTransaction(async (tx) => {
     const match = await tx.match.findUnique({
       where: { id: input.matchId },
       include: { competition: true },
     });
     if (!match) throw new RefereeServiceError("比赛不存在。", 404);
+    if (await hasOfficialApplicationTask(tx, match.id, input.refereeId)) throw new RefereeServiceError("已有本场正式裁判任务，无需重复提交执裁意向。", 409);
     assertMatchScheduled(match);
     assertPositionTemplateConfigured(match.competition.format);
     const allowed = new Set(getPositionTemplate(match.competition.format).map((item) => item.key));

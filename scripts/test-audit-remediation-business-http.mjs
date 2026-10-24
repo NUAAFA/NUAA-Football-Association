@@ -22,7 +22,7 @@ const secret='Synthetic-Audit-HTTP-Admin-Secret-Only-2026';const memberSecret='S
 const hash=(token,key)=>createHmac('sha256',key).update(token).digest('hex');
 let server,browser;const checks=[];let logs='';const output=process.env.NUAAFA_AUDIT_EVIDENCE;
 try{
- const competition=await prisma.competition.create({data:{slug:'audit-http',name:'虚构HTTP赛事',campus:'虚构校区',format:'FUTSAL'}});
+ const competition=await prisma.competition.create({data:{slug:'audit-http',name:'虚构HTTP赛事',campus:'虚构校区',format:'FUTSAL',status:'ONGOING'}});
  const teams=await Promise.all(['虚构主队','虚构客队'].map(name=>prisma.team.create({data:{competitionId:competition.id,name}})));
  const referee=await prisma.referee.create({data:{publicCode:'AUDIT-HTTP',name:'虚构HTTP裁判',studentId:'AUDIT-HTTP-0001',status:'ACTIVE',assignmentEligibility:'ELIGIBLE',mustChangePassword:false,capabilities:{create:{format:'FUTSAL',positionKey:'REFEREE',status:'READY'}}}});
  const kickoff=new Date(Date.now()+86400000);const match=await service.createMatch({slug:'audit-http-match',competitionId:competition.id,stage:'虚构赛',kickoff,venue:'虚构场地',homeTeamId:teams[0].id,awayTeamId:teams[1].id,status:'SCHEDULED',applicationWindowStatus:'OPEN',applicationDeadline:new Date(kickoff.getTime()-3600000),positionCounts:{REFEREE:1}},actor);
