@@ -352,10 +352,10 @@ export async function getPublishedContentPage(input: {
   now?: Date;
   pageSize?: number;
 }) {
+  const cursor = decodeCursor(input.cursor);
   return readPublicData("content-list", async () => {
     const now = input.now ?? new Date();
     const pageSize = Math.min(50, Math.max(1, input.pageSize ?? contentPostPageSize));
-    const cursor = decodeCursor(input.cursor);
     const yearRange = input.year
       ? { gte: new Date(Date.UTC(input.year, 0, 1)), lt: new Date(Date.UTC(input.year + 1, 0, 1)) }
       : null;
