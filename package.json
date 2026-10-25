@@ -97,7 +97,9 @@
     "test:audit-business:http": "node --import tsx scripts/test-audit-remediation-business-http.mjs",
     "test:referee-submission-requests": "tsx scripts/test-referee-submission-requests.ts",
     "test:targeted-followup": "tsx scripts/test-targeted-followup-state.ts",
-    "test:targeted-followup:browser": "node --import tsx scripts/test-targeted-followup-browser.mjs"
+    "test:targeted-followup:browser": "node --import tsx scripts/test-targeted-followup-browser.mjs",
+    "test:f03-schedule-compat": "tsx scripts/test-f03-schedule-compat.ts",
+    "test:f03-schedule-compat:http": "tsx scripts/test-f03-schedule-compat.ts --http"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",
