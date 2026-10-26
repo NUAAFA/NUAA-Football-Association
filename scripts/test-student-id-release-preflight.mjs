@@ -87,7 +87,7 @@ async function main() {
     const walBefore = await readFile(`${databasePath}-wal`);
     assert.equal(run().report.activeMissingStudentId, 3);
     assert.deepEqual(await readFile(`${databasePath}-wal`), walBefore);
-    console.log("PASS: 20-migration fixtures; corrected semantics parity; no database/WAL changes; read-only write rejection; count-only output; blockers, missing/schema/type/path/bound/timeout failures block release.");
+    console.log("PASS: 21-migration fixtures; corrected semantics parity; no database/WAL changes; read-only write rejection; count-only output; blockers, missing/schema/type/path/bound/timeout failures block release.");
   } finally {
     await prisma.$disconnect();
     db.close();

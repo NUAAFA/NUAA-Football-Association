@@ -83,4 +83,4 @@ assert sqlite3.connect(recovered).execute('select count(*) from _prisma_migratio
 restored=root/'restored.db';assert not restored.exists();shutil.copy2(oldfile,restored)
 assert snapshot(sqlite3.connect(restored))==before
 assert hashlib.sha256(oldfile.read_bytes()).hexdigest()==oldhash
-print(json.dumps({'status':'PASS','historical_migrations_unchanged':17,'candidate_migrations':20,'baseline_tables_preserved':len(tables),'old_cells_and_admin_credentials':'EXACT_EQUAL','repeat_deploy':'PASS','failure_atomicity':'PASS','real_prisma_failure_and_clone_recovery':'PASS','isolated_restore':'PASS','integrity_and_foreign_keys':'PASS','navigation_index_plan':[row[-1] for row in plan]},ensure_ascii=False,indent=2))
+print(json.dumps({'status':'PASS','historical_migrations_unchanged':17,'candidate_migrations':21,'baseline_tables_preserved':len(tables),'old_cells_and_admin_credentials':'EXACT_EQUAL','repeat_deploy':'PASS','failure_atomicity':'PASS','real_prisma_failure_and_clone_recovery':'PASS','isolated_restore':'PASS','integrity_and_foreign_keys':'PASS','navigation_index_plan':[row[-1] for row in plan]},ensure_ascii=False,indent=2))

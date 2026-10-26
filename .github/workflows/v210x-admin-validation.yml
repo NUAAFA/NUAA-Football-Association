@@ -171,6 +171,7 @@ jobs:
       - name: Migration policy, actual Bash failure and existing deployment regressions
         run: |
           python3 scripts/test-production-readiness.py
+          python3 scripts/test-league-readiness.py
           python3 scripts/test-resource-readiness.py
           python3 scripts/test-prebuilt-pack.py
           python3 scripts/test-prebuilt-artifact.py
