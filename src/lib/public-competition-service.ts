@@ -222,7 +222,7 @@ function databaseView(row: PublicCompetitionRow, now = new Date()): PublicCompet
 
 async function loadCompetitionSummaries(homepageOnly: boolean, asOf: Date) {
   const rows = await prisma.competition.findMany({
-    where: { publicPublished: true, isTestData: false, ...(homepageOnly ? { homepageFeatured: true, status: { not: "COMPLETED" as const } } : {}) },
+    where: { publicPublished: true, isTestData: false, ...(homepageOnly ? { status: { not: "COMPLETED" as const } } : {}) },
     select: { ...publicCompetitionSelect, teams: { ...publicCompetitionSelect.teams, take: 0 }, _count: { select: { teams: true, matches: { where: { isTestData: false } } } }, matches: { ...publicCompetitionSelect.matches, where: { isTestData: false, status: "SCHEDULED", kickoff: { gte: asOf } }, take: 1, select: { ...publicCompetitionSelect.matches.select, appointment: false } } },
     orderBy: [{ publicOrder: "asc" }, { year: "desc" }, { createdAt: "asc" }, { id: "asc" }],
   });
@@ -250,7 +250,10 @@ export async function getPublicCompetition(slug: string): Promise<PublicCompetit
 }
 
 export async function getHomepagePublicCompetitions(asOf = new Date()): Promise<PublicCompetitionView[]> {
-  return readPublicData("competition-homepage", async () => (await loadCompetitionSummaries(true, asOf)).sort((a, b) => a.nextTime - b.nextTime || a.publicOrder - b.publicOrder || a.id.localeCompare(b.id)).slice(0, 2).map((r) => r.view));
+  return readPublicData("competition-homepage", async () => (await loadCompetitionSummaries(true, asOf))
+    .sort((a, b) => Number(b.view.homepageFeatured) - Number(a.view.homepageFeatured) || a.nextTime - b.nextTime || a.publicOrder - b.publicOrder || a.id.localeCompare(b.id))
+    .slice(0, 3)
+    .map((r) => r.view));
 }
 export async function getPublicCompetitionStandings(competitionId: string) {
   return readPublicData("competition-standings", async () => {

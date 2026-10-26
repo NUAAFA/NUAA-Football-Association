@@ -65,7 +65,7 @@ export default async function CompetitionWorkspacePage({ params, searchParams }:
   const tables = section === "standings" ? await getCompetitionGroupStandings(id) : [];
   const [homepage, publicView] = await Promise.all([getHomepagePublicCompetitions(), getPublicCompetition(competition.slug)]);
   const chosen = homepage.some((c) => c.id === id);
-  const publicEffect = !competition.publicPublished ? "赛事中心尚未公开" : competition.isTestData ? "测试标记阻止公开" : chosen ? "赛事中心已公开 · 当前入选首页" : competition.status === "COMPLETED" ? "赛事中心已公开 · 已结束，不占活跃首页位" : !competition.homepageFeatured ? "赛事中心已公开 · 未选择首页候选" : "赛事中心已公开 · 首页候选，目前按近期比赛排序未入选";
+  const publicEffect = !competition.publicPublished ? "赛事中心尚未公开" : competition.isTestData ? "测试标记阻止公开" : chosen ? "赛事中心已公开 · 当前入选首页" : competition.status === "COMPLETED" ? "赛事中心已公开 · 已结束，不占活跃首页位" : !competition.homepageFeatured ? "赛事中心已公开 · 未设置首页优先，当前未入选" : "赛事中心已公开 · 已设置首页优先，当前按比赛安排和展示顺序未入选";
   const canWrite = hasUnifiedAdminPermission(actor.roles, "competitions:write");
   const leagueTables = await getCompetitionLeagueStandings(id);
   return <>

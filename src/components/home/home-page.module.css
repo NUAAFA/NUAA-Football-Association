@@ -8,10 +8,8 @@
   min-height: 2.75rem;
 }
 
-.currentCompetitionFacts,
 .featuredCompetitionFacts,
 .associationStats,
-.currentCompetitionFacts dd,
 .featuredCompetitionFacts dd,
 .associationStats dd {
   margin: 0;
@@ -229,9 +227,8 @@
 
 .currentFootballPanel {
   display: grid;
-  grid-template-columns: minmax(17rem, 0.72fr) minmax(0, 1.28fr);
-  gap: clamp(var(--spacing-6), 4vw, var(--spacing-8));
-  padding: clamp(var(--spacing-6), 4vw, var(--spacing-8));
+  gap: var(--spacing-6);
+  padding: clamp(var(--spacing-5), 3vw, var(--spacing-7));
   border-color: rgba(168, 216, 255, 0.16);
   border-radius: var(--radius-panel);
   background:
@@ -243,8 +240,13 @@
 
 .currentFootballIntro {
   display: flex;
-  align-items: flex-start;
-  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--spacing-5);
+}
+
+.currentFootballIntro > div {
+  max-width: 42rem;
 }
 
 .currentFootballIntro .sectionEyebrow {
@@ -252,22 +254,22 @@
 }
 
 .currentFootballIntro h2 {
-  margin-top: var(--spacing-4);
-  font-size: clamp(2rem, 3.5vw, 3.25rem);
+  margin-top: var(--spacing-2);
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
   font-weight: var(--font-weight-heavy);
   letter-spacing: var(--letter-spacing-heading);
   line-height: var(--line-height-heading);
 }
 
-.currentFootballIntro > p:not(.sectionEyebrow) {
-  margin-top: var(--spacing-5);
+.currentFootballIntro p:not(.sectionEyebrow) {
+  margin-top: var(--spacing-3);
   color: var(--color-text-on-dark-muted);
   font-size: var(--font-size-body);
   line-height: var(--line-height-reading);
 }
 
 .currentFootball .currentFootballAction {
-  margin-top: auto;
+  flex-shrink: 0;
   padding-block: 0;
   border-color: rgba(168, 216, 255, 0.34);
   background: transparent;
@@ -276,8 +278,12 @@
 
 .currentCompetitionGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--spacing-4);
+}
+
+.currentCompetitionGrid[data-count="2"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .currentCompetitionGrid[data-count="0"],
@@ -287,13 +293,19 @@
 
 .currentCompetitionCard {
   min-width: 0;
-  display: flex;
-  align-items: flex-start;
-  flex-direction: column;
+  display: grid;
+  grid-row: span 5;
+  grid-template-rows: subgrid;
+  align-items: start;
+  gap: var(--spacing-4);
   padding: var(--spacing-5);
   border: 1px solid rgba(168, 216, 255, 0.14);
   border-radius: var(--radius-card);
   background: rgba(255, 255, 255, 0.055);
+}
+
+.currentCompetitionCard > div {
+  align-self: stretch;
 }
 
 .currentCompetitionHeader {
@@ -301,71 +313,41 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: var(--spacing-3);
-  color: rgba(255, 255, 255, 0.56);
+  color: var(--color-brand-sky-soft);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-bold);
   letter-spacing: 0.08em;
 }
 
 .currentCompetitionCard .currentBadge {
-  border-color: rgba(232, 204, 152, 0.35);
-  background: rgba(154, 90, 10, 0.2);
-  color: var(--color-warning-surface);
+  border-color: rgba(168, 216, 255, .3);
+  background: rgba(168, 216, 255, .1);
+  color: var(--color-brand-sky-soft);
+}
+
+.currentCompetitionCard :global(.ui-badge-success) {
+  border-color: rgba(127, 221, 198, .3);
+  background: rgba(127, 221, 198, .1);
+  color: #a3ebd9;
 }
 
 .currentCompetitionMeta {
-  margin-top: var(--spacing-6);
-  color: var(--color-brand-sky-soft);
+  color: var(--color-text-on-dark-muted);
   font-size: var(--font-size-caption) !important;
   font-weight: var(--font-weight-semibold);
 }
 
 .currentCompetitionCard h3 {
-  margin-top: var(--spacing-2);
-  font-size: var(--font-size-card-title);
+  font-size: clamp(1.2rem, 1.6vw, 1.5rem);
   font-weight: var(--font-weight-bold);
   line-height: var(--line-height-heading);
 }
 
-.currentCompetitionSummary {
-  margin-top: var(--spacing-3);
-  color: var(--color-text-on-dark-muted);
-  font-size: var(--font-size-meta) !important;
-  line-height: var(--line-height-body);
-}
-
-.currentCompetitionFacts {
-  width: 100%;
-  display: grid;
-  gap: var(--spacing-2);
-  margin-top: var(--spacing-5);
-  padding-top: var(--spacing-4);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.currentCompetitionFacts div {
-  display: grid;
-  grid-template-columns: 4.75rem minmax(0, 1fr);
-  gap: var(--spacing-3);
-  font-size: var(--font-size-caption);
-  line-height: 1.5;
-}
-
-.currentCompetitionFacts dt {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: var(--font-size-caption) !important;
-}
-
-.currentCompetitionFacts dd {
-  color: rgba(255, 255, 255, 0.84);
-  font-size: var(--font-size-caption) !important;
-  font-weight: var(--font-weight-semibold);
-}
-
 .currentCompetitionCard .inlineLink {
   margin-top: auto;
-  padding-top: var(--spacing-5);
+  padding-top: 0;
   color: var(--color-brand-sky-soft);
 }
 
@@ -1105,19 +1087,10 @@
 }
 
 @media (max-width: 1100px) {
-  .currentFootballPanel,
   .storyLayout,
   .competitionLayout,
   .associationShell {
     grid-template-columns: 1fr;
-  }
-
-  .currentFootballIntro > p:not(.sectionEyebrow) {
-    max-width: 43rem;
-  }
-
-  .currentFootball .currentFootballAction {
-    margin-top: var(--spacing-5);
   }
 
   .secondaryStories {
@@ -1191,9 +1164,20 @@
   }
 
   .currentCompetitionGrid,
+  .currentCompetitionGrid[data-count="2"],
   .secondaryStories,
   .competitionList {
     grid-template-columns: 1fr;
+  }
+
+  .currentCompetitionCard {
+    grid-row: auto;
+    grid-template-rows: auto;
+  }
+
+  .currentFootballIntro {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .secondaryStory > a {
@@ -1307,10 +1291,6 @@
 
   .currentCompetitionCard {
     padding: var(--spacing-4);
-  }
-
-  .currentCompetitionFacts div {
-    grid-template-columns: 4.25rem minmax(0, 1fr);
   }
 
   .noticeLink {
@@ -1465,11 +1445,6 @@
 
   .heroActions {
     align-items: stretch;
-    flex-direction: column;
-  }
-
-  .currentCompetitionHeader {
-    align-items: flex-start;
     flex-direction: column;
   }
 

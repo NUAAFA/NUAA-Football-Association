@@ -166,9 +166,9 @@ export function AdminCompetitionForm({ competition }: { competition?: AdminCompe
             type="checkbox"
           />
           <span className="admin-competition-feature-copy">
-            <strong>首页赛事预告候选</strong>
+            <strong>首页优先展示</strong>
             <small id="homepage-feature-help">
-              官网最多展示 2 个赛事，每个赛事显示最近 1 场；系统优先展示近期比赛。勾选候选不保证当前一定占首页。
+              首页最多展示 3 项已公开且未结束的赛事，每项显示下一场安排。勾选后优先展示，再按近期比赛排序；名额不足时会自动补入其他公开赛事。
               {!publicPublished ? " 请先开启“公开发布”后再设置首页展示。" : ""}
             </small>
           </span>
