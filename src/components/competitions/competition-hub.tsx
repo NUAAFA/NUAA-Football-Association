@@ -1,5 +1,6 @@
 import Image from "@/components/ui/site-image";
 import Link from "next/link";
+import { PublicLoadRetry } from "@/components/public-load-retry";
 
 import { SectionContactCard } from "@/components/ui/section-contact-card";
 import {
@@ -321,7 +322,7 @@ function currentCompetitionCard(competition: PublicCompetitionView, index: numbe
   } satisfies CompetitionSummaryCardProps;
 }
 
-export function CompetitionHub({ competitions }: { competitions: readonly PublicCompetitionView[] }) {
+export function CompetitionHub({ competitions, unavailable = false }: { competitions: readonly PublicCompetitionView[]; unavailable?: boolean }) {
   return (
     <main className={styles.page} id="main-content">
       <CompetitionPageHeader />
@@ -343,7 +344,7 @@ export function CompetitionHub({ competitions }: { competitions: readonly Public
               <CompetitionSummaryCard key={competition.id} {...currentCompetitionCard(competition, index)} />
             ))}
           </div>
-          {!competitions.length ? <Notice className={styles.pendingNotice} title="当前暂无公开赛事"><p>赛事资料将在管理员正式发布后显示；仍可查阅历史档案与赛事服务。</p></Notice> : null}
+          {unavailable ? <PublicLoadRetry label="当前公开赛事" /> : !competitions.length ? <Notice className={styles.pendingNotice} title="当前暂无公开赛事"><p>赛事资料将在管理员正式发布后显示；仍可查阅历史档案与赛事服务。</p></Notice> : null}
         </div>
       </section>
 

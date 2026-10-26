@@ -349,7 +349,7 @@ async function main() {
       "截止前撤回报名失败。",
     );
 
-    await service.reviewApplication(application.id, "APPROVED", "自动化审核");
+    await service.reviewApplication(application.id, "APPROVED", "自动化审核", refereeAuthorization);
     const positions = [
       { key: "REFEREE" as const, slot: 1, refereeId: referees[0].id },
       { key: "ASSISTANT_REFEREE_1" as const, slot: 1, refereeId: referees[1].id },

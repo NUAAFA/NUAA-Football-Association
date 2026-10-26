@@ -1,9 +1,13 @@
+import { PublicLoadRetry } from "@/components/public-load-retry";
 import styles from "@/components/home/home-page.module.css";
 import { Badge, Card, LinkButton } from "@/components/ui/foundation-primitives";
 import { getHomepagePublicCompetitions } from "@/lib/public-competition-service";
 
 export async function CurrentCompetitions() {
-  const [featured, ...secondary] = await getHomepagePublicCompetitions();
+  let competitions: Awaited<ReturnType<typeof getHomepagePublicCompetitions>> = [];
+  let unavailable = false;
+  try { competitions = await getHomepagePublicCompetitions(); } catch { unavailable = true; }
+  const [featured, ...secondary] = competitions;
   return <section className={`${styles.section} ${styles.competitions}`} id="home-competitions" aria-labelledby="home-competitions-title">
     <div className={`page-shell ${styles.sectionShell}`}>
       <div className={styles.sectionHeading}>
@@ -13,7 +17,7 @@ export async function CurrentCompetitions() {
           <LinkButton href="/competitions/history" size="small" tone="quiet">历届赛事 <span aria-hidden="true">→</span></LinkButton>
         </div>
       </div>
-      {featured ? <div className={styles.competitionLayout} data-count={secondary.length + 1}>
+      {unavailable ? <PublicLoadRetry label="当前赛事" /> : featured ? <div className={styles.competitionLayout} data-count={secondary.length + 1}>
         <Card className={styles.featuredCompetition} id={featured.slug}>
           <div className={styles.featuredCompetitionTop}>
             <span>FEATURED / 重点关注</span>

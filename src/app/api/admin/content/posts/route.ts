@@ -1,6 +1,7 @@
 import { readBoundedJson } from "@/lib/bounded-json";
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
+import { revalidatePublicContentPaths } from "@/lib/public-content-revalidation";
 
 import type { ContentPostStatus, ContentPostType } from "@/generated/prisma-v29/client";
 import { readContentPostInput } from "@/lib/admin-content-input";
@@ -41,6 +42,7 @@ export async function POST(request: Request) {
     const actor = await authorizeUnifiedAdminRequest(request, "content:write", { mutation: true });
     const input = readContentPostInput(await readBoundedJson(request));
     const post = await createContentPost(input, actor);
+    revalidatePublicContentPaths();
     revalidatePath("/competitions/[slug]", "page");
     revalidatePath("/media");
     return NextResponse.json({ ok: true, post }, { status: 201 });

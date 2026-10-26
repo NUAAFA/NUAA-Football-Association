@@ -5,15 +5,19 @@ import { Badge, LinkButton } from "@/components/ui/foundation-primitives";
 import { publicAnnouncements } from "@/data/content";
 import { getPublishedContentPage } from "@/lib/admin-content-service";
 import { isDatabaseContentSource } from "@/lib/content-source";
+import { PublicLoadRetry } from "@/components/public-load-retry";
+import { isPublishedStaticContent } from "@/lib/content-publication";
 
 function getNoticeLabel(category: string) {
   return category === "纪律决定" ? "DISCIPLINE" : "NOTICE";
 }
 
 export async function NoticeQuickLinks() {
-  const databasePage = isDatabaseContentSource()
-    ? await getPublishedContentPage({ type: ["ANNOUNCEMENT", "DISCIPLINE"], pageSize: 3 })
-    : null;
+  let databasePage: Awaited<ReturnType<typeof getPublishedContentPage>> | null = null;
+  let unavailable = false;
+  try {
+    if (isDatabaseContentSource()) databasePage = await getPublishedContentPage({ type: ["ANNOUNCEMENT", "DISCIPLINE"], pageSize: 3 });
+  } catch { unavailable = true; }
   const notices = databasePage
     ? databasePage.items.map((item) => ({
         id: item.slug,
@@ -26,7 +30,7 @@ export async function NoticeQuickLinks() {
           : "待确认",
         publishedAt: item.publishedAt?.toISOString(),
       }))
-    : publicAnnouncements.slice(0, 3);
+    : publicAnnouncements.filter((item) => isPublishedStaticContent(item)).slice(0, 3);
 
   return (
     <section className={`${styles.section} ${styles.officialUpdates}`} id="home-notices" aria-labelledby="home-notice-title">
@@ -40,9 +44,9 @@ export async function NoticeQuickLinks() {
             查看全部公告 <span aria-hidden="true">→</span>
           </LinkButton>
         </div>
-        {!notices.length ? <p>暂无已发布公告。</p> : null}
+        {unavailable ? <PublicLoadRetry label="公告" /> : !notices.length ? <p>暂无已发布公告。</p> : null}
         <ol className={styles.noticeList}>
-          {notices.map((notice, index) => {
+          {!unavailable && notices.map((notice, index) => {
             const isDiscipline = notice.category === "纪律决定";
             return (
               <li key={notice.id}>

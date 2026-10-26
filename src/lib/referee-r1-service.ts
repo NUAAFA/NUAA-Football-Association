@@ -596,7 +596,7 @@ export async function deleteRefereeAvailability(
   });
 }
 
-async function getCurrentPublishedVersion(appointmentId: string, refereeId: string, db: Prisma.TransactionClient) {
+async function getCurrentPublishedVersion(appointmentId: string, refereeId: string, db: Prisma.TransactionClient, expectedVersionId?: string) {
   const appointment = await db.refereeAppointment.findFirst({
     where: {
       id: appointmentId,
@@ -616,19 +616,21 @@ async function getCurrentPublishedVersion(appointmentId: string, refereeId: stri
     },
   });
   const version = appointment?.versions[0];
-  if (!appointment || !version || version.revision !== appointment.revision) {
-    throw new RefereeServiceError("当前没有可确认的已发布版本。", 409);
+  if (!appointment || !version || version.revision !== appointment.revision || (expectedVersionId !== undefined && version.id !== expectedVersionId)) {
+    throw new RefereeServiceError("任务版本或岗位已变化，请重新打开工作区核对后操作。", 409);
   }
   return { appointment, version };
 }
 
-export async function acknowledgeAppointment(appointmentId: string, refereeId: string) {
+export async function acknowledgeAppointment(appointmentId: string, refereeId: string, expectedVersionId?: string) {
   return prisma.$transaction(async (tx) => {
-  const { version } = await getCurrentPublishedVersion(appointmentId, refereeId, tx);
+  const { version } = await getCurrentPublishedVersion(appointmentId, refereeId, tx, expectedVersionId);
   const existing = await tx.appointmentAcknowledgement.findUnique({ where: { versionId_refereeId: { versionId: version.id, refereeId } } });
   if (existing) return existing;
-  const acknowledgement = await tx.appointmentAcknowledgement.create({
-    data: { appointmentId, versionId: version.id, refereeId },
+  const acknowledgement = await tx.appointmentAcknowledgement.upsert({
+    where: { versionId_refereeId: { versionId: version.id, refereeId } },
+    create: { appointmentId, versionId: version.id, refereeId },
+    update: {},
   });
   await tx.auditLog.create({ data: {
     actorType: "REFEREE",
@@ -650,6 +652,7 @@ export async function reportAppointmentConflict(
     reasonCode: "TIME_CONFLICT" | "UNABLE_TO_ATTEND" | "COURSE_EXAM" | "HEALTH" | "OTHER";
     explanation: string;
   },
+  expectedVersionId?: string,
 ) {
   const structuredInput = typeof input === "string"
     ? { reasonCode: "OTHER" as const, explanation: input }
@@ -665,7 +668,10 @@ export async function reportAppointmentConflict(
   const explanation = structuredInput.explanation.trim();
   const reason = `${reasonLabels[structuredInput.reasonCode]}：${explanation}`;
   return prisma.$transaction(async (tx) => {
-  const { version } = await getCurrentPublishedVersion(appointmentId, refereeId, tx);
+  const { version } = await getCurrentPublishedVersion(appointmentId, refereeId, tx, expectedVersionId);
+  const existing = await tx.appointmentConflictReport.findUnique({ where: { versionId_refereeId: { versionId: version.id, refereeId } } });
+  // Retrying identical content must not reopen an already handled report.
+  if (existing && existing.reasonCode === structuredInput.reasonCode && existing.explanation === explanation) return existing;
   const report = await tx.appointmentConflictReport.upsert({
     where: { versionId_refereeId: { versionId: version.id, refereeId } },
     update: { reason, reasonCode: structuredInput.reasonCode, explanation, reportedAt: new Date(), status: "PENDING", resolutionNote: null, resolvedAt: null, resolvedByAdminId: null },

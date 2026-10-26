@@ -8,7 +8,8 @@ export type AppointmentWarningCode =
   | "ADJACENT_MATCH"
   | "CAPABILITY_TRAINING"
   | "CAPABILITY_NOT_ASSIGNED"
-  | "HISTORICAL_TIME_UNCERTAIN";
+  | "HISTORICAL_TIME_UNCERTAIN"
+  | "TIME_UNCERTAIN";
 
 export type AppointmentWarning = {
   code: AppointmentWarningCode;
@@ -231,50 +232,47 @@ export async function detectAppointmentWarnings(
       });
     }
 
-    // Missing historical durations cannot be interpreted as evidence of no conflict.
-    const unknownIntervals = mode === "POST_MATCH" && (!match.endAt || existingAssignments.some(item => item.refereeId === referee.id && item.appointment.match.kickoff && !item.appointment.match.endAt));
-    if (unknownIntervals) warnings.push({ code: "HISTORICAL_TIME_UNCERTAIN", refereeId: referee.id, refereeName: referee.name, message: "历史时间区间不完整，无法确认有无重叠；须核实实际执裁报告。", severity: "ADVISORY", overridable: false, details: {} });
-    // Match gaps and overlaps require both planned end times. No duration is inferred.
-    if (!match.endAt) continue;
+    // Intervals are [kickoff, endAt): a shared endpoint is adjacency, not overlap.
+    // A missing end is never replaced with an assumed duration.
     const otherAssignments = existingAssignments.filter((item) => item.refereeId === referee.id);
+    let uncertain = !match.endAt;
     let nearestAdjacent: { gapMinutes: number; matchId: string; matchup: string; direction: "上一场" | "下一场" } | null = null;
     for (const item of otherAssignments) {
       const other = item.appointment.match;
-      if (!other.kickoff || (mode === "PRE_MATCH" && !other.venue?.trim()) || !other.endAt) continue;
+      if (!other.kickoff) { uncertain = true; continue; }
       const matchup = `${other.homeTeam.name} vs ${other.awayTeam.name}`;
-      if (intervalsOverlap(match.kickoff, match.endAt, other.kickoff, other.endAt)) {
-        const overlapMs = Math.min(match.endAt.getTime(), other.endAt.getTime()) - Math.max(match.kickoff.getTime(), other.kickoff.getTime());
-        const overlapMinutes = Math.max(1, Math.round(overlapMs / 60_000));
+      const sameKickoff = match.kickoff.getTime() === other.kickoff.getTime();
+      const overlaps = sameKickoff
+        || Boolean(match.endAt && match.kickoff <= other.kickoff && other.kickoff < match.endAt)
+        || Boolean(other.endAt && other.kickoff <= match.kickoff && match.kickoff < other.endAt);
+      if (overlaps) {
+        const overlapMinutes = match.endAt && other.endAt
+          ? Math.max(1, Math.round((Math.min(match.endAt.getTime(), other.endAt.getTime()) - Math.max(match.kickoff.getTime(), other.kickoff.getTime())) / 60_000))
+          : null;
         warnings.push({
-          code: "MATCH_OVERLAP",
-          refereeId: referee.id,
-          refereeName: referee.name,
-          message: `⚠ 时间重叠：${referee.name}与另一场比赛 ${matchup} 计划时间重叠 ${overlapMinutes} 分钟。`,
-          severity: "HARD",
-          overridable: false,
-          details: {
-            appointmentId: item.appointment.id,
-            matchId: other.id,
-            kickoff: other.kickoff.toISOString(),
-            endAt: other.endAt.toISOString(),
-            overlapMinutes,
-          },
+          code: "MATCH_OVERLAP", refereeId: referee.id, refereeName: referee.name,
+          message: `⚠ 时间重叠：${referee.name}与另一场比赛 ${matchup} ${sameKickoff ? "同时开球" : "存在确定的时间重叠"}${overlapMinutes === null ? "。" : `，计划重叠 ${overlapMinutes} 分钟。`}`,
+          severity: "HARD", overridable: false,
+          details: { appointmentId: item.appointment.id, matchId: other.id, kickoff: other.kickoff.toISOString(), endAt: other.endAt?.toISOString() ?? null, overlapMinutes },
         });
         continue;
       }
-      const previous = other.endAt <= match.kickoff;
+      const previous = Boolean(other.endAt && other.endAt <= match.kickoff);
+      const next = Boolean(match.endAt && match.endAt <= other.kickoff);
+      if (!previous && !next) { uncertain = true; continue; }
       const gapMs = previous
-        ? match.kickoff.getTime() - other.endAt.getTime()
-        : other.kickoff.getTime() - match.endAt.getTime();
-      if (gapMs < 0 || gapMs >= 10 * 60_000) continue;
-      const candidate = {
-        gapMinutes: Math.round(gapMs / 60_000),
-        matchId: other.id,
-        matchup,
-        direction: previous ? "上一场" as const : "下一场" as const,
-      };
+        ? match.kickoff.getTime() - other.endAt!.getTime()
+        : other.kickoff.getTime() - match.endAt!.getTime();
+      if (gapMs >= 10 * 60_000) continue;
+      const candidate = { gapMinutes: Math.round(gapMs / 60_000), matchId: other.id, matchup, direction: previous ? "上一场" as const : "下一场" as const };
       if (!nearestAdjacent || candidate.gapMinutes < nearestAdjacent.gapMinutes) nearestAdjacent = candidate;
     }
+    if (uncertain) warnings.push({
+      code: mode === "POST_MATCH" ? "HISTORICAL_TIME_UNCERTAIN" : "TIME_UNCERTAIN",
+      refereeId: referee.id, refereeName: referee.name,
+      message: mode === "POST_MATCH" ? "历史时间区间不完整，无法完全排除重叠；须核实实际执裁报告。" : "计划时间区间不完整，无法完全排除与其他任务重叠；请核实结束时间。",
+      severity: "ADVISORY", overridable: false, details: {},
+    });
     if (nearestAdjacent) {
       warnings.push({
         code: "ADJACENT_MATCH",

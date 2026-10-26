@@ -19,10 +19,11 @@ export async function PATCH(
       id,
       readEnum(
         body.status,
-        ["PENDING", "REVIEWING", "APPROVED", "REJECTED", "NOT_SELECTED", "APPOINTED"] as const,
+        ["PENDING", "REVIEWING", "APPROVED", "REJECTED"] as const,
         "审核状态",
       ),
       readShortText(body.reviewNote, "审核备注", 240, false),
+      authorization.authorization,
     );
     return NextResponse.json({ ok: true });
   } catch (error) {

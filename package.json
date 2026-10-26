@@ -88,7 +88,19 @@
     "test:v210x-migration": "python3 scripts/test-v210x-migration.py",
     "test:v210x-http-regressions": "node scripts/test-v210x-http-regressions.mjs",
     "test:security-remediation": "tsx scripts/test-security-remediation.ts",
-    "test:security-remediation:http": "tsx scripts/test-security-remediation-http.ts"
+    "test:security-remediation:http": "tsx scripts/test-security-remediation-http.ts",
+    "test:audit-business": "tsx scripts/test-audit-remediation-business.ts",
+    "test:audit-public": "node --conditions=react-server --import tsx scripts/audit-remediation-public.ts",
+    "test:audit-public:http": "node --conditions=react-server --import tsx scripts/audit-remediation-public.ts --http --browser",
+    "test:audit-network:browser": "node --import tsx scripts/test-referee-submit-recovery.mjs",
+    "audit:diagnose": "node --import tsx scripts/diagnose-audit-remediation.mjs",
+    "test:audit-business:http": "node --import tsx scripts/test-audit-remediation-business-http.mjs",
+    "test:referee-submission-requests": "tsx scripts/test-referee-submission-requests.ts",
+    "test:targeted-followup": "tsx scripts/test-targeted-followup-state.ts",
+    "test:targeted-followup:browser": "node --import tsx scripts/test-targeted-followup-browser.mjs",
+    "test:f03-schedule-compat": "tsx scripts/test-f03-schedule-compat.ts",
+    "test:f03-schedule-compat:http": "tsx scripts/test-f03-schedule-compat.ts --http",
+    "test:f03-tentative:http": "tsx scripts/test-f03-tentative-http.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",
