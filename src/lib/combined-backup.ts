@@ -8,7 +8,6 @@ import {
   readdir,
   realpath,
   rename,
-  rm,
   stat,
   writeFile,
 } from "node:fs/promises";
