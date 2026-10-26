@@ -13,6 +13,11 @@ enum CompetitionFormat {
   CUSTOM
 }
 
+enum CompetitionSystem {
+  GROUP_KNOCKOUT
+  LEAGUE
+}
+
 enum CompetitionStatus {
   PREPARING
   REGISTRATION
@@ -158,6 +163,7 @@ model Competition {
   campus                String
   format                CompetitionFormat
   playingFormat         String?
+  competitionSystem     CompetitionSystem      @default(GROUP_KNOCKOUT)
   status                CompetitionStatus
   semesterLabel         String?
   teamFormation         String?
@@ -800,6 +806,7 @@ model RefereeSession {
 enum CompetitionStageType {
   GROUP
   KNOCKOUT
+  LEAGUE
   OTHER
 }
 

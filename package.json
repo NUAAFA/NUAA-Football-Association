@@ -32,6 +32,8 @@
     "test:unified-admin-rbac": "tsx scripts/test-unified-admin-rbac.ts",
     "test:unified-admin-blockers:http": "tsx scripts/test-unified-admin-blockers.ts",
     "test:ops-r3-1-2": "tsx scripts/test-ops-r3-1-2.ts",
+    "test:competition-league:http": "tsx scripts/test-competition-league-http.ts",
+    "test:competition-league": "tsx scripts/test-competition-league.ts",
     "test:competition-import": "tsx scripts/test-competition-import.ts",
     "test:competition-import:http": "tsx scripts/test-competition-import-http-runtime.ts",
     "test:public-competition-dynamic": "tsx scripts/test-public-competition-dynamic.ts",

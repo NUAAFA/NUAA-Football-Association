@@ -1,9 +1,10 @@
 import { logicalRounds } from "@/lib/competition-logical-rounds";
+import { competitionSystemLabels } from "@/lib/competition-system";
 import { TeamGroupingManager } from "@/components/admin/team-grouping-manager";
 import { getHomepagePublicCompetitions, getPublicCompetition } from "@/lib/public-competition-service";
 import type { Prisma } from "@/generated/prisma-v29/client";
 import { CompetitionStructureManager } from "@/components/admin/competition-structure-manager";
-import { loadCompetitionStructure, getCompetitionGroupStandings } from "@/lib/competition-structure-service";
+import { loadCompetitionStructure, getCompetitionGroupStandings, getCompetitionLeagueStandings } from "@/lib/competition-structure-service";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -66,17 +67,19 @@ export default async function CompetitionWorkspacePage({ params, searchParams }:
   const chosen = homepage.some((c) => c.id === id);
   const publicEffect = !competition.publicPublished ? "赛事中心尚未公开" : competition.isTestData ? "测试标记阻止公开" : chosen ? "赛事中心已公开 · 当前入选首页" : competition.status === "COMPLETED" ? "赛事中心已公开 · 已结束，不占活跃首页位" : !competition.homepageFeatured ? "赛事中心已公开 · 未选择首页候选" : "赛事中心已公开 · 首页候选，目前按近期比赛排序未入选";
   const canWrite = hasUnifiedAdminPermission(actor.roles, "competitions:write");
+  const leagueTables = await getCompetitionLeagueStandings(id);
   return <>
-    <AdminPageHeader eyebrow="COMPETITION WORKSPACE" title={competition.name} description={`${competition.playingFormat ?? (competition.format === "FUTSAL" ? "五人制" : competition.format === "ELEVEN_A_SIDE" ? "十一人制" : "比赛制式待补充")} · 当前赛事工作台`} actions={<Link className="admin-button admin-button-secondary" href="/admin/competitions">返回赛事列表</Link>} />
+    <AdminPageHeader eyebrow="COMPETITION WORKSPACE" title={competition.name} description={`${competition.playingFormat ?? (competition.format === "FUTSAL" ? "五人制" : competition.format === "ELEVEN_A_SIDE" ? "十一人制" : "比赛制式待补充")} · ${competitionSystemLabels[competition.competitionSystem]} · 当前赛事工作台`} actions={<Link className="admin-button admin-button-secondary" href="/admin/competitions">返回赛事列表</Link>} />
     <AdminCompetitionWorkspace
       canWrite={canWrite}
       counts={{ teams: competition._count.teams, matches: competition._count.matches, pending: pendingCount, scheduled: scheduledCount, completed: completedCount, filtered: matchCount }} page={page} stages={stages}
       publicEffect={publicEffect + (publicView?.nextMatch.state === "scheduled" ? ` · 下一场：${publicView.nextMatch.homeTeam} vs ${publicView.nextMatch.awayTeam} ${publicView.nextMatch.dateLabel} ${publicView.nextMatch.timeLabel}` : publicView ? ` · ${publicView.nextMatch.summary}` : "")}
       grouping={<TeamGroupingManager key={id} competitionId={id} stages={stages} teams={competition.teams.map((t) => ({ id: t.id, name: t.name }))} canWrite={canWrite} />}
-      structure={<CompetitionStructureManager mode="config" key={id} competitionId={id} stages={stages} tables={tables} teams={competition.teams.map((t) => ({ id: t.id, name: t.name }))} canWrite={canWrite} />}
-      standings={section === "standings" ? <CompetitionStructureManager mode="standings" competitionId={id} stages={stages} tables={tables} teams={[]} canWrite={canWrite} /> : null}
+      structure={<CompetitionStructureManager mode="config" key={id} competitionId={id} stages={stages} tables={tables} leagueTables={leagueTables} competitionSystem={competition.competitionSystem} teams={competition.teams.map((t) => ({ id: t.id, name: t.name }))} canWrite={canWrite} />}
+      standings={section === "standings" ? <CompetitionStructureManager mode="standings" competitionId={id} stages={stages} tables={tables} leagueTables={leagueTables} competitionSystem={competition.competitionSystem} teams={[]} canWrite={canWrite} /> : null}
       initialSection={section === "standings" ? "standings" : section === "teams" ? "teams" : section === "matches" ? "matches" : "overview"}
       competition={{
+        competitionSystem: competition.competitionSystem,
         id: competition.id,
         name: competition.name,
         formatLabel: competition.playingFormat ?? (competition.format === "FUTSAL" ? "五人制" : competition.format === "ELEVEN_A_SIDE" ? "十一人制" : "比赛制式待补充"),

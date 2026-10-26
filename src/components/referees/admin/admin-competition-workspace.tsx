@@ -45,7 +45,7 @@ export function AdminCompetitionWorkspace({
   canWrite,
   initialSection = "overview", counts, page, stages, publicEffect, structure, grouping, standings,
 }: {
-  competition: { id: string; name: string; formatLabel: string; statusLabel: string; year: number | null; slug: string; deletionProtectedReason?: string };
+  competition: { id: string; name: string; formatLabel: string; statusLabel: string; year: number | null; slug: string; deletionProtectedReason?: string; competitionSystem?: "GROUP_KNOCKOUT" | "LEAGUE" };
   units: CompetitionWorkspaceUnit[];
   teams: CompetitionWorkspaceTeam[];
   matches: Array<{ matchNumber?: number | null; id: string; matchup: string; kickoff: string; venue: string; pendingSchedule: boolean; canResult?: boolean; status: string; stage?: string; group?: string; round?: string; score?: string }>;
@@ -119,9 +119,9 @@ export function AdminCompetitionWorkspace({
   return <>
     <nav aria-label="赛事工作台分区" className="admin-tabs admin-workspace-tabs" role="tablist" onKeyDown={adminTabKeyboard}>
       <button id="workspace-tab-overview" aria-controls="workspace-panel-overview" tabIndex={section === "overview" ? 0 : -1} aria-selected={section === "overview"} onClick={() => setSection("overview")} role="tab" type="button">赛事资料</button>
-      <button id="workspace-tab-teams" aria-controls="workspace-panel-teams" tabIndex={section === "teams" ? 0 : -1} aria-selected={section === "teams"} onClick={() => setSection("teams")} role="tab" type="button">球队与分组（{counts.teams}）</button>
+      <button id="workspace-tab-teams" aria-controls="workspace-panel-teams" tabIndex={section === "teams" ? 0 : -1} aria-selected={section === "teams"} onClick={() => setSection("teams")} role="tab" type="button">{competition.competitionSystem === "LEAGUE" ? "参赛球队" : "球队与分组"}（{counts.teams}）</button>
       <button id="workspace-tab-matches" aria-controls="workspace-panel-matches" tabIndex={section === "matches" ? 0 : -1} aria-selected={section === "matches"} onClick={() => setSection("matches")} role="tab" type="button">赛程与比分（{counts.matches}）</button>
-      <button id="workspace-tab-standings" aria-controls="workspace-panel-standings" tabIndex={section === "standings" ? 0 : -1} aria-selected={section === "standings"} onClick={() => setSection("standings")} role="tab" type="button">积分与出线</button>
+      <button id="workspace-tab-standings" aria-controls="workspace-panel-standings" tabIndex={section === "standings" ? 0 : -1} aria-selected={section === "standings"} onClick={() => setSection("standings")} role="tab" type="button">{competition.competitionSystem === "LEAGUE" ? "联赛积分" : "积分与出线"}</button>
     </nav>
 
     {section === "overview" ? <section className="admin-panel" id="workspace-panel-overview" role="tabpanel" aria-labelledby="workspace-tab-overview" hidden={section !== "overview"}>
@@ -131,8 +131,8 @@ export function AdminCompetitionWorkspace({
     </section> : null}
 
     {section === "teams" ? <section className="admin-panel admin-workspace-team-panel" id="workspace-panel-teams" role="tabpanel" aria-labelledby="workspace-tab-teams" hidden={section !== "teams"}>
-      <header className="admin-panel-header"><div><h2>球队与分组</h2><p>这里只管理“{competition.name}”的参赛球队，不会引入其他赛事的球队。</p></div>{canWrite ? <div className="admin-page-actions"><button className="admin-button" type="button" onClick={() => { setJointOpen(false); setAddOpen(true); }}>添加球队</button><button className="admin-button admin-button-secondary" type="button" onClick={() => setConfigOpen(true)}>阶段与轮次</button></div> : null}</header>
-      {grouping}
+      <header className="admin-panel-header"><div><h2>{competition.competitionSystem === "LEAGUE" ? "参赛球队" : "球队与分组"}</h2><p>这里只管理“{competition.name}”的参赛球队，不会引入其他赛事的球队。</p></div>{canWrite ? <div className="admin-page-actions"><button className="admin-button" type="button" onClick={() => { setJointOpen(false); setAddOpen(true); }}>添加球队</button><button className="admin-button admin-button-secondary" type="button" onClick={() => setConfigOpen(true)}>阶段与轮次</button></div> : null}</header>
+      {competition.competitionSystem === "LEAGUE" ? <p>联赛无需分组，所有参赛球队进入联赛总积分榜。</p> : grouping}
       {canWrite && addOpen ? <WorkspaceDialog title="添加球队" busy={submitting} onClose={() => setAddOpen(false)} footer={jointOpen ? <button className="admin-button" form={jointFormId} disabled={submitting || !jointName.trim() || jointSelected.length < 2} type="submit">创建联合队</button> : null}><div className="admin-workspace-operations">
         <details><summary>添加组织代表队</summary><div className="admin-operation-body">
           <OrganizationCheckboxSelector legend="选择组织单位" lockedValues={[...existingUnitIds]} onChange={setSelected} options={selectorOptions} searchPlaceholder="搜索学院或书院…" selectedValues={selected} />
