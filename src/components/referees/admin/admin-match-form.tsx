@@ -90,7 +90,7 @@ export function AdminMatchForm({
   const [tab, setTab] = useState<"basic" | "assignment" | "notes">("basic");
   const [message, setMessage] = useState("");
   const competition = competitions.find((item) => item.id === competitionId);
-  useEffect(() => { if (!competitionId) return; let live = true; fetch(`/api/admin/competitions/${competitionId}/structure`).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "结构读取失败"); if (live) { setStructures(d.stages); setQualified(Object.fromEntries(d.tables.flatMap((t: { group: { name: string }; qualifiedTeamIds: string[] }) => t.qualifiedTeamIds.map((id, i) => [id, `${t.group.name}第${i + 1}位 · 人工确认出线`])))); } }).catch((e) => { if (live) setMessage(e.message); }); return () => { live = false; }; }, [competitionId]);
+  useEffect(() => { if (!competitionId) return; let live = true; fetch(`/api/admin/competitions/${competitionId}/structure`).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "结构读取失败"); if (live) { setStructures(d.stages); if (!match && !query.get("stageId")) setStageId(d.stages.find((s: { type: string }) => s.type === "LEAGUE")?.id ?? ""); setQualified(Object.fromEntries(d.tables.flatMap((t: { group: { name: string }; qualifiedTeamIds: string[] }) => t.qualifiedTeamIds.map((id, i) => [id, `${t.group.name}第${i + 1}位 · 人工确认出线`])))); } }).catch((e) => { if (live) setMessage(e.message); }); return () => { live = false; }; }, [competitionId, match, query]);
   const selectedStage = structures.find((s) => s.id === stageId), selectedGroup = selectedStage?.groups.find((g) => g.id === groupId);
   useEffect(() => {
     if (!competitionId || selectedStage?.type !== "KNOCKOUT") return;

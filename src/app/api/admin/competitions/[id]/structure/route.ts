@@ -31,7 +31,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       let input: StructureAction;
       const sortOrder = Number(body.sortOrder ?? 0);
       if (!Number.isSafeInteger(sortOrder) || sortOrder < 0 || sortOrder > 9999) throw new UnifiedAdminInputError("排序值无效。");
-      if (body.action === "stage") { const type = text("type"); if (!["GROUP", "KNOCKOUT", "OTHER"].includes(type)) throw new UnifiedAdminInputError("阶段类型无效。"); input = { action: "stage", name: text("name"), type: type as "GROUP" | "KNOCKOUT" | "OTHER", sortOrder }; }
+      if (body.action === "stage") { const type = text("type"); if (!["GROUP", "KNOCKOUT", "LEAGUE", "OTHER"].includes(type)) throw new UnifiedAdminInputError("阶段类型无效。"); input = { action: "stage", name: text("name"), type: type as "GROUP" | "KNOCKOUT" | "LEAGUE" | "OTHER", sortOrder }; }
       else if (body.action === "group") input = { action: "group", stageId: text("stageId"), name: text("name"), sortOrder };
       else if (body.action === "updateGroup") input = { action: "updateGroup", groupId: text("groupId"), name: text("name"), sortOrder };
       else if (body.action === "assign") input = { action: "assign", stageId: text("stageId"), groupId: body.groupId ? text("groupId") : null, teamIds: ids(), reason: text("reason") };

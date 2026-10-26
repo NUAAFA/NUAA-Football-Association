@@ -29,6 +29,7 @@ const publicProfileFields = [
   "campus",
   "format",
   "playingFormat",
+  "competitionSystem",
   "status",
   "shortName",
   "semesterLabel",
@@ -104,6 +105,7 @@ export async function createCompetition(input: CompetitionInput, actor: AdminAct
           campus: input.campus ?? "天目湖校区",
           format: input.format,
           playingFormat,
+          competitionSystem: input.competitionSystem ?? "GROUP_KNOCKOUT",
           status: input.status,
           semesterLabel: input.semesterLabel ?? null,
           teamFormation: input.teamFormation ?? null,
@@ -123,6 +125,9 @@ export async function createCompetition(input: CompetitionInput, actor: AdminAct
           source: "MANUAL",
         },
       });
+      if (competition.competitionSystem === "LEAGUE") {
+        await tx.competitionStage.create({ data: { competitionId: competition.id, name: "联赛", type: "LEAGUE" } });
+      }
       await tx.auditLog.create({
         data: {
           actorType: "ADMIN",
@@ -161,6 +166,20 @@ export async function updateCompetition(id: string, input: CompetitionInput, act
     if (existing.format !== input.format && existing._count.matches > 0) {
       throw new RefereeServiceError("已有比赛的赛事不能直接更改比赛制式。", 409);
     }
+    const competitionSystem = input.competitionSystem ?? existing.competitionSystem;
+    if (!["GROUP_KNOCKOUT", "LEAGUE"].includes(competitionSystem)) throw new RefereeServiceError("比赛形式无效。");
+    if (competitionSystem !== existing.competitionSystem) {
+      if (existing._count.matches > 0) throw new RefereeServiceError("已有比赛的赛事不能直接更改比赛形式，请保留现有赛程与积分。", 409);
+      const stages = await tx.competitionStage.findMany({ where: { competitionId: id }, include: { _count: { select: { groups: true, rounds: true, memberships: true } } } });
+      // Only the untouched default league stage can be replaced with the form selection.
+      if (stages.some((s) => s.type !== "LEAGUE" || s.name !== "联赛" || s._count.groups || s._count.rounds || s._count.memberships)) {
+        throw new RefereeServiceError("请先在“阶段与轮次”删除不适用的空结构，再切换比赛形式。", 409);
+      }
+      await tx.competitionStage.deleteMany({ where: { competitionId: id } });
+    }
+    if (competitionSystem === "LEAGUE" && !await tx.competitionStage.count({ where: { competitionId: id, type: "LEAGUE" } })) {
+      await tx.competitionStage.create({ data: { competitionId: id, name: "联赛", type: "LEAGUE" } });
+    }
     const publicPublished = input.publicPublished ?? existing.publicPublished;
     const homepageFeatured = input.homepageFeatured ?? existing.homepageFeatured;
     const playingFormat = resolvePlayingFormat(input.format, input.playingFormat, existing.playingFormat);
@@ -174,6 +193,7 @@ export async function updateCompetition(id: string, input: CompetitionInput, act
       campus: input.campus ?? existing.campus,
       format: input.format,
       playingFormat,
+      competitionSystem,
       status: input.status,
       semesterLabel: input.semesterLabel === undefined ? existing.semesterLabel : input.semesterLabel,
       teamFormation: input.teamFormation === undefined ? existing.teamFormation : input.teamFormation,
@@ -260,6 +280,9 @@ export async function deleteCompetitionSafely(
       );
     }
 
+    await tx.competitionStage.deleteMany({
+      where: { competitionId: competition.id, type: "LEAGUE", name: "联赛", groups: { none: {} }, rounds: { none: {} }, memberships: { none: {} }, matches: { none: {} } },
+    });
     await tx.competition.delete({ where: { id: competition.id } });
     await tx.auditLog.create({
       data: {

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { competitionSystemLabels } from "@/lib/competition-system";
 
 import { AdminCompetitionDangerActions } from "@/components/referees/admin/admin-competition-danger-actions";
 import { AdminMatchNavigation } from "@/components/referees/admin/admin-match-navigation";
@@ -21,6 +22,7 @@ export default async function AdminCompetitionsPage() {
       year: true,
       format: true,
       playingFormat: true,
+      competitionSystem: true,
       status: true,
       source: true,
       publicPublished: true,
@@ -42,7 +44,7 @@ export default async function AdminCompetitionsPage() {
     <AdminPanel title={`赛事列表 · ${competitions.length}`} description="赛事是球队与比赛的上级对象；这里维护手工赛事，并保留后续官方数据接入所需信息。">
       {competitions.length ? <div className="admin-table-scroll"><table className="admin-data-table"><thead><tr><th>赛事名称</th><th>比赛制式</th><th>裁判岗位模板</th><th>状态</th><th>比赛</th><th>球队</th><th>数据来源</th><th>操作</th></tr></thead><tbody>{competitions.map((competition) => <tr key={competition.id}>
         <td><strong>{competition.name}</strong><small>{competition.year ?? "赛季未填写"}</small></td>
-        <td>{competition.playingFormat ?? (competition.format === "FUTSAL" ? "五人制" : competition.format === "ELEVEN_A_SIDE" ? "十一人制" : "待补充")}</td>
+        <td>{competition.playingFormat ?? (competition.format === "FUTSAL" ? "五人制" : competition.format === "ELEVEN_A_SIDE" ? "十一人制" : "待补充")}<small>{competitionSystemLabels[competition.competitionSystem]}</small></td>
         <td>{competitionFormatLabels[competition.format]}</td>
         <td><AdminStatusBadge status={competition.status} label={competitionStatusLabels[competition.status]} /></td>
         <td>{competition._count.matches}</td>
