@@ -80,7 +80,7 @@ export function WomensCompetitionOfficials() {
       <div className="page-shell">
         <div className="cup-section-heading"><div><p>MATCH OFFICIALS</p><h2 id="womens-officials-title">裁判选派</h2></div><span>查看各场比赛的裁判组选派。</span></div>
         <div className="cup-assignment-list cup-womens-assignment-list">
-          {matches.map((match) => <details key={match.number}><summary><span>#{String(match.number).padStart(2, "0")}</span><div><strong>{match.home} vs {match.away}</strong><small>{match.stage} · {match.kickoff}</small></div><i aria-hidden="true">+</i></summary><dl>{Object.entries(officialLabels).map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{match.officials[key as keyof typeof match.officials] ?? "暂未公布"}</dd></div>)}</dl></details>)}
+          {matches.map((match) => <details key={match.number}><summary><span>#{String(match.number).padStart(2, "0")}</span><div><strong>{match.home} {match.homeScore}:{match.awayScore} {match.away}</strong><small>{match.stage} · {match.kickoff}</small></div><p>主裁判：{match.officials.referee ?? "暂未公布"}</p><i aria-hidden="true">＋</i></summary><dl>{Object.entries(officialLabels).map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{match.officials[key as keyof typeof match.officials] ?? "暂未公布"}</dd></div>)}</dl></details>)}
         </div>
       </div>
     </section>
