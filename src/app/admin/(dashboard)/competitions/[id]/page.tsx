@@ -1,3 +1,4 @@
+import { logicalRounds } from "@/lib/competition-logical-rounds";
 import { TeamGroupingManager } from "@/components/admin/team-grouping-manager";
 import { getHomepagePublicCompetitions, getPublicCompetition } from "@/lib/public-competition-service";
 import type { Prisma } from "@/generated/prisma-v29/client";
@@ -19,7 +20,11 @@ export default async function CompetitionWorkspacePage({ params, searchParams }:
   const { id } = await params;
   const query = await searchParams;
   const { section } = query;
-  const where: Prisma.MatchWhereInput = { competitionId: id, ...(query.stageId ? { stageId: query.stageId === "legacy" ? null : query.stageId } : {}), ...(query.groupId ? { groupId: query.groupId } : {}), ...(query.roundId ? { roundId: query.roundId } : {}), ...(["SCHEDULED", "COMPLETED", "CANCELLED"].includes(query.status ?? "") ? { status: query.status as "SCHEDULED" | "COMPLETED" | "CANCELLED" } : {}) };
+  const stages = await loadCompetitionStructure(id);
+  const rounds = logicalRounds(stages.flatMap((stage) => stage.rounds));
+  // Keep existing links with a physical round ID working alongside round summaries.
+  const roundIds = rounds.find((round) => round.key === query.roundId)?.ids ?? (query.roundId ? [query.roundId] : []);
+  const where: Prisma.MatchWhereInput = { competitionId: id, ...(query.stageId ? { stageId: query.stageId === "legacy" ? null : query.stageId } : {}), ...(query.groupId ? { groupId: query.groupId === "unassigned" ? null : query.groupId } : {}), ...(query.roundId ? { roundId: query.roundId === "unassigned" ? null : { in: roundIds } } : {}), ...(["SCHEDULED", "COMPLETED", "CANCELLED"].includes(query.status ?? "") ? { status: query.status as "SCHEDULED" | "COMPLETED" | "CANCELLED" } : {}) };
   if (query.status === "SCHEDULED") { where.kickoff = { not: null }; where.venue = { not: null }; where.NOT = { venue: "" }; }
   if (query.status === "PENDING") { where.status = "SCHEDULED"; where.OR = [{ kickoff: null }, { venue: null }, { venue: "" }]; }
   const [matchCount, pendingCount, scheduledCount, completedCount] = await Promise.all([
@@ -56,7 +61,6 @@ export default async function CompetitionWorkspacePage({ params, searchParams }:
   if (!competition) notFound();
   const units = sortAffiliationOptions(rawUnits.map((unit) => ({ id: unit.id, name: unit.name, type: unit.type, prefixes: unit.legacyCollege?.codeMappings.map((mapping) => mapping.prefix) ?? [] })))
     .map((unit) => ({ ...unit, label: affiliationOptionLabel(unit) }));
-  const stages = await loadCompetitionStructure(id);
   const tables = section === "standings" ? await getCompetitionGroupStandings(id) : [];
   const [homepage, publicView] = await Promise.all([getHomepagePublicCompetitions(), getPublicCompetition(competition.slug)]);
   const chosen = homepage.some((c) => c.id === id);
