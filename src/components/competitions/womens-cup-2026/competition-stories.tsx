@@ -15,7 +15,7 @@ export function WomensCompetitionHonours() {
         <div className="cup-section-heading cup-section-heading-light"><div><p>HONOURS & FINAL</p><h2 id="womens-honours-title">名次与奖项</h2></div><span>来源：校级官方账号报道。</span></div>
         <ArchiveHonours
           rankings={podium.map((item) => ({ position: item.rank, team: item.team, note: "note" in item ? item.note : undefined }))}
-          awards={awardList.map((award) => ({ name: award.award, recipient: award.recipient }))}
+          awards={awardList.map((award) => ({ name: award.award, recipient: award.recipient, ...("note" in award ? { note: award.note } : {}) }))}
         />
         {final ? <div className="cup-final-story">
           <div className="cup-final-image"><Image src={championPhoto.src} alt={championPhoto.alt} fill sizes="(max-width: 900px) 100vw, 50vw" /></div>

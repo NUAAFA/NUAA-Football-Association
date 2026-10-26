@@ -78,7 +78,7 @@ export const womensCupArticle = {
       type: "list",
       items: [
         "赛事MVP（金球奖）：赵晨希",
-        "赛事最佳射手（金靴奖）：祝飞雨、季彦廷",
+        `赛事最佳射手（金靴奖）：${archiveData.awards.topScorers.join("、")}（${archiveData.scorers.scope}，各1球，并列获奖）`,
         "赛事最佳门将（金手套奖）：许京俏",
       ],
     },
@@ -102,7 +102,7 @@ export const womensIntercollegeCup2026 = {
   ],
   awardList: [
     { award: "赛事MVP（金球奖）", recipient: archiveData.awards.mvp },
-    { award: "赛事最佳射手（金靴奖）", recipient: archiveData.awards.topScorers.join("、") },
+    { award: "赛事最佳射手（金靴奖）", recipient: archiveData.awards.topScorers.join("、"), note: `仅统计${archiveData.scorers.scope}，两人各进1球` },
     { award: "赛事最佳门将（金手套奖）", recipient: archiveData.awards.bestGoalkeeper },
   ],
   heroImage: `${imageRoot}/16-event-group-photo.jpg`,

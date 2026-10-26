@@ -8,7 +8,7 @@ export function WomensCompetitionTeams() {
       <div className="page-shell">
         <div className="cup-section-heading">
           <div><p>TEAMS & PUBLIC ROSTERS</p><h2 id="womens-teams-title">参赛球队及公开名单</h2></div>
-          <span>赛事汇总记录24名注册球员，公开名单来源尚不完整，下方仅展示已公开信息。</span>
+          <span>3支球队共24名注册球员，球员及工作人员名单已依据足球中国平台截图补齐核对。</span>
         </div>
         <div className="cup-team-list cup-womens-roster-list">
           {rosters.map((roster, index) => (

@@ -31,7 +31,7 @@ export function WomensCompetitionOverview() {
         { value: summary.matches, label: "完成比赛" },
         { value: summary.goals, label: "赛事进球" },
       ]}
-      source="资料来源：足球中国公开资料与赛事记录。24为赛事汇总人数，已公开球员名单尚不完整。"
+      source="资料来源：足球中国赛事资料、球队报名截图及赛事记录。3支球队共24名注册球员，名单已补齐核对。"
     >
       <details className={styles.supplement}>
         <summary>报名与竞赛规则归档</summary>

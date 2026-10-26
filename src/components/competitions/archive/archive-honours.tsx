@@ -2,7 +2,7 @@ import styles from "./archive-sections.module.css";
 
 type ArchiveHonoursProps = {
   rankings: readonly { position: number; team: string; note?: string }[];
-  awards: readonly { name: string; recipient: string; team?: string }[];
+  awards: readonly { name: string; recipient: string; team?: string; note?: string }[];
 };
 
 export function ArchiveHonours({ rankings, awards }: ArchiveHonoursProps) {
@@ -22,6 +22,7 @@ export function ArchiveHonours({ rankings, awards }: ArchiveHonoursProps) {
           <span>{String(index + 1).padStart(2, "0")}</span>
           <h4>{award.name}</h4><strong>{award.recipient}</strong>
           {award.team ? <small>{award.team}</small> : null}
+          {award.note ? <small>{award.note}</small> : null}
         </article>)}</div>
       </div>
     </>
