@@ -1,5 +1,6 @@
 import Image from "@/components/ui/site-image";
 import Link from "next/link";
+import { CompetitionFixture } from "@/components/competitions/competition-fixture";
 import { PublicLoadRetry } from "@/components/public-load-retry";
 
 import { SectionContactCard } from "@/components/ui/section-contact-card";
@@ -237,10 +238,7 @@ export function CompetitionSummaryCard({
             </div>
           ))}
         </dl>
-        {nextMatch ? <div className={styles.nextMatch}>
-          <span className={styles.nextLabel}>{nextMatch.label}</span>
-          {nextMatch.state === "scheduled" ? <><strong>{nextMatch.homeTeam} <span>VS</span> {nextMatch.awayTeam}</strong><p>{nextMatch.dateLabel} {nextMatch.timeLabel} · 北京时间</p><p>{nextMatch.venue}</p></> : <p>{nextMatch.summary}</p>}
-        </div> : null}
+        {nextMatch ? <CompetitionFixture fixture={nextMatch} /> : null}
         <LinkButton className={styles.cardAction} href={competition.detailHref} tone={variant === "archive" ? "primary" : "secondary"}>
           {actionLabel} <span aria-hidden="true">→</span>
         </LinkButton>
@@ -339,7 +337,7 @@ export function CompetitionHub({ competitions, unavailable = false }: { competit
             </div>
             <p>赛事状态与安排随正式发布资料更新；历史专题档案在下方独立列出。</p>
           </div>
-          <div className={styles.currentGrid}>
+          <div className={styles.currentGrid} data-count={competitions.length}>
             {competitions.map((competition, index) => (
               <CompetitionSummaryCard key={competition.id} {...currentCompetitionCard(competition, index)} />
             ))}
