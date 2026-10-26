@@ -15,6 +15,8 @@ type RichArchiveLayoutProps = {
   titleId: string;
   title: string;
   eyebrow: string;
+  competitionLabel: string;
+  tagline?: string;
   status: string;
   description: string;
   heroImage: string;
@@ -29,9 +31,11 @@ type RichArchiveLayoutProps = {
 
 // Only the two rich archives opt in; preview pages retain their approved layout.
 export function RichArchiveLayout({
-  className = "", titleId, title, eyebrow, status, description, heroImage,
+  className = "", titleId, title, eyebrow, competitionLabel, tagline, status, description, heroImage,
   heroAlt, actions, summary, returnStatus, hasDocuments, hasStatistics, children,
 }: RichArchiveLayoutProps) {
+  const campusSuffix = title.match(/（[^）]+）$/)?.[0] ?? "";
+  const eventTitle = campusSuffix ? title.slice(0, -campusSuffix.length) : title;
   const navigation: ArchiveNavigationItem[] = competitionArchiveNavigation.flatMap((item) =>
     item.id === "honours" && hasStatistics
       ? [item, { id: "statistics", label: "射手与纪律" }]
@@ -51,7 +55,8 @@ export function RichArchiveLayout({
             <div className={styles.identity}>
               <div>
                 <div className={styles.identityMeta}><p>{eyebrow}</p><span>{status}</span></div>
-                <h1 id={titleId}>{title}</h1>
+                <h1 id={titleId}>{eventTitle}{campusSuffix ? <span className={styles.titleCampus}>{campusSuffix}</span> : null}</h1>
+                <p className={styles.competitionLabel}>{competitionLabel}{tagline ? <span>{tagline}</span> : null}</p>
                 <p className={styles.description}>{description}</p>
                 <div className={styles.actions}>
                   {actions.map((action) => action.download
@@ -60,8 +65,8 @@ export function RichArchiveLayout({
                 </div>
               </div>
               <figure className={styles.headerImage}>
-                <Image src={heroImage} alt={heroAlt} fill loading="eager" sizes="(max-width: 820px) 1px, 360px" />
-                <figcaption>2026 · 天目湖校区</figcaption>
+                <Image src={heroImage} alt={heroAlt} fill loading="eager" sizes="(max-width: 820px) 100vw, 360px" />
+                <figcaption>{tagline ?? "2026 · 天目湖校区"}</figcaption>
               </figure>
             </div>
             <dl className={styles.summary} aria-label="赛事归档摘要">

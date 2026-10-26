@@ -1,88 +1,47 @@
+import { ArchiveProfile } from "@/components/competitions/archive/archive-profile";
+import styles from "@/components/competitions/archive/archive-sections.module.css";
+import { MEN_AND_WOMEN_CUP_HOST, MEN_AND_WOMEN_CUP_ORGANIZER } from "@/data/competition-directory";
 import { womensIntercollegeCup2026 } from "@/data/womens-intercollege-cup-2026";
-import {
-  MEN_AND_WOMEN_CUP_HOST,
-  MEN_AND_WOMEN_CUP_ORGANIZER,
-} from "@/data/competition-directory";
-
-function formatDateTime(value: string) {
-  const [date, time] = value.split(" ");
-  return `${date.replaceAll("-", ".")} ${time}`;
-}
 
 export function WomensCompetitionOverview() {
-  const { competition } = womensIntercollegeCup2026;
+  const { competition, matches } = womensIntercollegeCup2026;
   const { registration, rules, summary } = competition;
-
+  const dates = matches.map((match) => match.kickoff.split(" ")[0]).sort();
   return (
-    <section
-      className="cup-archive-section cup-overview-section"
-      id="overview"
-      aria-labelledby="womens-overview-title"
+    <ArchiveProfile
+      titleId="womens-overview-title"
+      name={competition.shortName}
+      context="2025—2026学年第二学期 · 天目湖校区 · 五人制院系赛事"
+      introduction="绿茵逐梦，铿锵绽放。记录校园女足在比赛、协作与拼搏中留下的青春篇章。"
+      facts={[
+        { label: "比赛日期", value: `${dates[0].replaceAll("-", "/")}—${dates.at(-1)!.replaceAll("-", "/")}` },
+        { label: "比赛地点", value: competition.venue },
+        { label: "竞赛形式", value: `${competition.format} · 院系组队` },
+        { label: "承办单位", value: MEN_AND_WOMEN_CUP_ORGANIZER },
+      ]}
+      format={[
+        `${summary.teams}支球队参加联赛阶段，随后进行淘汰赛与决赛。`,
+        `比赛时间：上下半场各${rules.firstHalfMinutes}分钟，不设置加时赛。`,
+        `联赛积分：胜${rules.points.win}分、平${rules.points.draw}分、负${rules.points.loss}分；点球胜${rules.points.penaltyWin}分、负${rules.points.penaltyLoss}分。`,
+      ]}
+      hosts={MEN_AND_WOMEN_CUP_HOST.split("、")}
+      statistics={[
+        { value: summary.teams, label: "参赛球队" },
+        { value: summary.players, label: "注册球员（赛事汇总）" },
+        { value: summary.matches, label: "完成比赛" },
+        { value: summary.goals, label: "赛事进球" },
+      ]}
+      source="资料来源：足球中国公开资料与赛事记录。24为赛事汇总人数，已公开球员名单尚不完整。"
     >
-      <div className="page-shell">
-        <div className="cup-section-heading">
-          <div>
-            <p>COMPETITION PROFILE</p>
-            <h2 id="womens-overview-title">赛事概览</h2>
-          </div>
-          <span>资料来源：足球中国公开资料与赛事记录。</span>
-        </div>
-
-        <div className="cup-womens-overview cup-womens-overview-complete">
-          <article>
-            <p>OFFICIAL SOURCE ARCHIVE</p>
-            <h3>绿茵逐梦，铿锵绽放</h3>
-            <p>
-              本届五人制赛事共有{summary.teams}支球队、{summary.players}名球员完成注册，
-              共进行{summary.matches}场比赛并产生{summary.goals}粒进球。
-            </p>
-          </article>
-          <dl>
-            <div><dt>赛事名称</dt><dd>{competition.shortName}</dd></div>
-            <div><dt>比赛场地</dt><dd>{competition.venue}</dd></div>
-            <div><dt>报名时间</dt><dd>{formatDateTime(registration.start)} - {formatDateTime(registration.end)}</dd></div>
-            <div><dt>报名费用</dt><dd>报名费{registration.feePerTeam}元 / 保证金{registration.depositPerTeam}元</dd></div>
-            <div><dt>主办单位</dt><dd>{MEN_AND_WOMEN_CUP_HOST}</dd></div>
-            <div><dt>承办单位</dt><dd>{MEN_AND_WOMEN_CUP_ORGANIZER}</dd></div>
-          </dl>
-        </div>
-
-        <div className="cup-overview-stats cup-womens-stat-strip" aria-label="女子足球院际杯赛事统计">
-          {[
-            [summary.teams, "参赛球队"],
-            [summary.players, "注册球员"],
-            [summary.matches, "比赛场次"],
-            [summary.goals, "进球总数"],
-            [summary.yellowCards, "汇总黄牌"],
-            [summary.redCards, "汇总红牌"],
-          ].map(([value, label]) => (
-            <div key={label}><strong>{value}</strong><span>{label}</span></div>
-          ))}
-        </div>
-
-        <div className="cup-womens-rule-grid">
-          <section>
-            <span>比赛时长</span>
-            <strong>{rules.firstHalfMinutes} + {rules.secondHalfMinutes} 分钟</strong>
-            <p>不设置加时赛。</p>
-          </section>
-          <section>
-            <span>积分规则</span>
-            <strong>胜{rules.points.win} / 平{rules.points.draw} / 负{rules.points.loss}</strong>
-            <p>点球胜{rules.points.penaltyWin}分，点球负{rules.points.penaltyLoss}分。</p>
-          </section>
-          <section>
-            <span>名单发布</span>
-            <strong>赛前{rules.publishStartingLineupMinutesBefore}分钟</strong>
-            <p>首发名单与裁判名单均按赛前30分钟设置。</p>
-          </section>
-          <section>
-            <span>停赛基准</span>
-            <strong>2黄 / 1红</strong>
-            <p>球员及工作人员达到对应条件停赛1场。</p>
-          </section>
-        </div>
-      </div>
-    </section>
+      <details className={styles.supplement}>
+        <summary>报名与竞赛规则归档</summary>
+        <dl>
+          <div><dt>报名时间</dt><dd>{registration.start.replaceAll("-", ".")} — {registration.end.replaceAll("-", ".")}</dd></div>
+          <div><dt>报名费用</dt><dd>报名费{registration.feePerTeam}元 / 保证金{registration.depositPerTeam}元</dd></div>
+          <div><dt>名单发布</dt><dd>首发名单赛前{rules.publishStartingLineupMinutesBefore}分钟、裁判名单赛前{rules.publishRefereeListMinutesBefore}分钟发布。</dd></div>
+          <div><dt>停赛基准</dt><dd>球员及工作人员累计2黄或1红，停赛1场。</dd></div>
+        </dl>
+      </details>
+    </ArchiveProfile>
   );
 }

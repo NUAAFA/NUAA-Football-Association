@@ -21,11 +21,12 @@ export function CompetitionArchivePage() {
       titleId="cup-archive-title"
       title={competition.name}
       eyebrow="OFFICIAL COMPETITION ARCHIVE · 2026"
+      competitionLabel="男子十一人制 · 天目湖校区"
       status="已结束 · 已归档"
       description={`${competition.structure.groupStage}。赛事于2026年5月17日完成决赛，致慧书院夺得冠军。`}
       heroImage={competition.heroImage}
       heroAlt="天目湖校区西操场晚霞与足球"
-      actions={[{ href: "#schedule", label: "查看完整赛果" }, { href: competition.guidebook, label: "下载赛事秩序册", download: true }]}
+      actions={[{ href: "#schedule", label: "查看完整赛果" }, { href: "#honours", label: "查看名次与奖项" }]}
       summary={[
         { label: "冠军", value: "致慧书院" },
         { label: "赛期", value: "2026.03.20—05.17" },

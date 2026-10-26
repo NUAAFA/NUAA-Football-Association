@@ -1,4 +1,5 @@
 import Image from "@/components/ui/site-image";
+import { ArchiveHonours } from "@/components/competitions/archive/archive-honours";
 
 import { mensIntercollegeCup2026 } from "@/data/mens-intercollege-cup-2026";
 
@@ -29,13 +30,7 @@ export function CompetitionFinal() {
           <span>致慧书院在决赛点球大战第八轮锁定冠军。</span>
         </div>
 
-        <div className="cup-final-ranking" aria-label="最终名次">
-          {competition.finalRanking.map((item) => <div key={item.position}><span>{String(item.position).padStart(2, "0")}</span><strong>{item.team}</strong><small>{item.position === 1 ? "冠军" : item.position === 2 ? "亚军" : item.position === 3 ? "季军" : "第四名"}</small></div>)}
-        </div>
-        <div className="cup-awards-panel">
-          <div><p>SEASON AWARDS</p><h3>赛事奖项</h3></div>
-          <div>{competition.awards.map((award, index) => <article key={award.key}><span>0{index + 1}</span><p>{award.name}</p><strong>{award.recipient}</strong><small>{award.team}</small></article>)}</div>
-        </div>
+        <ArchiveHonours rankings={competition.finalRanking} awards={competition.awards} />
 
         <div className="cup-knockout-grid">
           {knockoutMatches.map((match) => (
