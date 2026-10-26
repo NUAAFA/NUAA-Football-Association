@@ -5,6 +5,7 @@ import { logicalRounds } from "@/lib/competition-logical-rounds";
 export type WorkspaceFilterStage = {
   id: string;
   name: string;
+  type?: string;
   groups: Array<{ id: string; name: string }>;
   rounds: Array<{ id: string; name: string; groupId: string | null; sortOrder: number }>;
 };
@@ -21,6 +22,7 @@ export function WorkspaceMatchFilters({ competitionId, stages, query, counts }: 
   const roundId = params.get("roundId") ?? "";
   const root = `/admin/competitions/${competitionId}`;
   const visibleStages = stages.filter((stage) => !stageId || stage.id === stageId);
+  const leagueOnly = visibleStages.length > 0 && visibleStages.every((stage) => stage.type === "LEAGUE");
   const rounds = logicalRounds(visibleStages.flatMap((stage) => stage.rounds.map((round) => ({ ...round, stageId: stage.id }))));
   function href(patch: Record<string, string>) {
     const next = new URLSearchParams(params);
@@ -50,11 +52,11 @@ export function WorkspaceMatchFilters({ competitionId, stages, query, counts }: 
       {rounds.map((round) => option(<>{round.label}{!stageId ? ` · ${stages.find((stage) => stage.id === round.stageId)?.name}` : ""}</>, roundId === round.key || round.ids.includes(roundId), { stageId: round.stageId, roundId: round.key, groupId: stageId && stageId !== round.stageId ? "" : groupId }, round.key))}
       {option("未归轮次", roundId === "unassigned", { roundId: "unassigned" }, "unassigned")}
     </>)}
-    {row("分组", <>
+    {!leagueOnly ? row("分组", <>
       {option("全部小组", !groupId, { groupId: "" }, "all")}
       {visibleStages.flatMap((stage) => stage.groups.map((group) => option(`${group.name}${!stageId ? ` · ${stage.name}` : ""}`, groupId === group.id, { stageId: stage.id, groupId: group.id, roundId: stageId && stageId !== stage.id ? "" : roundId }, group.id)))}
       {option("无小组 / 待归类", groupId === "unassigned", { groupId: "unassigned" }, "unassigned")}
-    </>)}
+    </>) : <p className="admin-filter-help">联赛无需分组，可直接按轮次和状态筛选。</p>}
     {row("状态", <>
       {option(`全部状态 ${counts.matches}`, !params.get("status"), { status: "" }, "all")}
       {([
