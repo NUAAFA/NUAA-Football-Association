@@ -1,4 +1,5 @@
 "use client";
+import { competitionSystemLabels, type CompetitionSystemValue } from "@/lib/competition-system";
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -19,6 +20,7 @@ export type AdminCompetitionRecord = {
   campus: string;
   format: "ELEVEN_A_SIDE" | "FUTSAL" | "CUSTOM";
   playingFormat: string;
+  competitionSystem: CompetitionSystemValue;
   status: "PREPARING" | "REGISTRATION" | "ONGOING" | "COMPLETED";
   semesterLabel: string;
   teamFormation: string;
@@ -78,6 +80,7 @@ export function AdminCompetitionForm({ competition }: { competition?: AdminCompe
       campus: form.get("campus"),
       format: form.get("format"),
       playingFormat: form.get("playingFormat"),
+      competitionSystem: form.get("competitionSystem"),
       status: form.get("status"),
       semesterLabel: form.get("semesterLabel"),
       teamFormation: form.get("teamFormation"),
@@ -133,6 +136,7 @@ export function AdminCompetitionForm({ competition }: { competition?: AdminCompe
         <label><span>裁判岗位模板</span><select defaultValue={competition?.format ?? "ELEVEN_A_SIDE"} name="format">{Object.entries(competitionFormatLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><small>仅控制裁判岗位与能力校验，不会改变官网比赛制式。</small></label>
         <label><span>赛事状态</span><select defaultValue={competition?.status ?? "PREPARING"} name="status">{Object.entries(competitionStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         <label><span>学期</span><select defaultValue={competition?.semesterLabel ?? ""} name="semesterLabel"><option value="">待确认</option><option value="上半学期">上半学期</option><option value="下半学期">下半学期</option></select></label>
+        <label><span>比赛形式</span><select defaultValue={competition?.competitionSystem ?? "GROUP_KNOCKOUT"} name="competitionSystem">{Object.entries(competitionSystemLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><small>联赛制不分小组，按全部参赛球队计算积分；已有比赛后不能直接切换。</small></label>
         <label><span>组队方式</span><input defaultValue={competition?.teamFormation} maxLength={60} name="teamFormation" placeholder="院系组队 / 自由组队" /></label>
       </div>
     </section>
@@ -162,9 +166,9 @@ export function AdminCompetitionForm({ competition }: { competition?: AdminCompe
             type="checkbox"
           />
           <span className="admin-competition-feature-copy">
-            <strong>首页赛事预告候选</strong>
+            <strong>首页优先展示</strong>
             <small id="homepage-feature-help">
-              官网最多展示 2 个赛事，每个赛事显示最近 1 场；系统优先展示近期比赛。勾选候选不保证当前一定占首页。
+              首页最多展示 3 项已公开且未结束的赛事，每项显示下一场安排。勾选后优先展示，再按近期比赛排序；名额不足时会自动补入其他公开赛事。
               {!publicPublished ? " 请先开启“公开发布”后再设置首页展示。" : ""}
             </small>
           </span>

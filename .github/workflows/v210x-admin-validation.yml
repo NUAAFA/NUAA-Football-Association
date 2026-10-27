@@ -41,6 +41,10 @@ jobs:
         run: |
           npx tsx scripts/test-competition-reports.ts
           python3 scripts/test-competition-report-migration-policy.py
+          python3 scripts/test-resource-readiness.py
+          python3 scripts/test-league-readiness.py
+          npm run test:competition-league
+          npm run test:homepage-competitions
       - name: Generate, migrate and build
         run: |
           npx prisma validate
@@ -167,6 +171,7 @@ jobs:
       - name: Migration policy, actual Bash failure and existing deployment regressions
         run: |
           python3 scripts/test-production-readiness.py
+          python3 scripts/test-league-readiness.py
           python3 scripts/test-resource-readiness.py
           python3 scripts/test-prebuilt-pack.py
           python3 scripts/test-prebuilt-artifact.py

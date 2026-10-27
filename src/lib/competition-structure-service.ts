@@ -8,8 +8,10 @@ import { calculateStandings } from "@/lib/competition-standings";
 type Db = Prisma.TransactionClient;
 export type MatchStructureInput = { competitionId: string; stageId?: string | null; groupId?: string | null; roundId?: string | null; homeTeamId: string; awayTeamId: string };
 export async function assertMatchStructure(db: Db, input: MatchStructureInput) {
+  const competition = await db.competition.findUnique({ where: { id: input.competitionId }, select: { competitionSystem: true } });
   if (!input.stageId) {
     if (input.groupId || input.roundId) throw new RefereeServiceError("请先选择阶段。");
+    if (competition?.competitionSystem === "LEAGUE") throw new RefereeServiceError("联赛比赛请选择正式联赛阶段，确保计入总积分。");
     return;
   }
   const stage = await db.competitionStage.findUnique({ where: { id: input.stageId } });
@@ -20,7 +22,8 @@ export async function assertMatchStructure(db: Db, input: MatchStructureInput) {
     const ids = new Set(group.members.map((m) => m.teamId));
     if (!ids.has(input.homeTeamId) || !ids.has(input.awayTeamId)) throw new RefereeServiceError("双方球队必须是所选小组的成员。");
   }
-  if (stage.type === "GROUP" && !input.groupId) throw new RefereeServiceError("小组赛请选择小组；无分组赛事请使用其他阶段。");
+  if (stage.type === "GROUP" && !input.groupId) throw new RefereeServiceError("小组赛请选择小组；无分组赛事请使用联赛阶段。");
+  if (stage.type === "LEAGUE" && competition?.competitionSystem !== "LEAGUE" || competition?.competitionSystem === "LEAGUE" && stage.type !== "LEAGUE") throw new RefereeServiceError("阶段与比赛形式不一致，请核对赛事资料。");
   if (input.roundId) {
     const round = await db.competitionRound.findUnique({ where: { id: input.roundId } });
     if (!round || round.stageId !== stage.id || (round.groupId && round.groupId !== input.groupId)) throw new RefereeServiceError("轮次不属于所选阶段或小组。");
@@ -32,7 +35,7 @@ export async function loadCompetitionStructure(competitionId: string) {
 }
 
 export type StructureAction =
- | { action: "stage"; name: string; type: "GROUP" | "KNOCKOUT" | "OTHER"; sortOrder: number }
+ | { action: "stage"; name: string; type: "GROUP" | "KNOCKOUT" | "LEAGUE" | "OTHER"; sortOrder: number }
  | { action: "group"; stageId: string; name: string; sortOrder: number }
  | { action: "updateGroup"; groupId: string; name: string; sortOrder: number }
  | { action: "assign"; stageId: string; groupId: string | null; teamIds: string[]; reason: string }
@@ -42,12 +45,15 @@ export type StructureAction =
 export async function mutateCompetitionStructure(competitionId: string, input: StructureAction, actor: UnifiedAdminActor) {
   assertUnifiedAdminPermission(actor, "competitions:write");
   return prisma.$transaction(async (tx) => {
-    if (!await tx.competition.findUnique({ where: { id: competitionId } })) throw new RefereeServiceError("赛事不存在。", 404);
+    const competition = await tx.competition.findUnique({ where: { id: competitionId } });
+    if (!competition) throw new RefereeServiceError("赛事不存在。", 404);
     if ("sortOrder" in input && (!Number.isSafeInteger(input.sortOrder) || input.sortOrder < 0 || input.sortOrder > 9999)) throw new RefereeServiceError("显示顺序无效。");
     let result: unknown;
     let removalMetadata: unknown;
     if (input.action === "stage") {
-      if (!input.name.trim() || input.name.length > 80 || !["GROUP", "KNOCKOUT", "OTHER"].includes(input.type)) throw new RefereeServiceError("阶段名称或类型无效。");
+      if (!input.name.trim() || input.name.length > 80 || !["GROUP", "KNOCKOUT", "LEAGUE", "OTHER"].includes(input.type)) throw new RefereeServiceError("阶段名称或类型无效。");
+      if ((competition.competitionSystem === "LEAGUE") !== (input.type === "LEAGUE")) throw new RefereeServiceError("阶段与比赛形式不一致，请先核对赛事资料。");
+      if (input.type === "LEAGUE" && await tx.competitionStage.count({ where: { competitionId, type: "LEAGUE" } })) throw new RefereeServiceError("联赛阶段已存在，请直接维护轮次。", 409);
       result = await tx.competitionStage.create({ data: { competitionId, name: input.name.trim(), type: input.type, sortOrder: input.sortOrder } });
     } else if (input.action === "group" || input.action === "round") {
       const stage = await tx.competitionStage.findUnique({ where: { id: input.stageId } });
@@ -132,6 +138,27 @@ export async function getCompetitionGroupStandings(competitionId: string, db: Db
     db.match.findMany({ where: { competitionId, structureStage: { type: "KNOCKOUT" } }, select: knockoutSelect, orderBy: { kickoff: "asc" } }),
   ]);
   return groups.map((g) => standingsForGroup(g, matches));
+}
+
+export async function getCompetitionLeagueStandings(competitionId: string, db: Db = prisma) {
+  const competition = await db.competition.findUnique({
+    where: { id: competitionId },
+    select: {
+      competitionSystem: true, isTestData: true,
+      teams: { select: { id: true, name: true }, orderBy: { id: "asc" } },
+      stages: {
+        where: { type: "LEAGUE" }, orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+        select: { id: true, name: true, matches: { where: { competitionId, groupId: null, isTestData: false }, select: { homeTeamId: true, awayTeamId: true, homeScore: true, awayScore: true, status: true, isTestData: true } } },
+      },
+    },
+  });
+  if (!competition || competition.isTestData || competition.competitionSystem !== "LEAGUE") return [];
+  return competition.stages.map((stage) => {
+    const rows = calculateStandings(competition.teams, stage.matches);
+    const hasResults = rows.some((r) => r.played > 0);
+    const tied = hasResults && rows.some((r, i) => rows.some((other, j) => i !== j && other.points === r.points));
+    return { stageId: stage.id, name: stage.name, rows, hasResults, tied };
+  });
 }
 export function standingsForGroup(group: StandingsGroup, knockoutMatches: KnockoutMatch[]) {
   const memberIds = new Set(group.members.map((m) => m.teamId));

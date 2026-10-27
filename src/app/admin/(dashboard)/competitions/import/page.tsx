@@ -9,7 +9,7 @@ export default async function UnifiedCompetitionImportPage({ searchParams }: { s
   const query = await searchParams;
   await guardUnifiedAdminPage("competitions:write", "competition-import");
   const competitions = await prisma.competition.findMany({
-    select: { id: true, name: true, year: true },
+    select: { id: true, name: true, year: true, competitionSystem: true },
     orderBy: [{ year: "desc" }, { createdAt: "desc" }],
   });
   return <>

@@ -22,6 +22,7 @@ class CompetitionMigrationPolicy(unittest.TestCase):
                 shutil.copytree(ROOT / 'prisma', target / 'prisma', ignore=shutil.ignore_patterns('*.db*'))
             for target in (new, old):
                 shutil.rmtree(target / 'prisma/migrations' / next(iter(A.RESOURCE_DOCUMENT_MIGRATION)))
+                shutil.rmtree(target / 'prisma/migrations' / next(iter(A.LEAGUE_MIGRATION)))
             (new / 'prisma/schema.prisma').write_bytes(subprocess.check_output(['git', '-C', str(ROOT), 'show', '845b8215ef056289f4e545151bc291925cc331ec:prisma/schema.prisma']))
             name = next(iter(A.COMPETITION_REPORT_MIGRATION))
             shutil.rmtree(old / 'prisma/migrations' / name)

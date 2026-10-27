@@ -3,7 +3,8 @@ import "server-only";
 
 import type { CompetitionStatus, Prisma } from "@/generated/prisma-v29/client";
 import { formatBeijingDateTime, formatBeijingWindow } from "@/lib/beijing-datetime";
-import { getCompetitionGroupStandings } from "@/lib/competition-structure-service";
+import { getCompetitionGroupStandings, getCompetitionLeagueStandings } from "@/lib/competition-structure-service";
+import { competitionSystemLabels } from "@/lib/competition-system";
 import { prisma } from "@/lib/prisma";
 import { readPublicData } from "@/lib/public-read";
 import { comparePublicMatches } from "@/lib/competition-presentation";
@@ -24,6 +25,7 @@ const publicCompetitionSelect = {
   campus: true,
   format: true,
   playingFormat: true,
+  competitionSystem: true,
   status: true,
   semesterLabel: true,
   teamFormation: true,
@@ -185,6 +187,8 @@ function databaseView(row: PublicCompetitionRow, now = new Date()): PublicCompet
     campus: row.campus,
     eventType: "公开赛事",
     formatLabel: row.playingFormat?.trim() || legacyPlayingFormat(row.format),
+    competitionSystem: row.competitionSystem,
+    competitionSystemLabel: competitionSystemLabels[row.competitionSystem],
     teamFormation: row.teamFormation ?? "组队方式待确认",
     status: presentation.status,
     statusLabel: presentation.statusLabel,
@@ -218,7 +222,7 @@ function databaseView(row: PublicCompetitionRow, now = new Date()): PublicCompet
 
 async function loadCompetitionSummaries(homepageOnly: boolean, asOf: Date) {
   const rows = await prisma.competition.findMany({
-    where: { publicPublished: true, isTestData: false, ...(homepageOnly ? { homepageFeatured: true, status: { not: "COMPLETED" as const } } : {}) },
+    where: { publicPublished: true, isTestData: false, ...(homepageOnly ? { status: { not: "COMPLETED" as const } } : {}) },
     select: { ...publicCompetitionSelect, teams: { ...publicCompetitionSelect.teams, take: 0 }, _count: { select: { teams: true, matches: { where: { isTestData: false } } } }, matches: { ...publicCompetitionSelect.matches, where: { isTestData: false, status: "SCHEDULED", kickoff: { gte: asOf } }, take: 1, select: { ...publicCompetitionSelect.matches.select, appointment: false } } },
     orderBy: [{ publicOrder: "asc" }, { year: "desc" }, { createdAt: "asc" }, { id: "asc" }],
   });
@@ -246,14 +250,20 @@ export async function getPublicCompetition(slug: string): Promise<PublicCompetit
 }
 
 export async function getHomepagePublicCompetitions(asOf = new Date()): Promise<PublicCompetitionView[]> {
-  return readPublicData("competition-homepage", async () => (await loadCompetitionSummaries(true, asOf)).sort((a, b) => a.nextTime - b.nextTime || a.publicOrder - b.publicOrder || a.id.localeCompare(b.id)).slice(0, 2).map((r) => r.view));
+  return readPublicData("competition-homepage", async () => (await loadCompetitionSummaries(true, asOf))
+    .sort((a, b) => Number(b.view.homepageFeatured) - Number(a.view.homepageFeatured) || a.nextTime - b.nextTime || a.publicOrder - b.publicOrder || a.id.localeCompare(b.id))
+    .slice(0, 3)
+    .map((r) => r.view));
 }
 export async function getPublicCompetitionStandings(competitionId: string) {
   return readPublicData("competition-standings", async () => {
     const competition = await prisma.competition.findFirst({ where: { id: competitionId, publicPublished: true, isTestData: false }, select: { stages: { where: { type: "GROUP" }, orderBy: [{ sortOrder: "asc" }, { id: "asc" }], select: { groups: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }], select: { id: true } } } } } });
     if (!competition) return [];
-    const tables = await getCompetitionGroupStandings(competitionId);
-    return tables.map((t) => ({ groupId: t.group.id, groupName: t.group.name, stageName: t.group.stageName, rows: t.rows, hasResults: t.hasResults, tied: t.tied, rankingConfirmed: t.rankingConfirmed, qualificationStale: t.qualificationStale, qualifiedTeamIds: t.qualifiedTeamIds }));
+    const [tables, leagues] = await Promise.all([getCompetitionGroupStandings(competitionId), getCompetitionLeagueStandings(competitionId)]);
+    return [
+      ...tables.map((t) => ({ kind: "GROUP" as const, groupId: t.group.id, groupName: t.group.name, stageName: t.group.stageName, rows: t.rows, hasResults: t.hasResults, tied: t.tied, rankingConfirmed: t.rankingConfirmed, qualificationStale: t.qualificationStale, qualifiedTeamIds: t.qualifiedTeamIds })),
+      ...leagues.map((t) => ({ kind: "LEAGUE" as const, groupId: t.stageId, groupName: "联赛总积分榜", stageName: t.name, rows: t.rows, hasResults: t.hasResults, tied: t.tied, rankingConfirmed: false, qualificationStale: false, qualifiedTeamIds: [] as string[] })),
+    ];
   });
 }
 export async function getAllPublicCompetitionDetails() {

@@ -1,8 +1,10 @@
+import { logicalRounds } from "@/lib/competition-logical-rounds";
+import { competitionSystemLabels } from "@/lib/competition-system";
 import { TeamGroupingManager } from "@/components/admin/team-grouping-manager";
 import { getHomepagePublicCompetitions, getPublicCompetition } from "@/lib/public-competition-service";
 import type { Prisma } from "@/generated/prisma-v29/client";
 import { CompetitionStructureManager } from "@/components/admin/competition-structure-manager";
-import { loadCompetitionStructure, getCompetitionGroupStandings } from "@/lib/competition-structure-service";
+import { loadCompetitionStructure, getCompetitionGroupStandings, getCompetitionLeagueStandings } from "@/lib/competition-structure-service";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -19,7 +21,11 @@ export default async function CompetitionWorkspacePage({ params, searchParams }:
   const { id } = await params;
   const query = await searchParams;
   const { section } = query;
-  const where: Prisma.MatchWhereInput = { competitionId: id, ...(query.stageId ? { stageId: query.stageId === "legacy" ? null : query.stageId } : {}), ...(query.groupId ? { groupId: query.groupId } : {}), ...(query.roundId ? { roundId: query.roundId } : {}), ...(["SCHEDULED", "COMPLETED", "CANCELLED"].includes(query.status ?? "") ? { status: query.status as "SCHEDULED" | "COMPLETED" | "CANCELLED" } : {}) };
+  const stages = await loadCompetitionStructure(id);
+  const rounds = logicalRounds(stages.flatMap((stage) => stage.rounds));
+  // Keep existing links with a physical round ID working alongside round summaries.
+  const roundIds = rounds.find((round) => round.key === query.roundId)?.ids ?? (query.roundId ? [query.roundId] : []);
+  const where: Prisma.MatchWhereInput = { competitionId: id, ...(query.stageId ? { stageId: query.stageId === "legacy" ? null : query.stageId } : {}), ...(query.groupId ? { groupId: query.groupId === "unassigned" ? null : query.groupId } : {}), ...(query.roundId ? { roundId: query.roundId === "unassigned" ? null : { in: roundIds } } : {}), ...(["SCHEDULED", "COMPLETED", "CANCELLED"].includes(query.status ?? "") ? { status: query.status as "SCHEDULED" | "COMPLETED" | "CANCELLED" } : {}) };
   if (query.status === "SCHEDULED") { where.kickoff = { not: null }; where.venue = { not: null }; where.NOT = { venue: "" }; }
   if (query.status === "PENDING") { where.status = "SCHEDULED"; where.OR = [{ kickoff: null }, { venue: null }, { venue: "" }]; }
   const [matchCount, pendingCount, scheduledCount, completedCount] = await Promise.all([
@@ -56,23 +62,24 @@ export default async function CompetitionWorkspacePage({ params, searchParams }:
   if (!competition) notFound();
   const units = sortAffiliationOptions(rawUnits.map((unit) => ({ id: unit.id, name: unit.name, type: unit.type, prefixes: unit.legacyCollege?.codeMappings.map((mapping) => mapping.prefix) ?? [] })))
     .map((unit) => ({ ...unit, label: affiliationOptionLabel(unit) }));
-  const stages = await loadCompetitionStructure(id);
   const tables = section === "standings" ? await getCompetitionGroupStandings(id) : [];
   const [homepage, publicView] = await Promise.all([getHomepagePublicCompetitions(), getPublicCompetition(competition.slug)]);
   const chosen = homepage.some((c) => c.id === id);
-  const publicEffect = !competition.publicPublished ? "赛事中心尚未公开" : competition.isTestData ? "测试标记阻止公开" : chosen ? "赛事中心已公开 · 当前入选首页" : competition.status === "COMPLETED" ? "赛事中心已公开 · 已结束，不占活跃首页位" : !competition.homepageFeatured ? "赛事中心已公开 · 未选择首页候选" : "赛事中心已公开 · 首页候选，目前按近期比赛排序未入选";
+  const publicEffect = !competition.publicPublished ? "赛事中心尚未公开" : competition.isTestData ? "测试标记阻止公开" : chosen ? "赛事中心已公开 · 当前入选首页" : competition.status === "COMPLETED" ? "赛事中心已公开 · 已结束，不占活跃首页位" : !competition.homepageFeatured ? "赛事中心已公开 · 未设置首页优先，当前未入选" : "赛事中心已公开 · 已设置首页优先，当前按比赛安排和展示顺序未入选";
   const canWrite = hasUnifiedAdminPermission(actor.roles, "competitions:write");
+  const leagueTables = await getCompetitionLeagueStandings(id);
   return <>
-    <AdminPageHeader eyebrow="COMPETITION WORKSPACE" title={competition.name} description={`${competition.playingFormat ?? (competition.format === "FUTSAL" ? "五人制" : competition.format === "ELEVEN_A_SIDE" ? "十一人制" : "比赛制式待补充")} · 当前赛事工作台`} actions={<Link className="admin-button admin-button-secondary" href="/admin/competitions">返回赛事列表</Link>} />
+    <AdminPageHeader eyebrow="COMPETITION WORKSPACE" title={competition.name} description={`${competition.playingFormat ?? (competition.format === "FUTSAL" ? "五人制" : competition.format === "ELEVEN_A_SIDE" ? "十一人制" : "比赛制式待补充")} · ${competitionSystemLabels[competition.competitionSystem]} · 当前赛事工作台`} actions={<Link className="admin-button admin-button-secondary" href="/admin/competitions">返回赛事列表</Link>} />
     <AdminCompetitionWorkspace
       canWrite={canWrite}
       counts={{ teams: competition._count.teams, matches: competition._count.matches, pending: pendingCount, scheduled: scheduledCount, completed: completedCount, filtered: matchCount }} page={page} stages={stages}
       publicEffect={publicEffect + (publicView?.nextMatch.state === "scheduled" ? ` · 下一场：${publicView.nextMatch.homeTeam} vs ${publicView.nextMatch.awayTeam} ${publicView.nextMatch.dateLabel} ${publicView.nextMatch.timeLabel}` : publicView ? ` · ${publicView.nextMatch.summary}` : "")}
       grouping={<TeamGroupingManager key={id} competitionId={id} stages={stages} teams={competition.teams.map((t) => ({ id: t.id, name: t.name }))} canWrite={canWrite} />}
-      structure={<CompetitionStructureManager mode="config" key={id} competitionId={id} stages={stages} tables={tables} teams={competition.teams.map((t) => ({ id: t.id, name: t.name }))} canWrite={canWrite} />}
-      standings={section === "standings" ? <CompetitionStructureManager mode="standings" competitionId={id} stages={stages} tables={tables} teams={[]} canWrite={canWrite} /> : null}
+      structure={<CompetitionStructureManager mode="config" key={id} competitionId={id} stages={stages} tables={tables} leagueTables={leagueTables} competitionSystem={competition.competitionSystem} teams={competition.teams.map((t) => ({ id: t.id, name: t.name }))} canWrite={canWrite} />}
+      standings={section === "standings" ? <CompetitionStructureManager mode="standings" competitionId={id} stages={stages} tables={tables} leagueTables={leagueTables} competitionSystem={competition.competitionSystem} teams={[]} canWrite={canWrite} /> : null}
       initialSection={section === "standings" ? "standings" : section === "teams" ? "teams" : section === "matches" ? "matches" : "overview"}
       competition={{
+        competitionSystem: competition.competitionSystem,
         id: competition.id,
         name: competition.name,
         formatLabel: competition.playingFormat ?? (competition.format === "FUTSAL" ? "五人制" : competition.format === "ELEVEN_A_SIDE" ? "十一人制" : "比赛制式待补充"),
