@@ -3,6 +3,7 @@ import { CompetitionHub } from "@/components/competitions/competition-hub";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { getPublicCompetitionCatalog } from "@/lib/public-competition-service";
+import { getCompetitionArchives, getStaticCompetitionArchives } from "@/lib/competition-archive-service";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/competitions" },
@@ -12,8 +13,8 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function CompetitionsPage() {
-  let competitions: Awaited<ReturnType<typeof getPublicCompetitionCatalog>> = [];
-  let unavailable = false;
-  try { competitions = await getPublicCompetitionCatalog(); } catch { unavailable = true; }
-  return <><SiteHeader /><CompetitionHub competitions={competitions} unavailable={unavailable} /><SiteFooter /></>;
+  const [current, history] = await Promise.allSettled([getPublicCompetitionCatalog(), getCompetitionArchives()]);
+  const competitions = current.status === "fulfilled" ? current.value.filter((entry) => entry.status !== "completed") : [];
+  const archives = history.status === "fulfilled" ? history.value : getStaticCompetitionArchives();
+  return <><SiteHeader /><CompetitionHub competitions={competitions} archives={archives} unavailable={current.status === "rejected"} archivesUnavailable={history.status === "rejected"} /><SiteFooter /></>;
 }

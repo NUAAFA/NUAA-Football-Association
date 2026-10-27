@@ -12,6 +12,8 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "test:competition-presentation": "tsx scripts/test-competition-presentation.ts",
+    "test:media-history-catalogues": "tsx scripts/test-media-history-catalogues.ts",
+    "preview:media-history:prepare": "tsx scripts/prepare-media-history-preview.ts",
     "test:homepage-competitions": "tsx scripts/test-homepage-competitions.ts",
     "test:competition-presentation:browser": "node scripts/test-competition-presentation-browser.mjs",
     "test:referee-flow": "tsx scripts/test-referee-flow.ts",

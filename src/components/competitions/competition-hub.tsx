@@ -10,13 +10,12 @@ import {
   LinkButton,
   Notice,
 } from "@/components/ui/foundation-primitives";
-import mensArchive from "@/data/archives/2026-mens-intercollege-cup/competition.json";
-import womensArchive from "@/data/archives/2026-womens-intercollege-cup/womens-cup-2026.json";
-import { getCoreCompetition } from "@/data/competition-directory";
 import { publicSectionContacts } from "@/data/contacts";
 import { competitionNavigation } from "@/data/navigation";
-import { womensIntercollegeCup2026 } from "@/data/womens-intercollege-cup-2026";
 import type { CompetitionNextMatch, CoreCompetitionDirectoryEntry, PublicCompetitionView } from "@/types/competition-center";
+
+import type { CompetitionArchiveEntry } from "@/types/competition-archive";
+import { ArchiveDirectoryCards } from "./archive-directory-cards";
 
 import styles from "./competition-hub.module.css";
 
@@ -66,71 +65,6 @@ type ServiceGroup = {
   label: string;
 };
 
-function requireCompetition(id: string) {
-  const competition = getCoreCompetition(id);
-  if (!competition) throw new Error(`Missing competition directory entry: ${id}`);
-  return competition;
-}
-
-const mensCompetition = requireCompetition("mens-intercollege-cup");
-const womensCompetition = requireCompetition("womens-intercollege-cup");
-
-const archiveCards = [
-  {
-    actionLabel: "查看男子赛事档案",
-    competition: mensCompetition,
-    description: "进入 2026 年男子院际十一人制赛事的赛果、积分与赛事报道。",
-    eyebrow: `${mensCompetition.year} · ${mensCompetition.formatLabel}`,
-    facts: [
-      { label: "参赛球队", value: `${mensArchive.summary.teams} 支` },
-      { label: "比赛记录", value: `${mensArchive.summary.matches} 场` },
-    ],
-    headingLevel: 4,
-    image: {
-      alt: "天目湖校区西操场晚霞与足球",
-      position: "center bottom",
-      src: mensArchive.heroImage,
-    },
-    secondaryStatus: {
-      context: "档案语境",
-      label: mensCompetition.badge,
-      tone: "neutral",
-    },
-    status: {
-      context: "赛事状态",
-      label: mensCompetition.statusLabel,
-      tone: "success",
-    },
-    variant: "archive",
-  },
-  {
-    actionLabel: "查看女子赛事档案",
-    competition: womensCompetition,
-    description: "进入 2026 年女子院际五人制赛事的赛果、积分与赛事报道。",
-    eyebrow: `${womensCompetition.year} · ${womensCompetition.formatLabel}`,
-    facts: [
-      { label: "参赛球队", value: `${womensArchive.competition.summary.teams} 支` },
-      { label: "比赛记录", value: `${womensArchive.competition.summary.matches} 场` },
-    ],
-    headingLevel: 4,
-    image: {
-      alt: "2026天目湖校区女足赛事集体合影",
-      src: womensIntercollegeCup2026.heroImage,
-    },
-    secondaryStatus: {
-      context: "档案语境",
-      label: womensCompetition.badge,
-      tone: "neutral",
-    },
-    status: {
-      context: "赛事状态",
-      label: womensCompetition.statusLabel,
-      tone: "success",
-    },
-    variant: "archive",
-  },
-] as const satisfies readonly CompetitionSummaryCardProps[];
-
 const [schedule, standings, scorers, history, files, arbitration] = competitionNavigation;
 
 const officialServices = [
@@ -151,7 +85,7 @@ const serviceGroups = [
     label: "比赛数据",
   },
   {
-    description: "先直接进入已经形成专题内容的赛事，也可继续按年份浏览历史入口。",
+    description: "浏览近期赛事档案，或按年份查找全部历届赛事。",
     eyebrow: "COMPETITION ARCHIVES",
     id: "archive",
     items: [{ ...history, description: "按年份查找既有赛事记录与档案入口。" }],
@@ -260,7 +194,7 @@ function ServiceRouteLink({ item, primary = false }: { item: ServiceItem; primar
 }
 
 export function CompetitionServiceNav({ archives, groups }: {
-  archives: readonly CompetitionSummaryCardProps[];
+  archives: readonly CompetitionArchiveEntry[];
   groups: readonly ServiceGroup[];
 }) {
   return (
@@ -275,17 +209,13 @@ export function CompetitionServiceNav({ archives, groups }: {
             </div>
             {group.id === "archive" ? (
               <LinkButton href={group.items[0].href} tone="quiet">
-                历届赛事 <span aria-hidden="true">→</span>
+                查看全部历届赛事 <span aria-hidden="true">→</span>
               </LinkButton>
             ) : null}
           </div>
 
           {group.id === "archive" ? (
-            <div className={styles.archiveGrid}>
-              {archives.map((archive) => (
-                <CompetitionSummaryCard key={archive.competition.id} {...archive} />
-              ))}
-            </div>
+            <ArchiveDirectoryCards archives={archives.slice(0, 3)} compact />
           ) : (
             <ul className={styles.serviceRouteList}>
               {group.items.map((item) => (
@@ -320,7 +250,7 @@ function currentCompetitionCard(competition: PublicCompetitionView, index: numbe
   } satisfies CompetitionSummaryCardProps;
 }
 
-export function CompetitionHub({ competitions, unavailable = false }: { competitions: readonly PublicCompetitionView[]; unavailable?: boolean }) {
+export function CompetitionHub({ competitions, archives, unavailable = false, archivesUnavailable = false }: { competitions: readonly PublicCompetitionView[]; archives: readonly CompetitionArchiveEntry[]; unavailable?: boolean; archivesUnavailable?: boolean }) {
   return (
     <main className={styles.page} id="main-content">
       <CompetitionPageHeader />
@@ -355,7 +285,8 @@ export function CompetitionHub({ competitions, unavailable = false }: { competit
             </div>
             <p>查看赛程、积分与射手记录；已完成赛季与历届赛事档案在最后集中展示。</p>
           </div>
-          <CompetitionServiceNav archives={archiveCards} groups={serviceGroups} />
+          <CompetitionServiceNav archives={archives} groups={serviceGroups} />
+          {archivesUnavailable ? <PublicLoadRetry label="已结束赛事记录" /> : null}
         </div>
       </section>
 

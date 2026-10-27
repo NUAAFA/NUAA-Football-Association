@@ -4,13 +4,13 @@ import Image from "@/components/ui/site-image";
 import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type TouchEvent } from "react";
 
 import styles from "@/components/media/media.module.css";
-import type { MediaCollectionData } from "@/data/media-collections";
+import type { AlbumPhoto } from "@/types/media-album";
 
 // Keep the approved thumbnail sizing; only the open viewer uses a larger slot.
 const photoSizes = "(max-width: 720px) calc((100vw - 48px) / 2), (max-width: 1023px) calc((100vw - 56px) / 2), (max-width: 1100px) calc((100vw - 88px) / 4), (max-width: 1304px) calc((100vw - 112px) / 4), 298px";
 const viewerSizes = "(min-width: 560px) and (max-width: 720px) and (max-height: 500px) calc(100vw - 234px), (max-width: 720px) calc(100vw - 50px), (max-width: 1248px) calc(100vw - 274px), 974px";
 
-export function MediaGallery({ collection }: { collection: MediaCollectionData }) {
+export function MediaGallery({ collection, className = "" }: { collection: { id: string; title: string; images: readonly AlbumPhoto[] }; className?: string }) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -131,7 +131,7 @@ export function MediaGallery({ collection }: { collection: MediaCollectionData }
 
   return (
     <>
-      <div className={styles.gallery}>
+      <div className={`${styles.gallery} ${className}`}>
         {collection.images.map((photo, index) => (
           <figure key={photo.src}>
             <a className={styles.originalLink} href={photo.src} aria-label={`${photo.alt}，查看原图`} onClick={(event) => openViewer(event, index)}>
@@ -155,12 +155,12 @@ export function MediaGallery({ collection }: { collection: MediaCollectionData }
             <header className={styles.viewerHeader}>
               <div>
                 <h2 id={titleId}>{collection.title}</h2>
-                <p aria-live="polite" aria-atomic="true">精选 {selectedIndex + 1} / {collection.images.length}</p>
+                <p aria-live="polite" aria-atomic="true">照片 {selectedIndex + 1} / {collection.images.length}</p>
               </div>
               <button ref={closeRef} type="button" onClick={closeViewer} aria-label="关闭照片查看器">关闭 <span aria-hidden="true">×</span></button>
             </header>
             <div className={styles.viewerStage}>
-              <button className={styles.viewerPrevious} type="button" disabled={selectedIndex === 0} onClick={() => movePhoto(-1)} aria-label="上一张精选照片">← 上一张</button>
+              <button className={styles.viewerPrevious} type="button" disabled={selectedIndex === 0} onClick={() => movePhoto(-1)} aria-label="上一张照片">← 上一张</button>
               <div
                 className={styles.viewerImage}
                 onTouchStart={startTouch}
@@ -170,7 +170,7 @@ export function MediaGallery({ collection }: { collection: MediaCollectionData }
               >
                 <Image key={image.src} src={image.src} alt={image.alt} width={image.width} height={image.height} sizes={viewerSizes} loading="eager" aria-describedby={captionId} />
               </div>
-              <button className={styles.viewerNext} type="button" disabled={selectedIndex === collection.images.length - 1} onClick={() => movePhoto(1)} aria-label="下一张精选照片">下一张 →</button>
+              <button className={styles.viewerNext} type="button" disabled={selectedIndex === collection.images.length - 1} onClick={() => movePhoto(1)} aria-label="下一张照片">下一张 →</button>
             </div>
             <footer className={styles.viewerFooter}>
               <p id={captionId}>{image.alt}</p>

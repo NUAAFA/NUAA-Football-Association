@@ -74,6 +74,7 @@ jobs:
           npm run test:audit-public
           npm run test:team-directory-order
           npm run test:competition-presentation
+          npm run test:media-history-catalogues
           npm run test:resource-library
           npm run test:referee-public-lists
           npm run test:home-notices
