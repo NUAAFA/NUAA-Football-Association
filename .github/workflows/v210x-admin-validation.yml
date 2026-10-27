@@ -25,6 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
@@ -33,7 +34,14 @@ jobs:
           package-manager-cache: false
       - name: Isolated database and locked installation
         shell: bash
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
+          test "$(uname -sm)" = 'Linux x86_64'
+          test "$(node --version)" = v22.23.4
+          cat /etc/os-release
+          sha256sum package-lock.json prisma/schema.prisma
           printf 'DATABASE_URL=file:%s/v210x-build.db\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
           touch "$RUNNER_TEMP/v210x-build.db"
           npm ci --no-audit --no-fund
@@ -105,7 +113,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: v210x-isolated-evidence-${{ github.sha }}-${{ github.run_id }}
+          name: v210x-isolated-evidence-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_id }}
           path: docs/v210x-admin/evidence/
           retention-days: 5
   security:
@@ -114,12 +122,20 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: 22.23.4
           package-manager-cache: false
       - run: npm ci --no-audit --no-fund
+      - name: Verify exact security candidate
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
+          test "$(node --version)" = v22.23.4
+          sha256sum package-lock.json
       - run: npm audit
       - run: npm audit --omit=dev
 # No deploy, SSH, production credentials, migration of production data or release job.
@@ -208,3 +224,67 @@ jobs:
           if-no-files-found: error
           retention-days: 3
           compression-level: 0
+
+  operations:
+    name: Isolated monitoring capacity and maintenance contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      CHECKPOINT_DISABLE: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 22.23.4
+          package-manager-cache: false
+      - name: Bind exact fictional runner and locked installation
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
+          test "$(uname -sm)" = 'Linux x86_64'
+          test "$(node --version)" = v22.23.4
+          test "$(cat /proc/1/comm)" = systemd
+          test ! -e /srv/nuaafa
+          test ! -e /etc/nuaafa
+          test ! -e /opt/nuaafa
+          cat /etc/os-release
+          printf 'DATABASE_URL=file:%s/ops-fictional-build.db\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          touch "$RUNNER_TEMP/ops-fictional-build.db"
+          npm ci --include=dev --include=optional --no-audit --no-fund
+          mkdir "$RUNNER_TEMP/operations-evidence"
+          git rev-parse HEAD > "$RUNNER_TEMP/operations-evidence/source-sha.txt"
+          sha256sum package-lock.json prisma/schema.prisma > "$RUNNER_TEMP/operations-evidence/source-hashes.txt"
+      - name: Preserved monitoring and new notification privacy regressions
+        run: |
+          python3 -B scripts/test-ops-monitoring-baseline.py 2>&1 | tee "$RUNNER_TEMP/operations-evidence/baseline.log"
+          python3 -B scripts/test-ops-monitoring.py 2>&1 | tee "$RUNNER_TEMP/operations-evidence/monitoring.log"
+          python3 -B scripts/test-capacity-planning.py 2>&1 | tee "$RUNNER_TEMP/operations-evidence/capacity.log"
+          python3 -B scripts/test-maintenance-contract.py 2>&1 | tee "$RUNNER_TEMP/operations-evidence/maintenance.log"
+      - name: Real Linux nonprivileged notification installation contract
+        run: |
+          sudo env "PATH=$PATH" PYTHONDONTWRITEBYTECODE=1 python3 scripts/test-ops-monitoring-linux.py --confirm-disposable 2>&1 | tee "$RUNNER_TEMP/operations-evidence/monitoring-linux.log"
+      - name: Exact migrations build and fictional application restore
+        run: |
+          npx prisma validate
+          npx prisma migrate deploy
+          npm run build
+          python3 -B scripts/test-ops-application-restore.py > "$RUNNER_TEMP/operations-evidence/fictional-application-restore.json"
+          cat "$RUNNER_TEMP/operations-evidence/fictional-application-restore.json"
+      - name: Disposable Linux maintenance and safe failure rehearsal
+        run: |
+          sudo env "PATH=$PATH" PYTHONDONTWRITEBYTECODE=1 python3 ops/maintenance/run-linux-rehearsal.py --confirm-disposable 2>&1 | tee "$RUNNER_TEMP/operations-evidence/maintenance-linux.log"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: operations-fictional-evidence-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/operations-evidence/
+          if-no-files-found: warn
+          retention-days: 5
