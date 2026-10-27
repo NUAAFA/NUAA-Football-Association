@@ -22,6 +22,7 @@ class ResourceReadiness(unittest.TestCase):
             name = next(iter(A.RESOURCE_DOCUMENT_MIGRATION))
             for target in (new, old):
                 shutil.copytree(ROOT / 'prisma', target / 'prisma', ignore=shutil.ignore_patterns('*.db*'))
+                shutil.rmtree(target / 'prisma/migrations' / next(iter(A.COMPETITION_ORDER_MIGRATION)))
                 shutil.rmtree(target / 'prisma/migrations' / next(iter(A.LEAGUE_MIGRATION)))
             (new / 'prisma/schema.prisma').write_bytes(subprocess.check_output(['git', '-C', str(ROOT), 'show', 'e553429:prisma/schema.prisma']))
             shutil.rmtree(old / 'prisma/migrations' / name)
