@@ -87,7 +87,7 @@ export type CompetitionImportPreview = {
   referenceRows?: CompetitionImportParsedRow[];
   publicImpact: boolean;
   planHash: string;
-  competition: { id: string; name: string; slug: string };
+  competition: { id: string; name: string; slug: string; competitionSystem?: "GROUP_KNOCKOUT" | "LEAGUE" };
   importType: CompetitionImportType;
   inputMethod: CompetitionImportInputMethod;
   inputHash: string;

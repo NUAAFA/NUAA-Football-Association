@@ -825,3 +825,25 @@
 .admin-table-scroll-hint { display:none; }
 .admin-table-scroll:focus-visible { outline:2px solid #2563eb; outline-offset:3px; }
 @media (max-width:768px) { .admin-table-scroll-hint { display:block; color:#526273; font-size:.85rem; } }
+
+/* Expanded schedule filters share the match-management chip styling. */
+.admin-workspace-match-filters { padding: 18px; border-bottom: 1px solid var(--admin-line); }
+.admin-workspace-filter-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.admin-workspace-filter-heading > a { color: var(--admin-blue); font-size: var(--admin-type-label); text-underline-offset: 3px; }
+.admin-workspace-filter-row { display: grid; grid-template-columns: 3rem minmax(0, 1fr); gap: 12px; margin: 0 0 12px; align-items: start; }
+.admin-workspace-filter-row > span { padding-top: 10px; font-weight: 700; }
+.admin-workspace-filter-row > div { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.admin-workspace-filter-row a { display: inline-flex; align-items: center; min-height: 42px; max-width: 100%; text-decoration: none; overflow-wrap: anywhere; }
+.admin-workspace-filter-row a:hover { border-color: var(--admin-blue); color: var(--admin-blue); }
+.admin-workspace-filter-row a:focus-visible, .admin-workspace-filter-heading > a:focus-visible { outline: 3px solid rgba(45,104,184,.35); outline-offset: 2px; }
+.admin-workspace-filter-summary { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; margin: 16px 0 0; color: var(--admin-muted); font-size: var(--admin-type-label); }
+.admin-workspace-filter-summary strong { color: var(--admin-blue); }
+.admin-workspace-filter-summary > span { margin-left: auto; }
+.admin-workspace-match-actions { padding: 14px 18px; }
+.admin-workspace-match-actions:empty { display: none; }
+@media (max-width: 600px) {
+  .admin-workspace-match-filters { padding: 14px; }
+  .admin-workspace-filter-row { grid-template-columns: 1fr; gap: 6px; margin-bottom: 16px; }
+  .admin-workspace-filter-row > span { padding-top: 0; }
+  .admin-workspace-filter-summary > span { flex-basis: 100%; margin-left: 0; }
+}

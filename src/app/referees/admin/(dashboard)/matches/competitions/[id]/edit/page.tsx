@@ -19,6 +19,7 @@ export default async function EditAdminCompetitionPage({ params }: { params: Pro
     year: competition.year,
     campus: competition.campus,
     format: competition.format,
+    competitionSystem: competition.competitionSystem,
     playingFormat: competition.playingFormat ?? (competition.format === "FUTSAL" ? "五人制" : competition.format === "ELEVEN_A_SIDE" ? "十一人制" : ""),
     status: competition.status,
     semesterLabel: competition.semesterLabel ?? "",

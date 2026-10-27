@@ -45,7 +45,8 @@ export function parseCompetitionImportDocx(buffer: Buffer) {
   let stage = "", rowNumber = 0, tableCount = 0;
   for (const item of body.children) {
     if (item.name === "w:p") {
-      const heading = cellText(item).match(/^阶段\s*[:：]\s*(小组赛|淘汰赛)$/);
+      const heading = cellText(item).match(/^阶段\s*[:：]\s*(小组赛|淘汰赛|联赛)$/);
+      if (/^阶段\s*[:：]/.test(cellText(item))) stage = "";
       if (heading) stage = heading[1];
       continue;
     }
@@ -78,13 +79,13 @@ export function parseCompetitionImportDocx(buffer: Buffer) {
       if (values.every((v) => !v)) continue;
       if (++rowNumber > COMPETITION_IMPORT_MAX_ROWS) fail("Word 赛程不能超过 5000 行。");
       const [round, matchNumber, date, time, homeTeam, awayTeam, venue, note] = values;
-      const group = note.replace(/^备注\s*[:：]\s*/, "").match(/(?:^|[\s，,;；])([^\s，,;；:：]+组)(?=$|[\s，,;；])/u)?.[1] ?? note.replace(/^备注\s*[:：]\s*/, "").trim();
+      const group = stage === "小组赛" ? note.replace(/^备注\s*[:：]\s*/, "").match(/(?:^|[\s，,;；])([^\s，,;；:：]+组)(?=$|[\s，,;；])/u)?.[1] ?? note.replace(/^备注\s*[:：]\s*/, "").trim() : "";
       const row = { rowNumber, values: { stage, round, matchNumber, date, time, homeTeam, awayTeam, venue, note, group, kickoff: date && time ? `${date} ${time}` : "" } };
       (stage === "淘汰赛" ? referenceRows : rows).push(row);
     }
   }
   if (!tableCount || !rows.length && !referenceRows.length) fail("没有找到支持的足球中国 Word 赛程表。");
-  return { rows, referenceRows, columns: ["阶段", "轮次", "场序", "日期", "时间", "主队", "客队", "场地", "备注"], samples: rows.slice(0, 3).map((r) => [r.values.stage, r.values.round, r.values.matchNumber, r.values.date, r.values.time, r.values.homeTeam, r.values.awayTeam, r.values.venue, r.values.note].map(String)), inputWarnings: ["仅解析已核验的足球中国 Word 表格结构。小组赛需匹配本赛事真实球队、已有小组与轮次；淘汰赛仅供参考，不创建球队或比赛。"] };
+  return { rows, referenceRows, columns: ["阶段", "轮次", "场序", "日期", "时间", "主队", "客队", "场地", "备注"], samples: rows.slice(0, 3).map((r) => [r.values.stage, r.values.round, r.values.matchNumber, r.values.date, r.values.time, r.values.homeTeam, r.values.awayTeam, r.values.venue, r.values.note].map(String)), inputWarnings: ["仅解析已核验的足球中国 Word 表格结构。小组赛需匹配本赛事真实球队、已有小组与轮次；联赛需在赛事资料选择联赛制并匹配本赛事真实球队，确认导入时按文件建立轮次；淘汰赛仅供参考，不创建球队或比赛。"] };
 }
 
 // Completion edits cannot change teams, stage classification, match numbers or reference rows.

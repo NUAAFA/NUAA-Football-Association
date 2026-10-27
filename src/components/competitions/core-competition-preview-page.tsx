@@ -61,6 +61,7 @@ export function CoreCompetitionPreviewPage({
               ["年份 / 状态", `${competition.currentEdition} · ${competition.statusLabel}`],
               ["校区", competition.campus],
               ["赛制 / 组队", `${competition.formatLabel} · ${competition.teamFormation}`],
+              ["比赛形式", competition.competitionSystemLabel ?? "小组赛＋淘汰赛"],
               ["报名日期", competition.registrationWindow],
               ["比赛日期", competition.matchWindow],
               ["比赛场地", competition.venue],
@@ -108,11 +109,11 @@ export function CoreCompetitionPreviewPage({
         <div className="page-shell">
           <div className="core-competition-section-intro">
             <div>
-            <p>STANDINGS & KNOCKOUT</p>
-            <h2 id={`${competition.id}-standings-title`}>积分榜与淘汰赛</h2>
+            <p>{competition.competitionSystem === "LEAGUE" ? "LEAGUE STANDINGS" : "STANDINGS & KNOCKOUT"}</p>
+            <h2 id={`${competition.id}-standings-title`}>{competition.competitionSystem === "LEAGUE" ? "联赛积分榜" : "积分榜与淘汰赛"}</h2>
             </div>
           </div>
-          <PublicStandings tables={competition.standings ?? []} />
+          <PublicStandings tables={competition.standings ?? []} isLeague={competition.competitionSystem === "LEAGUE"} />
           <Link className="text-link core-competition-section-link" href="/competitions/standings">查看全部赛事积分榜 →</Link>
         </div>
       </section>

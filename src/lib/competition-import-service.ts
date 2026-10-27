@@ -57,6 +57,7 @@ type TeamPlan = {
 };
 
 type MatchPlan = {
+  newRound?: { id: string; stageId: string; name: string; sortOrder: number };
   tentativeDate: string | null; tentativeSchedule: string | null;
   matchNumber: number | null;
   note: string;
@@ -271,7 +272,7 @@ function makePreview(
     excludedRows: input.rows.filter((r) => input.excludedRowNumbers?.includes(r.rowNumber)),
     referenceRows: input.referenceRows,
     publicImpact: Boolean(competition.publicPublished && !competition.isTestData),
-    planHash: createHash("sha256").update(JSON.stringify({ inputHash: input.inputHash, publicImpact: Boolean(competition.publicPublished && !competition.isTestData), rows, referenceRows: input.referenceRows, teamMappings: input.teamMappings, groupMappings: input.groupMappings, excludedRowNumbers: input.excludedRowNumbers })).digest("hex"),
+    planHash: createHash("sha256").update(JSON.stringify({ inputHash: input.inputHash, competition, publicImpact: Boolean(competition.publicPublished && !competition.isTestData), rows, referenceRows: input.referenceRows, teamMappings: input.teamMappings, groupMappings: input.groupMappings, excludedRowNumbers: input.excludedRowNumbers })).digest("hex"),
     competition,
     importType: input.importType,
     inputMethod: input.inputMethod,
@@ -285,7 +286,7 @@ function makePreview(
 async function loadCompetition(db: ImportDb, competitionId: string) {
   const competition = await db.competition.findUnique({
     where: { id: competitionId },
-    select: { id: true, name: true, slug: true, publicPublished: true, isTestData: true },
+    select: { id: true, name: true, slug: true, publicPublished: true, isTestData: true, competitionSystem: true },
   });
   if (!competition) throw new CompetitionImportServiceError("赛事不存在。", 404);
   return competition;
@@ -424,7 +425,7 @@ function inputMatchDifferences(existing: MatchPlan, imported: MatchPlan) {
 async function analyzeMatchImport(
   db: ImportDb,
   input: CompetitionImportInput,
-  competition: { id: string; name: string; slug: string; publicPublished?: boolean; isTestData?: boolean },
+  competition: { id: string; name: string; slug: string; publicPublished?: boolean; isTestData?: boolean; competitionSystem: "GROUP_KNOCKOUT" | "LEAGUE" },
 ): Promise<ImportAnalysis> {
   const currentTeams = await db.team.findMany({
     where: { competitionId: competition.id },
@@ -481,14 +482,28 @@ async function analyzeMatchImport(
     const round = readText(row.values, "round", "轮次", 80, errors, false) || null;
     if (input.inputMethod === "DOCX" && !round) errors.push(issue("round", "ROUND_REQUIRED", "DOCX 轮次不能为空。"));
     let groupName = readText(row.values, "group", "分组", 80, errors, false);
-    const findStage = structures.filter((s) => row.values.stageId ? s.id === displayCell(row.values.stageId) : s.name === stage);
+    const findStage = structures.filter((s) => row.values.stageId ? s.id === displayCell(row.values.stageId) : s.name === stage || stage === "联赛" && s.type === "LEAGUE");
     const selectedStage = findStage.length === 1 ? findStage[0] : undefined;
     const mappedGroupId = input.groupMappings?.[groupName];
     const groups = selectedStage?.groups.filter((g) => row.values.groupId || mappedGroupId ? g.id === (displayCell(row.values.groupId) || mappedGroupId) : g.name === groupName) ?? [];
     const selectedGroup = groups.length === 1 ? groups[0] : undefined;
     if (selectedGroup && (row.values.groupId || mappedGroupId)) groupName = selectedGroup.name;
     const rounds = selectedStage?.rounds.filter((r) => (!r.groupId || r.groupId === selectedGroup?.id) && (row.values.roundId ? r.id === displayCell(row.values.roundId) : r.name === round)) ?? [];
-    const selectedRound = rounds.length === 1 ? rounds[0] : undefined;
+    let selectedRound = rounds.length === 1 ? rounds[0] : undefined;
+    let newRound: MatchPlan["newRound"];
+    if (selectedStage?.type === "LEAGUE" && competition.competitionSystem === "LEAGUE" && !rounds.length && round && !row.values.roundId) {
+      const id = "league-round-" + createHash("sha256").update(JSON.stringify([selectedStage.id, round])).digest("hex").slice(0, 24);
+      const roundNumber = round.match(/^第\s*(\d+)\s*轮$/)?.[1];
+      newRound = { id, stageId: selectedStage.id, name: round, sortOrder: roundNumber ? Math.min(9999, Number(roundNumber)) : selectedStage.rounds.length + row.rowNumber };
+      selectedRound = { ...newRound, groupId: null };
+      warnings.push(issue("round", "LEAGUE_ROUND_CREATE", `确认导入时将建立联赛轮次“${round}”。`));
+    }
+    if (selectedStage?.type === "LEAGUE" && competition.competitionSystem !== "LEAGUE" || competition.competitionSystem === "LEAGUE" && selectedStage?.type !== "LEAGUE") {
+      errors.push(issue("stage", "COMPETITION_SYSTEM_MISMATCH", "比赛阶段与比赛形式不一致，请先在赛事资料选择正确的比赛形式。"));
+    }
+    if (input.inputMethod === "DOCX" && stage === "联赛" && competition.competitionSystem !== "LEAGUE") {
+      errors.push(issue("stage", "LEAGUE_SYSTEM_REQUIRED", "文件为联赛赛程，请先在赛事资料将比赛形式设为“联赛制”。"));
+    }
     if ((structures.length || row.values.stageId || groupName || row.values.groupId || row.values.roundId) && !selectedStage) errors.push(issue("stage", "STRUCTURE_UNMATCHED", "阶段未匹配；请先建立结构并核对准确名称或 ID。"));
     if (selectedStage?.type === "GROUP" && !selectedGroup) errors.push(issue("group", "GROUP_UNMATCHED", `未找到小组“${groupName || displayCell(row.values.groupId)}”。请前往“球队与分组”核对。`));
     if ((groupName || row.values.groupId) && (!selectedGroup || selectedStage?.type !== "GROUP")) errors.push(issue("group", "GROUP_INVALID", "分组不属于所选小组阶段。"));
@@ -502,7 +517,7 @@ async function analyzeMatchImport(
     if (input.inputMethod === "DOCX" || selectedStage?.type === "KNOCKOUT") {
       for (const name of [homeTeam, awayTeam]) if (!existingByTeamName.has(comparisonKey(name))) errors.push(issue("team", "REAL_TEAM_REQUIRED", `“${name}”未匹配当前赛事真实球队；不会自动建队。`));
     }
-    if (input.inputMethod === "DOCX" && (stage !== "小组赛" || selectedStage?.type !== "GROUP")) errors.push(issue("stage", "DOCX_GROUP_ONLY", "DOCX 只提交已匹配的小组赛，淘汰赛仅作参考。"));
+    if (input.inputMethod === "DOCX" && !(stage === "小组赛" && selectedStage?.type === "GROUP" || stage === "联赛" && selectedStage?.type === "LEAGUE")) errors.push(issue("stage", "DOCX_STAGE_UNMATCHED", "Word 赛程须匹配小组赛或联赛阶段，淘汰赛仅作参考。"));
     const stageId = selectedStage?.id ?? null, groupId = selectedGroup?.id ?? null, roundId = selectedRound?.id ?? null;
     const externalMatchId = readText(row.values, "externalMatchId", "外部比赛 ID", 120, errors, false) || null;
     if (homeTeam && awayTeam && comparisonKey(homeTeam) === comparisonKey(awayTeam)) {
@@ -516,6 +531,7 @@ async function analyzeMatchImport(
       rowNumber: row.rowNumber,
       raw: rawSummary(row.values),
       normalized: {
+        roundWillCreate: newRound ? "true" : null,
         matchNumber: matchNumber === null ? null : String(matchNumber), note, tentativeDate, tentativeSchedule,
         date: displayCell(row.values.date), time: displayCell(row.values.time),
         competitionId: competition.id,
@@ -540,6 +556,7 @@ async function analyzeMatchImport(
       slug: slug || undefined,
     };
     preliminary.push({
+      newRound,
       preview, matchNumber, note, tentativeDate, tentativeSchedule,
       homeTeam,
       awayTeam,
@@ -732,6 +749,12 @@ export async function commitCompetitionImport(
           }
         }
       } else {
+        const createdRoundIds = new Set<string>();
+        for (const plan of analysis.matchPlans) {
+          if (plan.preview.action !== "CREATE" || !plan.newRound || createdRoundIds.has(plan.newRound.id)) continue;
+          await tx.competitionRound.create({ data: plan.newRound });
+          createdRoundIds.add(plan.newRound.id);
+        }
         for (const name of analysis.plannedMatchTeams) {
           const created = await tx.team.create({
             data: {

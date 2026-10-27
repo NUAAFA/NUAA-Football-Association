@@ -2,6 +2,7 @@ import type { CompetitionFormat, CompetitionStatus } from "@/generated/prisma-v2
 import { parseBeijingDateTime } from "@/lib/beijing-datetime";
 import { RefereeApiInputError } from "@/lib/referee-api";
 import { normalizeCompetitionLines } from "@/lib/competition-presentation";
+import type { CompetitionSystemValue } from "@/lib/competition-system";
 import {
   isRecord,
   readBoolean,
@@ -19,6 +20,7 @@ export type CompetitionMutationInput = {
   campus: string;
   format: CompetitionFormat;
   playingFormat: string;
+  competitionSystem?: CompetitionSystemValue;
   status: CompetitionStatus;
   shortName: string | null;
   semesterLabel: string | null;
@@ -102,6 +104,9 @@ function readMutationInput(value: Record<string, unknown>): CompetitionMutationI
     campus: readCompetitionLines(value.campus, "校区", 60, true),
     format: readEnum(value.format, ["ELEVEN_A_SIDE", "FUTSAL", "CUSTOM"] as const, "裁判岗位模板"),
     playingFormat: readShortText(value.playingFormat, "比赛制式", 40),
+    competitionSystem: value.competitionSystem === undefined
+      ? undefined
+      : readEnum(value.competitionSystem, ["GROUP_KNOCKOUT", "LEAGUE"] as const, "比赛形式"),
     status: readEnum(
       value.status,
       ["PREPARING", "REGISTRATION", "ONGOING", "COMPLETED"] as const,

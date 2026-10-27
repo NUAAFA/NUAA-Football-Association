@@ -1,7 +1,7 @@
-import ExistingPage from "@/app/referees/admin/(dashboard)/matches/[id]/page";
+import ExistingPage from "@/components/referees/admin/admin-match-detail-page";
 import { guardUnifiedAdminPage } from "@/lib/unified-admin-page";
 
-export default async function UnifiedAppointmentDetailPage(props: Parameters<typeof ExistingPage>[0]) {
+export default async function UnifiedAppointmentDetailPage(props: { params: Promise<{ id: string }> }) {
   await guardUnifiedAdminPage("referees:read", "appointments");
   return ExistingPage({ ...props, appointmentOnly: true });
 }

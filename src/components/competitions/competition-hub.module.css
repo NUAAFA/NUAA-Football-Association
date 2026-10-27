@@ -162,6 +162,19 @@
   gap: var(--spacing-5);
 }
 
+.currentGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--spacing-4);
+}
+
+.currentGrid[data-count="1"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.currentGrid[data-count="2"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .summaryCard {
   min-width: 0;
   height: 100%;
@@ -171,7 +184,27 @@
 }
 
 .currentCard {
+  display: grid;
+  grid-row: span 6;
+  grid-template-rows: subgrid;
+  gap: var(--spacing-4);
   border-top: var(--spacing-1) solid var(--color-brand-action);
+}
+
+.currentCard .cardBody {
+  display: grid;
+  grid-row: span 6;
+  grid-template-rows: subgrid;
+  gap: var(--spacing-4);
+}
+
+.currentCard .cardDescription {
+  margin-top: 0;
+  font-size: var(--font-size-meta);
+}
+
+.currentCard .cardHeader {
+  align-content: start;
 }
 
 .archiveCard {
@@ -239,6 +272,11 @@
   letter-spacing: -0.02em;
   line-height: var(--line-height-heading);
   overflow-wrap: anywhere;
+}
+
+.currentCard h3 {
+  margin-top: 0;
+  font-size: clamp(1.25rem, 1.7vw, 1.6rem);
 }
 
 .cardDescription {
@@ -465,9 +503,16 @@
   }
 
   .currentGrid,
+  .currentGrid[data-count="2"],
   .archiveGrid,
   .serviceRouteList {
     grid-template-columns: 1fr;
+  }
+
+  .currentCard,
+  .currentCard .cardBody {
+    grid-row: auto;
+    grid-template-rows: auto;
   }
 }
 
@@ -543,16 +588,11 @@
 }
 
 /* Current events have two concise facts, a full date row and a separate next fixture. */
-.currentCard .factGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; overflow: visible; padding-block: 20px; border: 0; border-block: 1px solid var(--color-border-subtle); border-radius: 0; background: transparent; }
+.currentCard .factGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; overflow: visible; margin: 0; padding-block: 16px; border: 0; border-block: 1px solid var(--color-border-subtle); border-radius: 0; background: transparent; }
 .currentCard .factGrid > div { padding: 0; background: transparent; }
 .currentCard .factGrid > .factWide { grid-column: 1 / -1; }
 .currentCard .factLabel { font-size: .875rem; }
 .currentCard .factValue { font-size: 1rem; font-weight: 600; }
-.nextMatch { display: grid; gap: 8px; margin-block: 20px 24px; padding: 20px; border-left: 3px solid var(--color-brand-action); border-radius: 0 8px 8px 0; background: var(--color-surface-subtle); }
-.nextLabel { color: var(--color-brand-action); font-size: .875rem; font-weight: 650; }
-.nextMatch > strong { font-size: 1.125rem; line-height: 1.6; }
-.nextMatch > strong > span { padding-inline: 4px; color: var(--color-text-muted); font-size: .875rem; }
-.nextMatch > p { color: var(--color-text-body); font-size: .9375rem; line-height: 1.6; }
 .cardAction { margin-top: auto; }
 .centerNav { border-block: 1px solid var(--color-border-subtle); background: var(--color-surface-raised); }
 .centerNav ul { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 24px; list-style: none; padding-block: 8px; }
@@ -560,4 +600,4 @@
 .centerNav a[aria-current="page"] { color: var(--color-brand-action); border-color: var(--color-brand-action); }
 .centerNav a:hover { color: var(--color-brand-action-hover); background: var(--color-surface-subtle); }
 .centerNav a:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
-@media (max-width: 520px) { .nextMatch { padding: 16px; } .centerNav ul { gap: 0 16px; } }
+@media (max-width: 520px) { .centerNav ul { gap: 0 16px; } }
