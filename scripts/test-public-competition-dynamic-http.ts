@@ -469,12 +469,12 @@ async function main() {
     const sevenDetail = await pageHtml(origin, "/competitions/seven-a-side-test");
     const sixDetail = await pageHtml(origin, "/competitions/six-a-side-test");
     const sitemap = await pageHtml(origin, "/sitemap.xml");
-    assertHomepageCardCount(home, 1, "initial R3 homepage");
+    assertHomepageCardCount(home, 2, "initial homepage with public fallback");
     const onlyHomeCard = homepageCards(home)[0];
     assert(
       onlyHomeCard.includes("2030校园七人制联赛")
       && onlyHomeCard.includes("七人制")
-      && onlyHomeCard.includes(`href="/competitions/seven-a-side-test#match-${sevenMatchId}"`)
+      && onlyHomeCard.includes(`href="/competitions/seven-a-side-test"`)
       && !onlyHomeCard.includes("2030六人制邀请赛")
       && !onlyHomeCard.includes("2030未公开测试赛"),
       "Homepage feature selection or own-slug link is incorrect.",
@@ -482,10 +482,10 @@ async function main() {
     const currentHomeCompetitions = currentCompetitionSection(home);
     assert(
       currentHomeCompetitions.includes("2030校园七人制联赛")
-      && !currentHomeCompetitions.includes("2030六人制邀请赛")
+      && currentHomeCompetitions.includes("2030六人制邀请赛")
       && !currentHomeCompetitions.includes("2026南京航空航天大学新生杯足球赛事")
       && !currentHomeCompetitions.includes("2026天目湖五人制联赛"),
-      "Homepage rendered an unfeatured or legacy static Competition outside the featured section.",
+      "Homepage public fallback or legacy-static exclusion is incorrect.",
     );
     assert(
       catalog.includes("2030校园七人制联赛")
@@ -564,7 +564,7 @@ async function main() {
     const { slug: thirdSlug, ...thirdEditable } = thirdPayload;
     assert(thirdSlug === "third-featured-test", "Third fixture slug changed.");
     await expectStatus(apiRequest(origin, `/api/referees/admin/competitions/${thirdId}`, "PATCH", { ...thirdEditable, homepageFeatured: true }, competitionCookie), 200, "third homepage candidate allowed");
-    assertHomepageCardCount(await pageHtml(origin, "/"), 2, "three candidates bounded to two");
+    assertHomepageCardCount(await pageHtml(origin, "/"), 3, "three public candidates displayed together");
     const featureRows = await verifier.competition.findMany({
       where: { id: { in: [sevenId, sixId, thirdId] } },
       select: { id: true, homepageFeatured: true },
@@ -642,7 +642,7 @@ async function main() {
       200,
       "disable homepage feature",
     );
-    assertHomepageEmptyState(await pageHtml(origin, "/"), "unfeatured homepage");
+    assertHomepageCardCount(await pageHtml(origin, "/"), 3, "unfeatured public events remain eligible for fallback");
     assert((await pageHtml(origin, "/competitions")).includes("2030校园七人制联赛"), "Unfeatured Competition left the catalog.");
     assert((await pageHtml(origin, "/competitions/seven-a-side-test")).includes("2030校园七人制联赛"), "Unfeatured Competition detail disappeared.");
     await expectStatus(
