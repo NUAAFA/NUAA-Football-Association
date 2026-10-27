@@ -1,0 +1,11 @@
+[Unit]
+Description=NUAAFA candidate collector cadence (requires approval)
+
+[Timer]
+OnActiveSec=1min
+OnUnitActiveSec=2min
+AccuracySec=10s
+Persistent=false
+Unit=nuaafa-ops-collect.service
+
+# No Install section. Independently observe last collector completion and failure.

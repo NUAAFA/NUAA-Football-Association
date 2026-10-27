@@ -1,0 +1,15 @@
+{
+  "source": "read-only production installed programs /usr/local/lib/nuaafa-post-launch, collected 2026-10-27",
+  "productionApplicationSha": "7f90d4714756f792b312a766985dfe2094fdd71d",
+  "purpose": "immutable regression fixtures; not installed or invoked against production",
+  "sha256": {
+    "test_monitor.py": "9dc42536fd8f07bd403a211837c8d5356a1658c19820013754dcee0fcc003695",
+    "backup.py": "86be659ecfd3158a370418f1f1ecba12b7821cb23a60cc90e1cba459529004cb",
+    "monitor.py": "ba87efcab716b66f57921f69dfef792c54caeaf4ca97069124d973418c245892",
+    "nginx-log-check.py": "e6d735c74998890f08aa0f54482bd0a85ceb82b2e3c22cf168445abdf8a2d6ce",
+    "test_nginx_log.py": "b64339427eb6f4c9c4f3f9a1ab9babb91f7fa52573181995e52543d669ff7240",
+    "restore-check.py": "11861b575594cfd62e12a00e264233740c39170cd694e0c170f2dd0770b44433",
+    "test_backup.py": "f5fff02c4e5845e440f6a8a3c5ad0351a96ffca6ae95fcb90b757fe086f3861b",
+    "failure-event.py": "a75b52e62e8bef4d8b46ccdfb53fbac09710faa471382f723e1e3209e16c6206"
+  }
+}
