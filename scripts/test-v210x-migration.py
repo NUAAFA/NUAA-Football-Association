@@ -5,8 +5,8 @@ BASE = '704bf0af9e9b7f538cfbf6d3a76ec5f4148190e8'
 root = Path(tempfile.mkdtemp(prefix='nuaafa-v210x-migration-'))
 oldfile = root/'old.db'; db = sqlite3.connect(oldfile)
 paths = sorted(Path('prisma/migrations').glob('*/migration.sql'))
-assert len(paths) == 21
-assert paths[-1].parent.name == "20261026120000_competition_league"
+assert len(paths) == 22
+assert paths[-1].parent.name == "20261027120000_current_competition_order"
 ledger = []
 for p in paths[:17]:
     original = subprocess.check_output(['git','show',f'{BASE}:{p.as_posix()}'])
@@ -53,7 +53,7 @@ assert upgraded.execute('select recordSource,publishedAt from RefereeAppointment
 assert upgraded.execute('SELECT COUNT(*) FROM ResourceDocument').fetchone()[0]==0
 assert upgraded.execute('pragma integrity_check').fetchone()[0]=='ok'
 assert not upgraded.execute('pragma foreign_key_check').fetchall()
-assert upgraded.execute('select count(*) from _prisma_migrations').fetchone()[0]==21
+assert upgraded.execute('select count(*) from _prisma_migrations').fetchone()[0]==22
 repeat=snapshot(upgraded);migrate(clone);assert snapshot(upgraded)==repeat
 plan=upgraded.execute('EXPLAIN QUERY PLAN SELECT id FROM "Match" WHERE competitionId=? AND stageId=? AND roundId=? ORDER BY kickoff,id',('comp','stage','round')).fetchall()
 assert any('Match_structure_navigation_idx' in row[-1] for row in plan)
@@ -78,9 +78,9 @@ for table in tables:
 assert failed_prisma.execute('select count(*) from _prisma_migrations where finished_at is null').fetchone()[0]==1
 # Preserve the failed candidate and recover to a fresh path from the pre-change clone.
 recovered=root/'prisma-recovered.db';assert not recovered.exists();shutil.copy2(oldfile,recovered);migrate(recovered)
-assert sqlite3.connect(recovered).execute('select count(*) from _prisma_migrations where finished_at is not null').fetchone()[0]==21
+assert sqlite3.connect(recovered).execute('select count(*) from _prisma_migrations where finished_at is not null').fetchone()[0]==22
 # Recover to a new sibling; never overwrite an existing path or discard candidate history.
 restored=root/'restored.db';assert not restored.exists();shutil.copy2(oldfile,restored)
 assert snapshot(sqlite3.connect(restored))==before
 assert hashlib.sha256(oldfile.read_bytes()).hexdigest()==oldhash
-print(json.dumps({'status':'PASS','historical_migrations_unchanged':17,'candidate_migrations':21,'baseline_tables_preserved':len(tables),'old_cells_and_admin_credentials':'EXACT_EQUAL','repeat_deploy':'PASS','failure_atomicity':'PASS','real_prisma_failure_and_clone_recovery':'PASS','isolated_restore':'PASS','integrity_and_foreign_keys':'PASS','navigation_index_plan':[row[-1] for row in plan]},ensure_ascii=False,indent=2))
+print(json.dumps({'status':'PASS','historical_migrations_unchanged':17,'candidate_migrations':22,'baseline_tables_preserved':len(tables),'old_cells_and_admin_credentials':'EXACT_EQUAL','repeat_deploy':'PASS','failure_atomicity':'PASS','real_prisma_failure_and_clone_recovery':'PASS','isolated_restore':'PASS','integrity_and_foreign_keys':'PASS','navigation_index_plan':[row[-1] for row in plan]},ensure_ascii=False,indent=2))

@@ -27,10 +27,11 @@ export default async function AdminCompetitionsPage() {
       source: true,
       publicPublished: true,
       homepageFeatured: true,
+      publicOrder: true,
       externalCompetitionId: true,
       _count: { select: { teams: true, matches: true, disciplineDetails: true } },
     },
-    orderBy: [{ year: "desc" }, { createdAt: "desc" }],
+    orderBy: [{ year: "desc" }, { publicOrder: "asc" }, { createdAt: "desc" }],
   })]);
   const canWrite = Boolean(actor && hasUnifiedAdminPermission(actor.roles, "competitions:write"));
   return <>
@@ -41,12 +42,13 @@ export default async function AdminCompetitionsPage() {
       actions={canWrite ? <><Link className="admin-button admin-button-secondary" href="/admin/competitions/import">批量导入</Link><Link className="admin-button" href="/admin/competitions/new">+ 新建赛事</Link></> : <span className="admin-status-badge">只读权限</span>}
     />
     <AdminMatchNavigation active="competitions" />
-    <AdminPanel title={`赛事列表 · ${competitions.length}`} description="赛事是球队与比赛的上级对象；这里维护手工赛事，并保留后续官方数据接入所需信息。">
-      {competitions.length ? <div className="admin-table-scroll"><table className="admin-data-table"><thead><tr><th>赛事名称</th><th>比赛制式</th><th>裁判岗位模板</th><th>状态</th><th>比赛</th><th>球队</th><th>数据来源</th><th>操作</th></tr></thead><tbody>{competitions.map((competition) => <tr key={competition.id}>
+    <AdminPanel title={`赛事列表 · ${competitions.length}`} description="在“编辑资料 → 公开状态”中设置公开展示顺序，数字越小越靠前；首页两处赛事区与赛事中心使用同一顺序。赛事数量变化时布局自动适配。">
+      {competitions.length ? <div className="admin-table-scroll"><table className="admin-data-table"><thead><tr><th>赛事名称</th><th>比赛制式</th><th>裁判岗位模板</th><th>状态</th><th>公开展示</th><th>比赛</th><th>球队</th><th>数据来源</th><th>操作</th></tr></thead><tbody>{competitions.map((competition) => <tr key={competition.id}>
         <td><strong>{competition.name}</strong><small>{competition.year ?? "赛季未填写"}</small></td>
         <td>{competition.playingFormat ?? (competition.format === "FUTSAL" ? "五人制" : competition.format === "ELEVEN_A_SIDE" ? "十一人制" : "待补充")}<small>{competitionSystemLabels[competition.competitionSystem]}</small></td>
         <td>{competitionFormatLabels[competition.format]}</td>
         <td><AdminStatusBadge status={competition.status} label={competitionStatusLabels[competition.status]} /></td>
+        <td>顺序 {competition.publicOrder}<small>{competition.publicPublished ? competition.homepageFeatured ? "已公开 · 首页优先入选" : "已公开" : "未公开"}</small></td>
         <td>{competition._count.matches}</td>
         <td>{competition._count.teams}</td>
         <td>{dataSourceLabels[competition.source]}</td>
