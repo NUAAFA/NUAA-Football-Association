@@ -20,7 +20,7 @@ async function main() {
   const raw = createClient({ url: process.env.DATABASE_URL! });
   const migrations = (await readdir("prisma/migrations", { withFileTypes: true })).filter(e => e.isDirectory()).sort((a, b) => a.name.localeCompare(b.name));
   for (const entry of migrations) await raw.executeMultiple(await readFile(path.join("prisma/migrations", entry.name, "migration.sql"), "utf8"));
-  raw.close(); assert.equal(migrations.length, 21); assert.equal(await realpath(database), database);
+  raw.close(); assert.equal(migrations.length, 22); assert.equal(await realpath(database), database);
   const { prisma } = await import("../src/lib/prisma");
   const service = await import("../src/lib/referee-service");
   const structure = await import("../src/lib/competition-structure-service");
