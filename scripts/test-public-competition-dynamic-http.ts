@@ -470,14 +470,15 @@ async function main() {
     const sixDetail = await pageHtml(origin, "/competitions/six-a-side-test");
     const sitemap = await pageHtml(origin, "/sitemap.xml");
     assertHomepageCardCount(home, 2, "initial homepage with public fallback");
-    const onlyHomeCard = homepageCards(home)[0];
+    const [firstHomeCard, secondHomeCard] = homepageCards(home);
     assert(
-      onlyHomeCard.includes("2030校园七人制联赛")
-      && onlyHomeCard.includes("七人制")
-      && onlyHomeCard.includes(`href="/competitions/seven-a-side-test"`)
-      && !onlyHomeCard.includes("2030六人制邀请赛")
-      && !onlyHomeCard.includes("2030未公开测试赛"),
-      "Homepage feature selection or own-slug link is incorrect.",
+      firstHomeCard.includes("2030六人制邀请赛")
+      && firstHomeCard.includes("六人制")
+      && firstHomeCard.includes(`href="/competitions/six-a-side-test"`)
+      && secondHomeCard.includes("2030校园七人制联赛")
+      && secondHomeCard.includes(`href="/competitions/seven-a-side-test"`)
+      && ![firstHomeCard, secondHomeCard].join("").includes("2030未公开测试赛"),
+      "Homepage must preserve public order and each event's own link after featured-slot selection.",
     );
     const currentHomeCompetitions = currentCompetitionSection(home);
     assert(
