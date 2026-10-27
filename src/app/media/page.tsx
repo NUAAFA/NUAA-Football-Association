@@ -1,23 +1,26 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { DouyinQrCard } from "@/components/media/douyin-qr-card";
-import { MediaCollection } from "@/components/media/media-collection";
+import { AlbumCards } from "@/components/media/album-cards";
+import albumStyles from "@/components/media/album.module.css";
+import catalogueStyles from "@/components/ui/catalogue.module.css";
+import { CataloguePagination } from "@/components/ui/catalogue-pagination";
+import { PublicLoadRetry } from "@/components/public-load-retry";
 import styles from "@/components/media/media.module.css";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { publicSectionContacts } from "@/data/contacts";
-import { mediaCollections } from "@/data/media-collections";
 import { bilibiliPlatform } from "@/data/platforms";
-import { isDatabaseContentSource } from "@/lib/content-source";
-import { getPublicCompetitionAlbums } from "@/lib/competition-report-service";
-import { CompetitionImageGallery } from "@/components/competitions/competition-media";
+import { catalogueHref, cataloguePage, catalogueValue, catalogueYear, type CatalogueSearchParams } from "@/lib/catalogue-navigation";
+import { getLegacyMediaAlbums, getMediaAlbums } from "@/lib/media-album-service";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/media" },
   title: "影像资料",
-  description: "校园足球赛事影像发现入口：浏览2026女子与男子足球院际杯精选照片，继续查看完整赛事影像与官方影像平台。",
+  description: "按报道浏览校园足球相册，按赛事与年份查找比赛照片和完整赛事影像。",
   openGraph: {
     title: "影像资料｜南京航空航天大学天目湖足球协会",
     description: "浏览南航校园足球赛事照片、完整赛事影像与官方影像平台。",
@@ -25,9 +28,22 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function MediaPage() {
-  const albums = await getPublicCompetitionAlbums();
-  const showReports = !isDatabaseContentSource();
+export default async function MediaPage({ searchParams }: { searchParams: Promise<CatalogueSearchParams> }) {
+  const query = await searchParams;
+  let albums = getLegacyMediaAlbums();
+  let unavailable = false;
+  try { albums = await getMediaAlbums(); } catch { unavailable = true; }
+  const years = [...new Set(albums.map((album) => String(album.year ?? "undated")))].sort((a, b) => Number(b === "undated" ? 0 : b) - Number(a === "undated" ? 0 : a));
+  const year = catalogueYear(catalogueValue(query.year), years);
+  const competition = catalogueValue(query.competition);
+  const q = catalogueValue(query.q);
+  const options = [...new Map(albums.map((album) => [album.competitionKey, album.competitionName])).entries()];
+  const filtered = albums.filter((album) => (year === "all" || String(album.year ?? "undated") === year)
+    && (!competition || album.competitionKey === competition)
+    && `${album.title} ${album.competitionName} ${album.campus}`.toLocaleLowerCase().includes(q.toLocaleLowerCase()));
+  const page = cataloguePage(filtered, catalogueValue(query.page));
+  const filters = { year, competition, q };
+  const returnQuery = catalogueHref("/media", { ...filters, page: page.page }).split("?")[1] ?? "";
   const contact = publicSectionContacts.media;
 
   return (
@@ -38,27 +54,21 @@ export default async function MediaPage() {
           <div className={styles.shell}>
             <p className={styles.eyebrow}>NUAA CAMPUS FOOTBALL / MEDIA</p>
             <h1>影像资料</h1>
-            <p className={styles.lead}>校园足球赛事影像发现入口</p>
+            <p className={styles.lead}>按相册收录赛场故事，按赛事与年份查找。</p>
           </div>
         </header>
-        <nav className={styles.navigation} aria-label="影像资料页内导航">
-          <ul className={styles.shell}>
-            {albums.map((album) => <li key={album.id}><a href={`#competition-${album.id}`}>{album.name}</a></li>)}
-            <li><a href="#womens-cup-2026">女子院际杯</a></li>
-            <li><a href="#mens-cup-2026">男子院际杯</a></li>
-            <li><a href="#douyin">官方影像平台</a></li>
-          </ul>
-        </nav>
-        <div className={`${styles.shell} ${styles.collections}`}>
-          {albums.map((album) => <section className={styles.collection} id={`competition-${album.id}`} key={album.id} aria-labelledby={`album-${album.id}-title`}>
-            <header className={styles.collectionHeading}><h2 id={`album-${album.id}-title`}>{album.name}</h2><p>{album.campus} · 已发布报道照片</p></header>
-            <CompetitionImageGallery images={album.images} />
-            <div className={styles.collectionLinks}><a className={styles.archiveLink} href={`/competitions/${album.slug}#media`}>查看本届赛事影像 →</a></div>
-          </section>)}
-          {mediaCollections.map((collection) => (
-            <MediaCollection key={collection.id} collection={collection} showReport={showReports} />
-          ))}
-        </div>
+        <section className={`${styles.shell} ${albumStyles.catalogue}`} aria-labelledby="media-albums-title">
+          <form key={catalogueHref("/media", filters)} className={catalogueStyles.filters} action="/media" method="get" role="search" aria-label="筛选影像相册">
+            <label>年份<select name="year" defaultValue={year}><option value="all">全部年份</option>{years.map((item) => <option key={item} value={item}>{item === "undated" ? "年份待补充" : `${item} 年`}</option>)}</select></label>
+            <label>赛事<select name="competition" defaultValue={competition}><option value="">全部赛事</option>{options.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+            <label className={catalogueStyles.search}>查找相册<input type="search" name="q" defaultValue={q} placeholder="输入报道标题、赛事或校区" maxLength={200} /></label>
+            <div className={catalogueStyles.filterAction}><button className="ui-button ui-button-primary" type="submit">筛选相册</button><Link className="ui-button ui-button-quiet" href="/media">重置</Link></div>
+          </form>
+          <div className={catalogueStyles.heading}><h2 id="media-albums-title">赛事相册</h2><p>一篇报道，一本相册 · 历史赛事影像完整保留</p></div>
+          {unavailable ? <PublicLoadRetry label="已发布报道相册" /> : null}
+          {page.items.length ? <AlbumCards albums={page.items} returnQuery={returnQuery} /> : <div className={catalogueStyles.empty}><p>暂无符合条件的已发布相册。</p><Link href="/media">查看全部相册</Link></div>}
+          <CataloguePagination path="/media" filters={filters} {...page} unit="组相册" />
+        </section>
         <div className={`${styles.shell} ${styles.pageEnd}`}>
           <section className={styles.platforms} aria-labelledby="media-platforms-title">
             <h2 id="media-platforms-title">官方影像平台</h2>
