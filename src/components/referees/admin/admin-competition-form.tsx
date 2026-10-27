@@ -166,17 +166,17 @@ export function AdminCompetitionForm({ competition }: { competition?: AdminCompe
             type="checkbox"
           />
           <span className="admin-competition-feature-copy">
-            <strong>首页优先展示</strong>
+            <strong>首页优先入选</strong>
             <small id="homepage-feature-help">
-              首页最多展示 3 项已公开且未结束的赛事，每项显示下一场安排。勾选后优先展示，再按近期比赛排序；名额不足时会自动补入其他公开赛事。
+              首页最多展示 3 项已公开且未结束的赛事。勾选后优先入选，名额不足时自动补入其他公开赛事；入选后统一按下方“公开展示顺序”排列。只有 1 项或 2 项时，页面会自动调整布局。
               {!publicPublished ? " 请先开启“公开发布”后再设置首页展示。" : ""}
             </small>
           </span>
         </label>
       </div>
-      <details><summary>高级设置 · 目录与候选次级排序</summary><div className="admin-form-grid">
-        <label><span>高级排序（目录及同时开球 / 空态候选）</span><input defaultValue={competition?.publicOrder ?? 0} max={1000} min={-1000} name="publicOrder" required type="number" /></label>
-      </div></details>
+      <div className="admin-form-grid">
+        <label className="admin-form-span-2"><span>公开展示顺序（数字越小越靠前）</span><input aria-describedby="competition-order-help" defaultValue={competition?.publicOrder ?? 0} max={1000} min={-1000} name="publicOrder" required type="number" /><small id="competition-order-help">同时控制首页“当前赛事”、首页“关注当前赛事”和赛事中心的排列，不随下一场比赛时间变化。建议新生杯填 10、男子赛事填 20、女子赛事填 30；同序号时按年份从新到旧排列。</small></label>
+      </div>
     </section>
 
     <section className="admin-form-section">

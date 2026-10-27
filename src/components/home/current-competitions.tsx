@@ -1,4 +1,5 @@
 import { PublicLoadRetry } from "@/components/public-load-retry";
+import { CompetitionFixture } from "@/components/competitions/competition-fixture";
 import styles from "@/components/home/home-page.module.css";
 import { Badge, Card, LinkButton } from "@/components/ui/foundation-primitives";
 import { getHomepagePublicCompetitions } from "@/lib/public-competition-service";
@@ -39,10 +40,14 @@ export async function CurrentCompetitions() {
           <div className={styles.competitionCardCopy}>
             <div className={styles.competitionCardMeta}><span>{competition.semesterLabel} · {competition.formatLabel}</span><Badge tone={competition.status === "ongoing" ? "success" : "warning"}>{competition.statusLabel} · {competition.badge}</Badge></div>
             <h3>{competition.name}</h3><p>{competition.stageLabel}</p>
+            {secondary.length === 1 ? <div className={styles.competitionExpandedDetails}>
+              <p>{competition.summary}</p>
+              <CompetitionFixture fixture={competition.nextMatch} />
+            </div> : null}
             <LinkButton href={competition.detailHref} size="small" tone="quiet">进入赛事主页 <span aria-hidden="true">→</span></LinkButton>
           </div>
         </Card>)}</div> : null}
-      </div> : <div className="functional-empty"><strong>当前暂无首页重点赛事</strong><p>赛事由管理员公开发布并设为首页展示后，将在这里同步呈现。</p></div>}
+      </div> : <div className="functional-empty"><strong>当前暂无首页重点赛事</strong><p>赛事由管理员公开发布且尚未结束时，将在这里同步呈现。</p></div>}
     </div>
   </section>;
 }

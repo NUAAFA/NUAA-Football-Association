@@ -233,7 +233,7 @@ async function loadCompetitionSummaries(homepageOnly: boolean, asOf: Date) {
     view.scale = row._count.teams ? `${row._count.teams} 支球队` : "参赛规模待确认";
     if (!row.matches.length && row._count.matches && row.status !== "COMPLETED") view.nextMatch = { state: "none", label: "暂无下一场", summary: counts.some((c) => c.competitionId === row.id && c.status === "SCHEDULED") ? "暂无下一场预告，赛果待确认。" : "暂无后续赛程，可查看现有赛果。" };
     if (!row.matches.length && pendingCounts.some((c) => c.competitionId === row.id)) view.nextMatch = { state: "pending", label: "待排期", summary: "赛程已公布，具体比赛时间待定", dateLabel: "时间待定", venue: "场地待定" };
-    return { view, nextTime: row.matches[0]?.kickoff?.getTime() ?? Infinity, publicOrder: row.publicOrder, id: row.id };
+    return { view, id: row.id };
   });
 }
 export async function getPublicCompetitionCatalog(): Promise<PublicCompetitionView[]> {
@@ -250,10 +250,15 @@ export async function getPublicCompetition(slug: string): Promise<PublicCompetit
 }
 
 export async function getHomepagePublicCompetitions(asOf = new Date()): Promise<PublicCompetitionView[]> {
-  return readPublicData("competition-homepage", async () => (await loadCompetitionSummaries(true, asOf))
-    .sort((a, b) => Number(b.view.homepageFeatured) - Number(a.view.homepageFeatured) || a.nextTime - b.nextTime || a.publicOrder - b.publicOrder || a.id.localeCompare(b.id))
-    .slice(0, 3)
-    .map((r) => r.view));
+  return readPublicData("competition-homepage", async () => {
+    const entries = await loadCompetitionSummaries(true, asOf);
+    // Homepage priority chooses the slots; publicOrder controls their display everywhere.
+    const selected = new Set([...entries]
+      .sort((a, b) => Number(b.view.homepageFeatured) - Number(a.view.homepageFeatured))
+      .slice(0, 3)
+      .map((entry) => entry.id));
+    return entries.filter((entry) => selected.has(entry.id)).map((entry) => entry.view);
+  });
 }
 export async function getPublicCompetitionStandings(competitionId: string) {
   return readPublicData("competition-standings", async () => {
