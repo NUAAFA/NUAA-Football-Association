@@ -68,6 +68,7 @@ jobs:
           npm run test:f03-schedule-compat:http
           npm run test:f03-tentative:http
           npm run test:referee-signup:http
+          npm run test:referee-current-matches -- --http
           npm run test:referee-submission-requests
           TZ=UTC npm run test:targeted-followup
           TZ=Europe/London npm run test:targeted-followup
@@ -104,6 +105,7 @@ jobs:
           AUDIT_BROWSER_CHANNEL=chromium npm run test:audit-public:http
           npm run test:v210x-browser
           REFEREE_LIST_BROWSER_CHANNEL=chromium REFEREE_LIST_BROWSER_ENGINES=chrome npm run test:referee-public-lists
+          CURRENT_MATCH_BROWSER_CHANNEL=chromium CURRENT_MATCH_EVIDENCE_DIR=docs/v210x-admin/evidence/referee-current-matches npm run test:referee-current-matches -- --http --browser
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

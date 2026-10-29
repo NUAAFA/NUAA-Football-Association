@@ -110,7 +110,13 @@ async function main() {
    await page.setViewportSize({width:390,height:844});
    await page.goto(`${base}/referees/open-matches?competition=five`,{waitUntil:'networkidle'});
    assert(await page.getByRole('heading',{name:'可报名场次 / 执裁意向',exact:true}).isVisible());
-   await drain(17);
+   const memberRows=page.locator('article[data-current-match-id]');
+   assert.equal(await memberRows.count(),17,'Signed-in referees see all current matches immediately.');
+   const memberIds=await memberRows.evaluateAll(nodes=>nodes.map(node=>node.dataset.currentMatchId));
+   assert.equal(new Set(memberIds).size,17);
+   assert(memberIds.every(id=>id.startsWith('open-0-')));
+   assert.equal(await page.getByRole('button',{name:'继续浏览',exact:true}).count(),0);
+   assert(await page.getByText('已显示当前筛选下的全部比赛 · 开放报名优先，按开赛时间排列',{exact:true}).isVisible());
    assert.equal((await measure()).overflow,false);
    await page.waitForLoadState('networkidle'); assert.deepEqual(errors,[]);
    if(prefetchMessages.length) {

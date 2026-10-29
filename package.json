@@ -17,6 +17,7 @@
     "test:homepage-competitions": "tsx scripts/test-homepage-competitions.ts",
     "test:competition-presentation:browser": "node scripts/test-competition-presentation-browser.mjs",
     "test:referee-flow": "tsx scripts/test-referee-flow.ts",
+    "test:referee-current-matches": "node --import tsx scripts/test-referee-current-matches.mjs",
     "test:home-notices": "tsx scripts/test-home-notices.ts",
     "test:resource-library": "tsx scripts/test-resource-library.ts",
     "test:referee-public-lists": "tsx scripts/test-referee-public-lists.ts",
