@@ -1184,8 +1184,8 @@ export async function publishAppointment(
     if (appointment.match.status !== "SCHEDULED") {
       throw new RefereeServiceError("比赛已结束或取消，不能发布选派。", 409);
     }
-    if (!appointment.positions.length || appointment.positions.some((item) => !item.refereeId)) {
-      throw new RefereeServiceError("发布前须为所有已启用岗位分配裁判员。", 409);
+    if (!appointment.positions.some((item) => item.refereeId)) {
+      throw new RefereeServiceError("发布前请至少分配一名裁判员。", 409);
     }
     if (appointment.revision > 0 && !reason.trim()) {
       throw new RefereeServiceError("重新发布选派时必须填写明确的修改原因。", 400);

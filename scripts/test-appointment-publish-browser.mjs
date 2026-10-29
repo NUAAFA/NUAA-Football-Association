@@ -33,7 +33,7 @@ async function fixture(label, index, withDraft = true) {
   if (withDraft) await prisma.refereeAppointment.create({ data: { matchId: match.id, status: 'DRAFT', publicationNote: '旧备注', positions: { create: roles.map(([key,label],sortOrder) => ({ key,label,sortOrder,slot:1,refereeId: sortOrder ? null : referees[0].id })) } } });
   return match;
 }
-const stale = await fixture('old-draft-current-four',1), fresh = await fixture('first-publication',2,false), blocked = await fixture('blocked-publication',3), manual = await fixture('manual-save',4);
+const stale = await fixture('old-draft-current-four',1), fresh = await fixture('first-publication',2,false), blocked = await fixture('blocked-publication',3), manual = await fixture('manual-save',4), single = await fixture('single-person',5,false);
 await prisma.refereeAvailability.create({ data: { refereeId: referees[2].id, kind: 'UNAVAILABLE', startAt: new Date(Date.UTC(2035,0,3,7)), endAt: new Date(Date.UTC(2035,0,3,10)) } });
 const listener = net.createServer(); listener.listen(0,'127.0.0.1'); await once(listener,'listening'); const port = listener.address().port; await new Promise(resolve => listener.close(resolve));
 const origin = 'http://127.0.0.1:' + port;
@@ -89,11 +89,31 @@ try {
   await page.screenshot({path:path.join(evidence,'published-four-with-advisory.png'),fullPage:true});
   checks.push('four current selections replace stale incomplete draft, one atomic POST, duplicate clicks ignored, note and snapshot preserved, end-time advisory allows publishing');
 
-  await open(fresh); await assignAll(); await page.getByLabel('第二助理裁判员裁判员',{exact:true}).selectOption('');
+  await open(fresh);
+  for (const [,label] of roles) await page.getByLabel('启用' + label,{exact:true}).check();
   const countBefore = requests.length; await page.getByRole('button',{name:'发布选派',exact:true}).click();
-  await page.getByText('发布前请分配：第二助理裁判员。',{exact:true}).waitFor(); assert.equal(requests.length,countBefore); assert.equal(await stored(fresh),null);
-  await page.getByLabel('第二助理裁判员裁判员',{exact:true}).selectOption(referees[2].id); await publish(fresh);
-  assert.equal((await stored(fresh)).status,'PUBLISHED'); checks.push('missing role named before request; first publication works without saved draft');
+  await page.getByText('发布前请至少分配一名裁判员。',{exact:true}).waitFor(); assert.equal(requests.length,countBefore); assert.equal(await stored(fresh),null);
+  await assignAll(); await page.getByLabel('第四官员裁判员',{exact:true}).selectOption('');
+  assert(await page.getByLabel('启用第四官员',{exact:true}).isChecked());
+  await publish(fresh);
+  const threePublished = await stored(fresh);
+  assert.equal(threePublished.status,'PUBLISHED'); assert.equal(threePublished.positions.filter(p=>p.refereeId).length,3);
+  assert.equal(threePublished.positions.find(p=>p.key==='FOURTH_OFFICIAL').refereeId,null);
+  await page.screenshot({path:path.join(evidence,'published-three-fourth-vacant.png'),fullPage:true});
+  checks.push('zero people blocked; three people publish directly with fourth official still enabled and vacant');
+
+  await page.setViewportSize({width:390,height:844}); await open(single); await assignAll();
+  for (let i=0;i<3;i++) await page.getByLabel(roles[i][1] + '裁判员',{exact:true}).selectOption('');
+  await publish(single);
+  const onePublished = await stored(single);
+  assert.equal(onePublished.status,'PUBLISHED'); assert.equal(onePublished.positions.filter(p=>p.refereeId).length,1);
+  assert.equal(onePublished.positions.find(p=>p.key==='FOURTH_OFFICIAL').refereeId,referees[3].id);
+  await page.screenshot({path:path.join(evidence,'published-one-mobile.png'),fullPage:true});
+  await page.goto(origin + '/referees/assignments/' + onePublished.id + '/print',{waitUntil:'networkidle'});
+  assert.equal(await page.locator('table tbody tr').count(),4);
+  assert((await page.locator('table').innerText()).includes(referees[3].name));
+  checks.push('one person in any role publishes on mobile; vacant roles retained and public print renders');
+  await page.setViewportSize({width:1440,height:1000});
 
   await open(blocked); const before = JSON.stringify(await stored(blocked)); await assignAll();
   const failedResponse = page.waitForResponse(r=>r.url().endsWith(endpoint(blocked))&&r.request().method()==='POST');

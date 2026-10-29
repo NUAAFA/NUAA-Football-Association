@@ -206,10 +206,6 @@ async function main() {
     const currentPositions = positionKeys.map((key, index) => ({ key, slot: 1, refereeId: referees[index].id }));
     const stale = await createFixture("NONE", "current-editor-over-stale-draft");
     await service.saveAppointmentDraft({ matchId: stale.match.id, publicationNote: "old note", positions: currentPositions.map((position, index) => ({ ...position, refereeId: index ? null : position.refereeId })) }, refereeAuthorization);
-    let staleRejected = false;
-    try { await service.publishAppointment(stale.match.id, "", "", refereeAuthorization); }
-    catch (error) { staleRejected = error instanceof service.RefereeServiceError && error.message.includes("所有已启用岗位"); }
-    assert(staleRejected, "Old publication did not reproduce the incomplete saved draft error.");
     const published = await service.publishAppointment(stale.match.id, "", "", refereeAuthorization, { positions: currentPositions, publicationNote: "current editor note" });
     const stored = await prisma.refereeAppointment.findUniqueOrThrow({ where: { matchId: stale.match.id }, include: { positions: true } });
     assert(stored.status === "PUBLISHED" && stored.positions.length === 4 && currentPositions.every((position) => stored.positions.some((saved) => saved.key === position.key && saved.refereeId === position.refereeId)), "Publication did not use all four current editor assignments.");
@@ -220,6 +216,28 @@ async function main() {
     const direct = await createFixture("NONE", "publish-without-manual-save");
     await service.publishAppointment(direct.match.id, "", "", refereeAuthorization, { positions: currentPositions, publicationNote: "direct" });
     assert((await prisma.refereeAppointment.findUniqueOrThrow({ where: { matchId: direct.match.id } })).status === "PUBLISHED", "First publication still requires a separate manual save.");
+
+    // Four configured/enabled roles do not require four assigned people.
+    // Keep vacancies in the version so later changes retain the intended roles.
+    for (const count of [1, 2, 3]) {
+      const partial = await createFixture("NONE", `publish-${count}-people-with-vacancies`);
+      const positions = currentPositions.map((position, index) => ({ ...position, refereeId: (count === 1 ? index === 3 : index < count) ? position.refereeId : null }));
+      const result = await service.publishAppointment(partial.match.id, "", "", refereeAuthorization, { positions, publicationNote: `${count} people` });
+      const saved = await prisma.refereeAppointment.findUniqueOrThrow({ where: { matchId: partial.match.id }, include: { positions: true } });
+      assert(saved.status === "PUBLISHED" && saved.positions.filter((p) => p.refereeId).length === count && saved.positions.length === 4, `${count}-person publication did not preserve enabled vacancies.`);
+      const versionPositions = (JSON.parse(result.version.snapshot) as { positions: typeof positions }).positions;
+      assert(versionPositions.filter((p) => p.refereeId).length === count && versionPositions.length === 4, `${count}-person version lost assignments or vacant roles.`);
+    }
+    const legacyPartial = await createFixture("NONE", "legacy-publish-partial-saved-draft");
+    await service.saveAppointmentDraft({ matchId: legacyPartial.match.id, publicationNote: "partial saved draft", positions: currentPositions.map((position, index) => ({ ...position, refereeId: index ? null : position.refereeId })) }, refereeAuthorization);
+    await service.publishAppointment(legacyPartial.match.id, "", "", refereeAuthorization);
+    assert((await prisma.refereeAppointment.findUniqueOrThrow({ where: { matchId: legacyPartial.match.id } })).status === "PUBLISHED", "Legacy saved-draft publication still requires every enabled role to be filled.");
+
+    const five = await createFixture("NONE", "five-configured-officials");
+    await prisma.refereePositionCapability.create({ data: { refereeId: referees[4].id, format: "ELEVEN_A_SIDE", positionKey: "RESERVE_ASSISTANT_REFEREE", status: "READY" } });
+    await prisma.matchPositionRequirement.create({ data: { matchId: five.match.id, key: "RESERVE_ASSISTANT_REFEREE", label: "候补助理裁判员", count: 1, sortOrder: 50 } });
+    await service.publishAppointment(five.match.id, "", "", refereeAuthorization, { positions: [...currentPositions, { key: "RESERVE_ASSISTANT_REFEREE", slot: 1, refereeId: referees[4].id }], publicationNote: "five configured people" });
+    assert(await prisma.appointmentPosition.count({ where: { appointment: { matchId: five.match.id }, refereeId: { not: null } } }) === 5, "Publication incorrectly imposed a four-person limit.");
 
     const rollback = await createFixture("DRAFT", "atomic-publication-failure");
     await createApplication(referees[1].id, rollback.match.id, "WITHDRAWN");
@@ -260,7 +278,11 @@ async function main() {
       currentEditorReplacesIncompleteSavedDraft: true,
       directPublicationWithoutManualSave: true,
       failedPublicationRollsBackDraftVersionsApplicationsAndAudits: true,
-      emptyIncompleteAndDuplicateAssignmentsRejected: true,
+      zeroPeopleAndDuplicateAssignmentsRejected: true,
+      oneTwoThreeAndFourPeopleCanPublish: true,
+      fiveConfiguredPeopleCanPublish: true,
+      enabledVacanciesPreservedInPublishedVersion: true,
+      partialSavedDraftCanPublish: true,
       disabledSlotsRemoved: true,
       optionalEndTimeStillAdvisory: true,
       currentEditorRepublish: true,

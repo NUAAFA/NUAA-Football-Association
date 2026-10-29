@@ -122,9 +122,8 @@ export function AdminAppointmentEditor({
     if (actionName === "publish") {
       if (!formRef.current) return;
       const enabledPositions = match.template.filter((item) => enabled[identity(item)]);
-      const missing = enabledPositions.filter((item) => !assigned[identity(item)]);
-      if (!enabledPositions.length || missing.length) {
-        setMessage(missing.length ? `发布前请分配：${missing.map((item) => `${item.label}${item.slot > 1 ? `（${item.slot}）` : ""}`).join("、")}。` : "发布前请至少启用并分配一个岗位。");
+      if (!enabledPositions.some((item) => assigned[identity(item)])) {
+        setMessage("发布前请至少分配一名裁判员。");
         return;
       }
       draft = currentDraft(formRef.current);
@@ -162,7 +161,7 @@ export function AdminAppointmentEditor({
 
   return <>
     <section className="admin-panel admin-assignment-panel">
-      <header className="admin-panel-header admin-workbench-header"><div><h2>裁判选派工作台</h2><p>{match.format === "ELEVEN_A_SIDE" ? "十一人制" : match.format === "FUTSAL" ? "五人制" : "无预设"}岗位模板 · 可正式选派优先，培养中可选；暂不安排不可选</p></div><div className="admin-assignment-summary"><span><strong>{assignedCount}</strong> / {Object.values(enabled).filter(Boolean).length} 已启用岗位已分配</span><span data-warning={warnings.length > 0}><strong>{warnings.length}</strong> 个提醒</span></div></header>
+      <header className="admin-panel-header admin-workbench-header"><div><h2>裁判选派工作台</h2><p>{match.format === "ELEVEN_A_SIDE" ? "十一人制" : match.format === "FUTSAL" ? "五人制" : "无预设"}岗位模板 · 可正式选派优先，培养中可选；暂不安排不可选</p><p>至少安排一人即可发布；未分配岗位保留空缺。</p></div><div className="admin-assignment-summary"><span><strong>{assignedCount}</strong> / {Object.values(enabled).filter(Boolean).length} 已启用岗位已分配</span><span data-warning={warnings.length > 0}><strong>{warnings.length}</strong> 个提醒</span></div></header>
       <form className="admin-form admin-assignment-form" onSubmit={save} ref={formRef}>
         <div aria-label="裁判岗位分配" className="admin-workbench-table" role="table" tabIndex={0}>
           <div className="admin-workbench-table-head" role="row"><span role="columnheader">岗位</span><span role="columnheader">裁判员</span><span role="columnheader">岗位能力</span><span role="columnheader">状态检查</span></div>
