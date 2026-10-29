@@ -1,3 +1,5 @@
+import { publicAppointmentRefereeSelect } from "@/lib/referee-dto";
+import { getPublicRefereeQualification } from "@/lib/referee-qualifications";
 import { isPublicAppointmentRecord } from "@/lib/referee-record-publicity";
 import "server-only";
 
@@ -74,7 +76,7 @@ const publicCompetitionSelect = {
               key: true,
               label: true,
               slot: true,
-              referee: { select: { name: true } },
+              referee: { select: publicAppointmentRefereeSelect },
             },
           },
         },
@@ -117,7 +119,7 @@ function publicMatch(match: PublicCompetitionRow["matches"][number]): PublicComp
         status: match.appointment.status as "PUBLISHED" | "COMPLETED",
         recordSource: match.appointment.recordSource,
         positions: match.appointment.positions.flatMap((position) => position.referee
-          ? [{ key: `${position.key}-${position.slot}`, label: `${position.label}${position.slot > 1 ? ` ${position.slot}` : ""}`, refereeName: position.referee.name }]
+          ? [{ key: `${position.key}-${position.slot}`, label: `${position.label}${position.slot > 1 ? ` ${position.slot}` : ""}`, refereeName: position.referee.name, refereeLevel: getPublicRefereeQualification(position.referee.refereeLevel) }]
           : []),
       }
     : null;

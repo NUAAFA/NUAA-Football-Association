@@ -1,0 +1,3 @@
+.name { display: inline-flex; flex-wrap: wrap; align-items: baseline; column-gap: .25em; max-width: 100%; }
+.level { color: var(--color-text-muted, #596b7d); font-size: .85em; font-weight: 500; white-space: nowrap; }
+@media print { .level { color: #333; } }

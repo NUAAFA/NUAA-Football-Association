@@ -17,3 +17,14 @@ export function isRefereeQualification(value: string): value is RefereeQualifica
 export function normalizeRefereeQualification(value?: string) {
   return value && isRefereeQualification(value) ? value : refereeQualifications[0];
 }
+
+/** Only registered certificate levels belong in public appointment displays. */
+export function getPublicRefereeQualification(value?: string | null) {
+  const level = value?.trim();
+  return level && isRefereeQualification(level) && level !== refereeQualifications[0] ? level : null;
+}
+
+export function formatPublicRefereeName(name: string, level?: string | null) {
+  const qualification = getPublicRefereeQualification(level);
+  return qualification ? `${name}（${qualification}）` : name;
+}

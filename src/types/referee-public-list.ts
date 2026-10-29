@@ -12,7 +12,7 @@ export type PublicRefereeListItem = {
   stage: string;
   href: string;
   badge: string;
-  positions: { key: string; label: string; referee: string }[];
+  positions: { key: string; label: string; referee: string; refereeLevel?: string | null }[];
   publishedAt?: string | null;
   updatedAt?: string;
   note?: string | null;

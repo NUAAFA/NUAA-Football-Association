@@ -107,7 +107,8 @@
     "test:f03-schedule-compat": "tsx scripts/test-f03-schedule-compat.ts",
     "test:f03-schedule-compat:http": "tsx scripts/test-f03-schedule-compat.ts --http",
     "test:f03-tentative:http": "tsx scripts/test-f03-tentative-http.ts",
-    "test:referee-signup:http": "tsx scripts/test-referee-signup-http.ts"
+    "test:referee-signup:http": "tsx scripts/test-referee-signup-http.ts",
+    "test:referee-profile:browser": "node --import tsx scripts/test-referee-profile-clarity.mjs"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",

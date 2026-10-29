@@ -160,7 +160,7 @@ export type PublicCompetitionMatch = {
     id: string;
     status?: "PUBLISHED" | "COMPLETED";
     recordSource?: string;
-    positions: Array<{ key: string; label: string; refereeName: string }>;
+    positions: Array<{ key: string; label: string; refereeName: string; refereeLevel?: string | null }>;
   };
 };
 

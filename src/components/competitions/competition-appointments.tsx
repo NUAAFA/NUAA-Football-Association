@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { PublicRefereeName } from "@/components/referees/public-referee-name";
 import { useState } from "react";
 import { comparePublicMatches, publicMatchProgress } from "@/lib/competition-presentation";
 import type { PublicCompetitionMatch } from "@/types/competition-center";
@@ -26,7 +27,7 @@ export function CompetitionAppointments({ matches, referenceTime }: { matches: P
           <div className={styles.appointmentBadges}><span data-status={match.status}>{publicMatchProgress(match, referenceTime)}</span><span>{match.appointment?.recordSource === "POST_MATCH_ENTRY" ? "赛后执裁记录" : match.appointment?.status === "COMPLETED" ? "选派已完成" : "正式选派"}</span></div>
         </header>
         <dl className={styles.appointmentFacts}><div><dt>开赛时间 · 北京时间</dt><dd>{match.kickoff ? <time dateTime={new Date(match.kickoff).toISOString()}>{match.dateLabel} {match.timeLabel}</time> : "时间待定"}</dd></div><div><dt>比赛场地</dt><dd>{match.venue}</dd></div></dl>
-        <dl className={styles.positions}>{match.appointment!.positions.map((position) => <div key={position.key}><dt>{position.label}</dt><dd>{position.refereeName}</dd></div>)}</dl>
+        <dl className={styles.positions}>{match.appointment!.positions.map((position) => <div key={position.key}><dt>{position.label}</dt><dd><PublicRefereeName name={position.refereeName} level={position.refereeLevel} /></dd></div>)}</dl>
         <Link className={styles.appointmentLink} href={`/referees/assignments/${match.appointment!.id}/print`}>查看 / 打印{match.appointment?.recordSource === "POST_MATCH_ENTRY" ? "执裁记录" : "选派单"} →</Link>
       </article>)}
     </div>

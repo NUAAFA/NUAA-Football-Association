@@ -1,9 +1,10 @@
 import type { Prisma } from "@/generated/prisma-v29/client";
 
-/** Public appointment views may disclose only the referee display name. */
+/** Public appointments allow the display name and registered referee level; certificate details stay private. */
 export const publicAppointmentRefereeSelect = {
   id: true,
   name: true,
+  refereeLevel: true,
 } satisfies Prisma.RefereeSelect;
 
 export type PublicRefereeDTO = Prisma.RefereeGetPayload<{

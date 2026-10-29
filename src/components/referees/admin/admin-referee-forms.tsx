@@ -15,6 +15,8 @@ import {
   type RefereeCapabilityStatus,
 } from "@/lib/referee-profile-options";
 import { refereeQualifications } from "@/lib/referee-qualifications";
+import { getRefereeRegistrationSummary } from "@/lib/referee-profile-summary";
+import { PublicRefereeName } from "@/components/referees/public-referee-name";
 
 export type CollegeOption = { id: string; name: string; label: string };
 export type AffiliationUnitOption = {
@@ -122,8 +124,8 @@ function CapabilityGroups({
     onChange(applyCapabilityBatch(values, format, capabilities[format].map(([key]) => key), batch[format]));
   }
   return <div className="admin-capability-groups">{(Object.entries(capabilities) as Array<[CapabilityFormat, typeof capabilities[CapabilityFormat]]>).map(([format, items]) => <section className="admin-capability-group" key={format}>
-    <header className="admin-capability-header"><strong>{format === "ELEVEN_A_SIDE" ? "十一人制" : "五人制"}</strong><div><span>批量设置</span><select aria-label={`${format === "ELEVEN_A_SIDE" ? "十一人制" : "五人制"}批量状态`} onChange={(event) => setBatch((current) => ({ ...current, [format]: event.target.value as CapabilityStatus }))} value={batch[format]}><option value="NOT_ASSIGNED">暂不安排</option><option value="TRAINING">培养中</option><option value="READY">可正式选派</option></select><button className="admin-button admin-button-quiet" onClick={() => applyBatch(format)} type="button">应用</button></div></header>
-    <div>{items.map(([key, label]) => { const identity = `${format}:${key}`; return <label className="admin-capability-row" key={identity}><span>{label}</span><select name="capability" onChange={(event) => onChange({ ...values, [identity]: event.target.value.split(":")[2] as CapabilityStatus })} value={`${identity}:${values[identity]}`}><option value={`${identity}:NOT_ASSIGNED`}>暂不安排</option><option value={`${identity}:TRAINING`}>培养中</option><option value={`${identity}:READY`}>可正式选派</option></select></label>; })}</div>
+    <header className="admin-capability-header"><strong>{format === "ELEVEN_A_SIDE" ? "十一人制" : "五人制"}<small>{items.filter(([key]) => values[`${format}:${key}`] !== "NOT_ASSIGNED").length} 项可报名</small></strong><div><span>批量设置</span><select aria-label={`${format === "ELEVEN_A_SIDE" ? "十一人制" : "五人制"}批量状态`} onChange={(event) => setBatch((current) => ({ ...current, [format]: event.target.value as CapabilityStatus }))} value={batch[format]}><option value="NOT_ASSIGNED">暂不安排</option><option value="TRAINING">培养中 · 可报名</option><option value="READY">可正式选派</option></select><button className="admin-button admin-button-quiet" onClick={() => applyBatch(format)} type="button">应用</button></div></header>
+    <div>{items.map(([key, label]) => { const identity = `${format}:${key}`; return <label className="admin-capability-row" key={identity}><span>{label}</span><select name="capability" onChange={(event) => onChange({ ...values, [identity]: event.target.value.split(":")[2] as CapabilityStatus })} value={`${identity}:${values[identity]}`}><option value={`${identity}:NOT_ASSIGNED`}>暂不安排</option><option value={`${identity}:TRAINING`}>培养中 · 可报名</option><option value={`${identity}:READY`}>可正式选派</option></select></label>; })}</div>
   </section>)}</div>;
 }
 
@@ -195,8 +197,8 @@ export function RefereeCreateForm() {
 }
 
 const tabs = [
-  ["profile", "基本资料"], ["qualification", "裁判资质"], ["capabilities", "岗位能力"],
-  ["public", "公开展示"], ["internal", "内部备注"], ["security", "账号与安全"],
+  ["profile", "基本资料"], ["capabilities", "报名与岗位"],
+  ["qualification", "资质与培养"], ["settings", "公开与账号"],
 ] as const;
 
 export function RefereeEditForm({ account, colleges, affiliationUnits }: { account: AdminRefereeRecord; colleges: CollegeOption[]; affiliationUnits: AffiliationUnitOption[] }) {
@@ -208,11 +210,19 @@ export function RefereeEditForm({ account, colleges, affiliationUnits }: { accou
   const [passwordMessage, setPasswordMessage] = useState("");
   const [resetOpen, setResetOpen] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [name, setName] = useState(account.name);
   const [grade, setGrade] = useState(account.grade);
   const [collegeId, setCollegeId] = useState(account.collegeId);
   const [currentUnitId, setCurrentUnitId] = useState(account.currentAffiliationUnitId);
   const [capabilityValues, setCapabilityValues] = useState<Record<string, CapabilityStatus>>(startingCapabilities);
   const [assignmentEligibility, setAssignmentEligibility] = useState(account.assignmentEligibility);
+  const [accountStatus, setAccountStatus] = useState(account.status);
+  const [refereeLevel, setRefereeLevel] = useState(account.refereeLevel || refereeQualifications[0]);
+  const registration = getRefereeRegistrationSummary({
+    status: accountStatus, assignmentEligibility, mustChangePassword: account.mustChangePassword,
+    capabilities: Object.entries(capabilityValues).map(([key, status]) => ({ format: key.split(":")[0], status })),
+  });
   const [publicEnabled, setPublicEnabled] = useState(account.publicDirectoryEnabled);
   const [publicBio, setPublicBio] = useState(account.publicBio);
 
@@ -234,15 +244,18 @@ export function RefereeEditForm({ account, colleges, affiliationUnits }: { accou
   }
   function changeTab(value: (typeof tabs)[number][0]) {
     setActiveTab(value);
-    if (value !== "security") setPasswordMessage("");
+    if (value !== "settings") setPasswordMessage("");
   }
   function cancelChanges() {
     formRef.current?.reset();
+    setName(account.name);
     setGrade(account.grade);
     setCollegeId(account.collegeId);
     setCurrentUnitId(account.currentAffiliationUnitId);
     setCapabilityValues(startingCapabilities);
     setAssignmentEligibility(account.assignmentEligibility);
+    setAccountStatus(account.status);
+    setRefereeLevel(account.refereeLevel || refereeQualifications[0]);
     setPublicEnabled(account.publicDirectoryEnabled);
     setPublicBio(account.publicBio);
     setDirty(false);
@@ -250,13 +263,18 @@ export function RefereeEditForm({ account, colleges, affiliationUnits }: { accou
   }
   async function update(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const response = await fetch(`/api/referees/admin/accounts/${account.id}`, {
-      method: "PATCH", headers: { "content-type": "application/json" },
-      body: JSON.stringify(fullPayload(new FormData(event.currentTarget))),
-    });
-    const result = (await response.json()) as { error?: string };
-    setMessage(response.ok ? "裁判员档案已保存。" : result.error ?? "保存失败。");
-    if (response.ok) { setDirty(false); router.refresh(); }
+    if (saving) return;
+    const payload = fullPayload(new FormData(event.currentTarget));
+    setSaving(true); setMessage("");
+    try {
+      const response = await fetch(`/api/referees/admin/accounts/${account.id}`, {
+        method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(payload),
+      });
+      const result = (await response.json()) as { error?: string };
+      setMessage(response.ok ? "裁判员档案已保存。" : result.error ?? "保存失败，请核对后重试。");
+      if (response.ok) { setDirty(false); router.refresh(); }
+    } catch { setMessage("网络异常，修改尚未确认保存，请核对后重试。"); }
+    finally { setSaving(false); }
   }
   async function resetPassword(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -272,40 +290,56 @@ export function RefereeEditForm({ account, colleges, affiliationUnits }: { accou
 
   return <>
     <form className="admin-form" onChange={markDirty} onSubmit={update} ref={formRef}>
-      <nav aria-label="裁判员详情分区" className="admin-tabs">{tabs.map(([value, label]) => <button aria-selected={activeTab === value} key={value} onClick={() => changeTab(value)} role="tab" type="button">{label}</button>)}</nav>
+      <nav aria-label="裁判员详情分区" className="admin-tabs admin-referee-tabs" role="tablist">{tabs.map(([value, label]) => <button id={`referee-tab-${value}`} aria-controls={`referee-panel-${value}`} aria-selected={activeTab === value} tabIndex={activeTab === value ? 0 : -1} onKeyDown={event => { const index = tabs.findIndex(([key]) => key === value); const next = event.key === "ArrowRight" ? (index + 1) % tabs.length : event.key === "ArrowLeft" ? (index + tabs.length - 1) % tabs.length : event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : -1; if (next < 0) return; event.preventDefault(); changeTab(tabs[next][0]); event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('button[role="tab"]')[next]?.focus(); }} key={value} onClick={() => changeTab(value)} role="tab" type="button">{label}</button>)}</nav>
 
-      <section className="admin-form-section admin-profile-section" hidden={activeTab !== "profile"}><header><h2>基本资料</h2><p>学院背景用于专业身份；当前组织归属是本阶段组织关系判断的主要单位。</p></header><div className="admin-form-grid admin-form-grid-3 admin-profile-grid">
-        <label><span>姓名</span><input defaultValue={account.name} name="name" required /></label>
-        <label><span>裁判员编号</span><input defaultValue={account.publicCode} name="publicCode" required /></label>
-        <label><span>学号</span><input defaultValue={account.studentId} name="studentId" /></label>
-        <label><span>年级</span><select name="grade" onChange={(event) => { setGrade(event.target.value); markDirty(); }} value={grade}><option value="">待确认</option>{refereeGrades.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
-        <label><span>学号 / 原年级修改核实原因</span><input name="gradeChangeReason" maxLength={500} placeholder="仅修改学号或原年级时必填" /></label>
-        <label><span>学院背景</span><select name="collegeId" onChange={(event) => { setCollegeId(event.target.value); markDirty(); }} value={collegeId}><option value="">待确认</option>{colleges.map((college) => <option key={college.id} value={college.id}>{college.label}</option>)}</select></label>
-        <label><span>当前组织归属</span><select name="currentAffiliationUnitId" onChange={(event) => { setCurrentUnitId(event.target.value); markDirty(); }} value={currentUnitId}><option value="">待管理员确认</option><AdminAffiliationOptionGroups options={affiliationUnits} /></select>{recommendedUnit && recommendedUnit.id !== currentUnitId ? <small className="admin-field-suggestion">根据年级和学院背景建议：{recommendedUnit.name} <button onClick={() => { setCurrentUnitId(recommendedUnit.id); markDirty(); }} type="button">采用建议</button></small> : <small>已有归属不会因年级变化被自动覆盖。</small>}</label>
-        <label><span>手机号</span><input defaultValue={account.phone} name="phone" /></label>
-        <label><span>QQ</span><input defaultValue={account.qq} name="qq" /></label>
-        <label><span>账号状态</span><select defaultValue={account.status} name="status">{Object.entries(refereeStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-      </div></section>
+      <section id="referee-panel-profile" aria-labelledby="referee-tab-profile" role="tabpanel" className="admin-form-section admin-profile-section" hidden={activeTab !== "profile"}>
+        <header><h2>基本资料</h2><p>维护身份、组织和联系方式；报名与选派条件在“报名与岗位”中设置。</p></header>
+        <div className="admin-form-grid admin-form-grid-3 admin-profile-grid">
+          <label><span>姓名</span><input value={name} onChange={event => { setName(event.target.value); markDirty(); }} name="name" required /></label>
+          <label><span>裁判员编号</span><input defaultValue={account.publicCode} name="publicCode" required /></label>
+          <label><span>学号</span><input defaultValue={account.studentId} aria-label="学号" name="studentId" /><small>裁判员使用学号登录。</small></label>
+          <label><span>年级</span><select aria-label="年级" name="grade" onChange={(event) => { setGrade(event.target.value); markDirty(); }} value={grade}><option value="">待确认</option>{refereeGrades.map((item) => <option key={item} value={item}>{item}</option>)}</select><small>{account.gradeMode === "AUTO_STUDENT_ID" ? `当前自动年级：${account.effectiveGrade || "待核实"}；此处保留原年级记录。` : "特殊学籍与自动计算可在下方“年级计算设置”中维护。"}</small></label>
+          <label><span>学院背景</span><select aria-label="学院背景" name="collegeId" onChange={(event) => { setCollegeId(event.target.value); markDirty(); }} value={collegeId}><option value="">待确认</option>{colleges.map((college) => <option key={college.id} value={college.id}>{college.label}</option>)}</select><small>记录专业所属学院。</small></label>
+          <label><span>当前组织归属</span><select aria-label="当前组织归属" name="currentAffiliationUnitId" onChange={(event) => { setCurrentUnitId(event.target.value); markDirty(); }} value={currentUnitId}><option value="">待管理员确认</option><AdminAffiliationOptionGroups options={affiliationUnits} /></select>{recommendedUnit && recommendedUnit.id !== currentUnitId ? <small className="admin-field-suggestion">建议：{recommendedUnit.name} <button onClick={() => { setCurrentUnitId(recommendedUnit.id); markDirty(); }} type="button">采用建议</button></small> : <small>用于组织关系与回避判断，需管理员确认。</small>}</label>
+          <label><span>手机号</span><input defaultValue={account.phone} name="phone" /></label>
+          <label><span>QQ</span><input defaultValue={account.qq} name="qq" /></label>
+          <label><span>加入日期</span><input defaultValue={account.joinedAt} name="joinedAt" type="date" /></label>
+        </div>
+        <details className="admin-profile-disclosure"><summary>修改学号或原年级的核实说明</summary><label><span>学号 / 原年级修改核实原因</span><input name="gradeChangeReason" maxLength={500} placeholder="修改学号或原年级时必填" /></label></details>
+      </section>
 
-      <section className="admin-form-section" hidden={activeTab !== "qualification"}><header><h2>裁判资质</h2><p>正式裁判资质、协会培训状态和岗位培养能力分别维护，互不替代。</p></header><div className="admin-form-grid">
-        <label><span>裁判资质</span><select defaultValue={account.refereeLevel || refereeQualifications[0]} name="refereeLevel">{refereeQualifications.map((qualification) => <option key={qualification} value={qualification}>{qualification}</option>)}</select></label>
-        <label><span>加入日期</span><input defaultValue={account.joinedAt} name="joinedAt" type="date" /></label>
-        <label><span>培训状态</span><select defaultValue={account.trainingStatus} name="trainingStatus">{Object.entries(trainingStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-        <label><span>正式选派资格</span><select name="assignmentEligibility" onChange={(event) => { setAssignmentEligibility(event.target.value); markDirty(); }} value={assignmentEligibility}>{Object.entries(assignmentEligibilityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-        <label className="admin-form-span-2"><span>选派资格调整原因</span><input maxLength={500} name="eligibilityReason" placeholder="暂停或恢复选派时必填，并写入 AuditLog" /></label>
-        <label><span>证书 / 登记编号</span><input defaultValue={account.certificateNote} name="certificateNote" /></label>
-        <label className="admin-form-span-2"><span>资质备注</span><textarea defaultValue={account.qualificationNote} maxLength={500} name="qualificationNote" /></label>
-      </div></section>
+      <section id="referee-panel-capabilities" aria-labelledby="referee-tab-capabilities" role="tabpanel" className="admin-form-section" hidden={activeTab !== "capabilities"}>
+        <header><h2>报名与岗位</h2><p>先设置整体资格，再按赛制评估具体岗位；这里的设置会影响报名和选派。</p></header>
+        <div className="admin-registration-summary" data-ready={registration.canApply} role="status" aria-live="polite"><strong>{registration.title}</strong><p>{registration.detail}</p><span>可报名岗位：十一人制 {registration.eleven} 项 · 五人制 {registration.futsal} 项</span></div>
+        <div className="admin-form-grid admin-eligibility-fields">
+          <label><span>报名与选派资格</span><select aria-label="报名与选派资格" aria-describedby="referee-eligibility-help" name="assignmentEligibility" onChange={(event) => { setAssignmentEligibility(event.target.value); markDirty(); }} value={assignmentEligibility}>{Object.entries(assignmentEligibilityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><small id="referee-eligibility-help">“不可选派”与“暂停选派”都会关闭报名，并阻止管理员正式选派。</small></label>
+          <label><span>选派资格调整原因</span><input maxLength={500} name="eligibilityReason" placeholder="暂停或恢复选派时必填" /><small>暂停或恢复资格需说明原因，保存后留下操作记录。</small></label>
+        </div>
+        <div className="admin-capability-legend"><p><strong>培养中</strong> 可报名，由管理员评估安排。</p><p><strong>可正式选派</strong> 可报名，已评估可承担该岗位。</p><p><strong>暂不安排</strong> 该岗位不能报名或选派。</p></div>
+        <CapabilityGroups onChange={(values) => { setCapabilityValues(values); markDirty(); }} values={capabilityValues} />
+        <p className="admin-profile-help">批量设置仅作用于当前赛制；修改后点击“保存修改”生效。</p>
+      </section>
 
-      <section className="admin-form-section" hidden={activeTab !== "capabilities"}><header><h2>岗位培养状态</h2><p>批量设置只修改当前表单，仍需点击“保存修改”后持久化。</p></header><CapabilityGroups onChange={(values) => { setCapabilityValues(values); markDirty(); }} values={capabilityValues} /></section>
+      <section id="referee-panel-qualification" aria-labelledby="referee-tab-qualification" role="tabpanel" className="admin-form-section" hidden={activeTab !== "qualification"}>
+        <header><h2>资质与培养</h2><p>记录正式持证等级和协会培养进度；两者分别维护，不自动改变岗位或报名资格。</p></header>
+        <div className="admin-form-grid">
+          <label><span>持证裁判等级</span><select aria-label="持证裁判等级" aria-describedby="referee-level-help" name="refereeLevel" onChange={event => { setRefereeLevel(event.target.value); markDirty(); }} value={refereeLevel}>{refereeQualifications.map((qualification) => <option key={qualification} value={qualification}>{qualification}</option>)}</select><small id="referee-level-help">按已核验的证书登记；官网公开选派会在姓名后显示此等级。</small></label>
+          <label><span>协会培训状态（仅作记录）</span><select defaultValue={account.trainingStatus} aria-label="协会培训状态（仅作记录）" aria-describedby="referee-training-help" name="trainingStatus">{Object.entries(trainingStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><small id="referee-training-help">用于培养进度、档案和筛选；“考察通过”不会自动升级岗位或授予裁判等级。</small></label>
+        </div>
+        <div className="admin-qualification-preview"><span>官网选派显示示例</span><p>裁判员 <PublicRefereeName name={name} level={refereeLevel} /></p><small>未登记正式等级时只显示姓名。证书编号和资质备注仅作内部资料。</small></div>
+        <details className="admin-profile-disclosure"><summary>证书编号与资质备注 · 内部留档</summary><div className="admin-form-grid"><label><span>证书 / 登记编号</span><input defaultValue={account.certificateNote} name="certificateNote" /></label><label><span>资质备注</span><textarea defaultValue={account.qualificationNote} maxLength={500} aria-label="资质备注" name="qualificationNote" /></label></div></details>
+      </section>
 
-      <section className="admin-form-section" hidden={activeTab !== "public"}><header><h2>公开展示</h2><p>管理官网公开裁判名录授权；关闭展示不会删除已有简介。</p></header><div className="admin-public-layout"><div className="admin-public-settings"><section><h3>公开名录设置</h3><label className="admin-switch-row"><span><strong>进入公开裁判名录</strong><small>官网只会展示允许公开的姓名、编号、制式资格与简介，不会展示学号或联系方式。</small></span><input checked={publicEnabled} name="publicDirectoryEnabled" onChange={(event) => { setPublicEnabled(event.target.checked); markDirty(); }} role="switch" type="checkbox" /><b>{publicEnabled ? "已公开" : "未公开"}</b></label></section><section><h3>公开简介</h3><label><span>官网展示文字</span><textarea maxLength={300} name="publicBio" onChange={(event) => { setPublicBio(event.target.value); markDirty(); }} rows={5} value={publicBio} /></label></section></div><aside className={`admin-public-preview${publicEnabled ? "" : " is-disabled"}`}><span>PUBLIC PREVIEW</span><h3>{account.name}</h3><b>{account.publicCode}</b><p>{publicBio || "尚未填写公开简介。"}</p><div>{Object.entries(capabilityValues).some(([key, status]) => key.startsWith("ELEVEN_A_SIDE:") && status !== "NOT_ASSIGNED") ? <em>十一人制</em> : null}{Object.entries(capabilityValues).some(([key, status]) => key.startsWith("FUTSAL:") && status !== "NOT_ASSIGNED") ? <em>五人制</em> : null}</div><small>{publicEnabled ? "当前将进入公开名录" : "当前未进入公开名录"}</small></aside></div></section>
+      <section id="referee-panel-settings" aria-labelledby="referee-tab-settings" role="tabpanel" className="admin-form-section" hidden={activeTab !== "settings"}>
+        <header><h2>公开与账号</h2><p>公开名录决定是否展示个人简介；账号状态决定能否登录、报名和参与正式选派。</p></header>
+        <div className="admin-profile-settings">
+          <section><h3>公开名录</h3><label className="admin-switch-row"><span><strong>进入公开裁判名录</strong><small>控制名录中的个人介绍；已公开选派按正式任务展示姓名与持证等级。</small></span><input checked={publicEnabled} name="publicDirectoryEnabled" onChange={(event) => { setPublicEnabled(event.target.checked); markDirty(); }} role="switch" type="checkbox" /><b>{publicEnabled ? "已公开" : "未公开"}</b></label><label><span>公开简介</span><textarea maxLength={300} aria-label="公开简介" name="publicBio" onChange={(event) => { setPublicBio(event.target.value); markDirty(); }} rows={3} value={publicBio} /></label><small className="admin-profile-help">不公开学号、联系方式、证书编号或内部备注。</small></section>
+          <section><h3>登录与账号</h3><label><span>账号状态</span><select aria-label="账号状态" aria-describedby="referee-status-help" name="status" onChange={event => { setAccountStatus(event.target.value); markDirty(); }} value={accountStatus}>{Object.entries(refereeStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><small id="referee-status-help">待启用、停用或归档的账号不能登录、报名或被正式选派。</small></label><dl className="admin-account-facts"><div><dt>最近登录</dt><dd>{account.lastLoginAt || "从未登录"}</dd></div><div><dt>首次改密</dt><dd>{account.mustChangePassword ? "待裁判员完成，暂不能报名" : "已完成"}</dd></div></dl><div className="admin-security-action"><div><strong>重置登录密码</strong><p>原会话失效，下次登录须改密。</p></div><button className="admin-button admin-button-secondary" onClick={() => { setPasswordMessage(""); setResetOpen(true); }} type="button">重置密码</button></div><p aria-live="polite" className="admin-form-message">{passwordMessage}</p></section>
+        </div>
+        <details className="admin-profile-disclosure"><summary>内部管理备注 · 仅管理员可见</summary><label><span>内部备注</span><textarea defaultValue={account.internalNote} maxLength={500} aria-label="内部备注" name="internalNote" /></label></details>
+      </section>
 
-      <section className="admin-form-section" hidden={activeTab !== "internal"}><header><h2>内部备注</h2><p>仅管理员可见，不会出现在官网公开名录中。</p></header><label><span>内部备注</span><textarea defaultValue={account.internalNote} maxLength={500} name="internalNote" /></label></section>
-
-      <section className="admin-form-section" hidden={activeTab !== "security"}><header><h2>账号与安全</h2><p>登录信息与密码操作集中在此处，不与普通档案字段混排。</p></header><dl className="admin-security-grid"><div><dt>账号状态</dt><dd>{refereeStatusLabels[account.status] ?? account.status}</dd></div><div><dt>正式选派资格</dt><dd>{assignmentEligibilityLabels[account.assignmentEligibility] ?? account.assignmentEligibility}</dd></div><div><dt>最近登录</dt><dd>{account.lastLoginAt || "从未登录"}</dd></div><div><dt>下次登录修改密码</dt><dd>{account.mustChangePassword ? "需要" : "不需要"}</dd></div></dl><div className="admin-security-action"><div><strong>重置登录密码</strong><p>重置后原有裁判员会话全部失效，并要求下次登录修改密码。</p></div><button className="admin-button admin-button-secondary" onClick={() => { setPasswordMessage(""); setResetOpen(true); }} type="button">重置登录密码</button></div><p aria-live="polite" className="admin-form-message">{passwordMessage}</p></section>
-
-      <div className="admin-form-savebar"><span>{dirty ? "存在未保存修改" : message || "当前档案已同步"}</span><div><button className="admin-button admin-button-secondary" disabled={!dirty} onClick={cancelChanges} type="button">取消修改</button><button className="admin-button" type="submit">保存修改</button></div></div>
+      <div className="admin-form-savebar"><span role="status">{message || (dirty ? "存在未保存修改" : "当前档案已同步")}</span><div><button className="admin-button admin-button-secondary" disabled={!dirty || saving} onClick={cancelChanges} type="button">取消修改</button><button className="admin-button" disabled={saving} type="submit">{saving ? "保存中…" : "保存修改"}</button></div></div>
     </form>
     {resetOpen ? <div aria-modal="true" className="admin-modal-backdrop" role="dialog"><div className="admin-modal admin-modal-compact"><header><div><span>ACCOUNT SECURITY</span><h2>重置裁判员密码</h2></div><button aria-label="关闭" onClick={() => setResetOpen(false)} type="button">×</button></header><form className="admin-form" onSubmit={resetPassword}><p>重置后，该裁判员已有会话将全部失效，下一次登录须修改密码。</p><label><span>新的初始密码</span><input minLength={12} name="initialPassword" required type="password" /></label><footer><button className="admin-button admin-button-secondary" onClick={() => setResetOpen(false)} type="button">取消</button><button className="admin-button" type="submit">确认重置</button></footer></form></div></div> : null}
   </>;
