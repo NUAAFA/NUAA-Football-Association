@@ -106,7 +106,8 @@
     "test:targeted-followup:browser": "node --import tsx scripts/test-targeted-followup-browser.mjs",
     "test:f03-schedule-compat": "tsx scripts/test-f03-schedule-compat.ts",
     "test:f03-schedule-compat:http": "tsx scripts/test-f03-schedule-compat.ts --http",
-    "test:f03-tentative:http": "tsx scripts/test-f03-tentative-http.ts"
+    "test:f03-tentative:http": "tsx scripts/test-f03-tentative-http.ts",
+    "test:referee-signup:http": "tsx scripts/test-referee-signup-http.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",

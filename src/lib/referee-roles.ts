@@ -39,3 +39,14 @@ export const capabilityStatusLabels: Record<PositionCapabilityStatus, string> = 
   TRAINING: "培养中",
   READY: "可正式选派",
 };
+
+// Application intents accept trainees; NOT_ASSIGNED remains unavailable.
+export function getApplicationPositionKeys(
+  capabilities: ReadonlyArray<{ format: CompetitionFormat; positionKey: AppointmentPositionKey; status: PositionCapabilityStatus }>,
+  format: CompetitionFormat,
+) {
+  return new Set(capabilities
+    .filter((capability) => capability.format === format &&
+      (capability.status === "TRAINING" || capability.status === "READY"))
+    .map((capability) => capability.positionKey));
+}

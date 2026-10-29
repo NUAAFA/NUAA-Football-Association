@@ -4,6 +4,7 @@ import type {
   Prisma,
 } from "@/generated/prisma-v29/client";
 import { prisma } from "@/lib/prisma";
+import { getApplicationPositionKeys } from "@/lib/referee-roles";
 import { RefereeServiceError } from "@/lib/referee-service-error";
 
 type EligibilityDb = Prisma.TransactionClient | typeof prisma;
@@ -73,11 +74,7 @@ export async function assertRefereeCanApply(input: {
     errorStatus: 403,
   });
 
-  const selectablePositions = new Set(
-    referee.capabilities
-      .filter((capability) => capability.status !== "NOT_ASSIGNED")
-      .map((capability) => capability.positionKey),
-  );
+  const selectablePositions = getApplicationPositionKeys(referee.capabilities, input.format);
   if (!selectablePositions.size) {
     throw new RefereeServiceError("该裁判员尚无本场赛制可选派的岗位能力。", 409);
   }

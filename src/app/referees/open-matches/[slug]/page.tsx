@@ -12,7 +12,7 @@ import {
   getRefereeMemberSession,
 } from "@/lib/referee-member-auth";
 import { formatRefereeDateTime } from "@/lib/referee-presenters";
-import { formatLabels, getPositionTemplate, hasPositionTemplate } from "@/lib/referee-roles";
+import { formatLabels, getApplicationPositionKeys, getPositionTemplate, hasPositionTemplate } from "@/lib/referee-roles";
 import { prisma } from "@/lib/prisma";
 import { sportsEventJsonLd } from "@/lib/structured-data";
 
@@ -63,13 +63,10 @@ export default async function OpenMatchDetailPage({
   const positions = match.positionRequirements.length
     ? match.positionRequirements.map((item) => ({ key: item.key, label: item.label, count: item.count, order: item.sortOrder }))
     : fallbackPositions;
-  const readyPositionKeys = new Set(
-    session?.referee.capabilities
-      .filter((capability) =>
-        capability.format === match.competition.format && capability.status === "READY")
-      .map((capability) => capability.positionKey) ?? [],
+  const applicationPositionKeys = getApplicationPositionKeys(
+    session?.referee.capabilities ?? [], match.competition.format,
   );
-  const eligiblePositions = positions.filter((position) => readyPositionKeys.has(position.key));
+  const eligiblePositions = positions.filter((position) => applicationPositionKeys.has(position.key));
   const eligible = Boolean(
     session &&
     !session.referee.mustChangePassword &&
@@ -126,7 +123,7 @@ export default async function OpenMatchDetailPage({
         ? { title: "正式选派资格已暂停", detail: "当前不能提交正式比赛报名，请联系裁判管理员核实。" }
         : session?.referee.assignmentEligibility !== "ELIGIBLE"
           ? { title: "尚未获得正式选派资格", detail: "你仍可使用工作区、维护资料与可执裁时间。" }
-          : { title: "当前没有本场赛制的 READY 岗位", detail: "请联系裁判管理员核验具体赛制与岗位能力。" };
+          : { title: "当前没有本场赛制可报名的岗位", detail: "本场赛制的岗位需为“培养中”或“可正式选派”；请联系裁判管理员核验。" };
     applicationPanel = (
       <div className="functional-empty functional-empty-compact">
         <strong>{eligibilityMessage.title}</strong>
