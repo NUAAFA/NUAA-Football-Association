@@ -401,7 +401,7 @@ async function main() {
     assert(historicalAppointment, "COMPLETED 选派从公开历史查询中消失。");
     const publicReferee = historicalAppointment.positions[0]?.referee;
     assert(
-      publicReferee && Object.keys(publicReferee).sort().join(",") === "id,name",
+      publicReferee && Object.keys(publicReferee).sort().join(",") === "id,name,refereeLevel",
       "公开选派没有使用显式 public DTO。",
     );
     const serializedPublicResult = JSON.stringify(historicalAppointment);

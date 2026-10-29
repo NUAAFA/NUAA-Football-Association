@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { Fragment } from "react";
+import { PublicRefereeName } from "@/components/referees/public-referee-name";
+import { formatPublicRefereeName } from "@/lib/referee-qualifications";
 import { Badge } from "@/components/ui/foundation-primitives";
 import { formatBeijingDateTime } from "@/lib/beijing-datetime";
 import { formatRefereeDateTime } from "@/lib/referee-presenters";
@@ -21,7 +24,7 @@ export function PublicAppointmentList({ items, emptyTitle }: { items: PublicRefe
           <p className={styles.competitionName}>{item.competition} · {item.format}</p>
           <h3>{item.match}</h3>
           <p className={styles.matchMeta}><span>{item.stage}</span><span>{item.venue}</span>
-            {!openMatch ? <span className={styles.referees}>裁判组：{[...new Set(item.positions.map((position) => position.referee))].join("、")}</span> : null}
+            {!openMatch ? <span className={styles.referees}>裁判组：{[...new Map(item.positions.map(position => [formatPublicRefereeName(position.referee, position.refereeLevel), position])).entries()].map(([key, position], index) => <Fragment key={key}>{index ? "、" : null}<PublicRefereeName name={position.referee} level={position.refereeLevel} /></Fragment>)}</span> : null}
           </p>
           {openMatch ? <p className={styles.openFacts}><span>报名截止：{formatRefereeDateTime(date(item.deadline))}</span><span>岗位需求：{item.demand} 人</span></p> : null}
         </div>
@@ -30,7 +33,7 @@ export function PublicAppointmentList({ items, emptyTitle }: { items: PublicRefe
         </div>
       </div>
       {!openMatch ? <details className={styles.details}><summary>岗位与公告详情</summary><div className={styles.detailsBody}>
-        <dl className={styles.positions} aria-label="裁判组岗位">{item.positions.map((position) => <div key={position.key}><dt>{position.label}</dt><dd>{position.referee}</dd></div>)}</dl>
+        <dl className={styles.positions} aria-label="裁判组岗位">{item.positions.map((position) => <div key={position.key}><dt>{position.label}</dt><dd><PublicRefereeName name={position.referee} level={position.refereeLevel} /></dd></div>)}</dl>
         <dl className={styles.publication}><div><dt>{item.badge === "赛后执裁记录" ? "实际录入时间" : "发布时间"}</dt><dd>{formatRefereeDateTime(date(item.publishedAt))}</dd></div><div><dt>最后更新</dt><dd>{formatRefereeDateTime(date(item.updatedAt))}</dd></div></dl>
         {item.note ? <p className={styles.note}>{item.note}</p> : null}
       </div></details> : null}

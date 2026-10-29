@@ -2,7 +2,7 @@ import { Prisma } from "@/generated/prisma-v29/client";
 import { prisma } from "@/lib/prisma";
 import { beijingAcademicYear, getEffectiveRefereeGrade } from "@/lib/referee-grade";
 import { queryPage, queryText, type AdminQuery } from "@/lib/admin-match-query";
-export const rosterCategories = { all: "在册", eligible: "可正式选派", training: "培养中", pending: "待启用", inactive: "停用 / 归档" };
+export const rosterCategories = { all: "在册", eligible: "可选派", training: "培养中（含岗位）", pending: "待启用", inactive: "停用 / 归档" };
 export async function getAdminRefereeList(query: AdminQuery, now = new Date()) {
   const categories: Record<string, Prisma.Sql> = {
     all: Prisma.sql`1=1`,

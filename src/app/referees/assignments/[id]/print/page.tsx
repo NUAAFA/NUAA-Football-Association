@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PublicRefereeName } from "@/components/referees/public-referee-name";
 import { notFound } from "next/navigation";
 
 import { formatRefereeDateTime } from "@/lib/referee-presenters";
@@ -37,7 +38,7 @@ export default async function RefereeAppointmentPrintPage({
           {appointment.positions.map((position) => (
             <tr key={position.id}>
               <td>{position.label}{position.slot > 1 ? ` ${position.slot}` : ""}</td>
-              <td>{position.referee?.name ?? (appointment.recordSource === "POST_MATCH_ENTRY" ? "实际执裁人员未记录" : "—")}</td>
+              <td><PublicRefereeName name={position.referee?.name ?? (appointment.recordSource === "POST_MATCH_ENTRY" ? "实际执裁人员未记录" : "—")} level={position.referee?.refereeLevel} /></td>
             </tr>
           ))}
         </tbody>

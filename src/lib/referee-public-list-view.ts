@@ -1,3 +1,4 @@
+import { getPublicRefereeQualification } from "@/lib/referee-qualifications";
 import { getPublicAppointmentPage, getPublicOpenMatchPage } from "@/lib/referee-public-list-service";
 import type { RefereeListFilters } from "@/lib/referee-list-filters";
 import { formatLabels } from "@/lib/referee-roles";
@@ -25,7 +26,7 @@ export async function getPublicRefereeList(kind: RefereeListKind, filters: Refer
       match: `${item.match.homeTeam.name} vs ${item.match.awayTeam.name}`, kickoff: item.match.kickoff?.toISOString() ?? null,
       venue: item.match.venue ?? "历史场地未记录", stage: [item.match.structureStage?.name ?? item.match.stage, item.match.structureGroup?.name, item.match.structureRound?.name ?? item.match.round].filter(Boolean).join(" · "),
       href: `/referees/assignments/${item.id}/print`, badge: postMatch ? "赛后执裁记录" : "正式选派",
-      positions: item.positions.map((position) => ({ key: `${position.key}-${position.slot}`, label: `${position.label}${position.slot > 1 ? ` ${position.slot}` : ""}`, referee: position.referee?.name ?? (postMatch ? "实际执裁人员未记录" : "—") })),
+      positions: item.positions.map((position) => ({ key: `${position.key}-${position.slot}`, label: `${position.label}${position.slot > 1 ? ` ${position.slot}` : ""}`, referee: position.referee?.name ?? (postMatch ? "实际执裁人员未记录" : "—"), refereeLevel: getPublicRefereeQualification(position.referee?.refereeLevel) })),
       publishedAt: (postMatch ? item.recordedAt : item.publishedAt)?.toISOString(), updatedAt: item.updatedAt.toISOString(),
       note: postMatch ? null : item.publicationNote,
     };

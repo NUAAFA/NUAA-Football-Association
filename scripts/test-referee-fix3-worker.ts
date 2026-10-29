@@ -181,23 +181,15 @@ async function main() {
       assert(!publicJson.includes(secret), "Public DTO 或预览允许字段泄露了内部资料。");
     }
 
-    const formSource = await readFile(path.resolve("src/components/referees/admin/admin-referee-forms.tsx"), "utf8");
-    const cssSource = await readFile(path.resolve("src/styles/referee-admin.css"), "utf8");
-    assert(cssSource.includes(".admin-profile-grid input, .admin-profile-grid select { height: 42px") && cssSource.includes(".admin-profile-grid label > span") && cssSource.includes("font-size: 11px"), "基本资料控件高度或 label 层级未按紧凑布局实现。");
-    assert(formSource.includes('role="switch"') && formSource.includes('rows={5}') && cssSource.includes(".admin-public-settings textarea { min-height: 116px"), "公开展示 Switch 或简介尺寸未正确实现。");
-    assert(formSource.includes('["security", "账号与安全"]') && formSource.includes('if (value !== "security") setPasswordMessage("")') && formSource.includes("admin-form-savebar"), "账号安全分区、跨 Tab 提示清理或保存栏未实现。");
-    const publicPreviewStart = formSource.indexOf("admin-public-preview");
-    const publicPreviewSource = formSource.slice(publicPreviewStart, formSource.indexOf("</aside>", publicPreviewStart));
-    assert(!/studentId|phone|qq|internalNote|password/i.test(publicPreviewSource), "Public Preview 引用了敏感字段。");
-
+    // Profile presentation and cross-tab persistence are exercised through the
+    // real browser form by test:referee-profile:browser.
     console.log(JSON.stringify({
       authoritativeCollegeNames: true, excludedCollegesAbsent: true, fourShuyuanRelations: true,
       allConfirmedPrefixes: true, lowercasePrefixInference: true, allGradesPersist: true,
       graduateRemainsActive: true, singleCurrentAffiliation: true, affiliationHistoryPreserved: true,
       aiToZhiyuanConflict: true, physicsToZhiweiConflict: true, formatScopedCapabilityBatch: true,
       individualCapabilityOverride: true, capabilityFormStateNotPersistedBeforeSave: true,
-      capabilityStatePersistsAfterSave: true, compactProfileUi: true, publicSwitchAndBio: true,
-      publicPreviewBoundary: true, accountSecurityTab: true, passwordMessageScoped: true, saveBar: true,
+      capabilityStatePersistsAfterSave: true,
     }, null, 2));
   } finally {
     await verifier.$disconnect();
