@@ -1,5 +1,4 @@
 import { conflictSnapshot } from "@/lib/referee-conflict-snapshot";
-import { effectiveApplicationStatus } from "@/lib/referee-application-state";
 import { BeijingDayRefresh } from "@/components/referees/admin/beijing-day-refresh";
 import { getEffectiveRefereeGrade } from "@/lib/referee-grade";
 import type { Metadata } from "next";
@@ -9,12 +8,13 @@ import { redirect } from "next/navigation";
 import { RefreshOnFocus } from "@/components/refresh-on-focus";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
-import { ApplicationWithdrawButton } from "@/components/referees/mvp/application-withdraw-button";
+import { RefereeCurrentMatchList } from "@/components/referees/mvp/referee-current-match-list";
+import { getRefereeCurrentMatches } from "@/lib/referee-current-matches";
 import { RefereeTaskActions } from "@/components/referees/mvp/referee-task-actions";
 import { RefereeWorkspaceHero } from "@/components/referees/mvp/referee-workspace-hero";
 import { RefereeWorkspaceNav } from "@/components/referees/mvp/referee-workspace-nav";
 import { getRefereeMemberSession } from "@/lib/referee-member-auth";
-import { applicationStatusLabels, formatRefereeDateTime } from "@/lib/referee-presenters";
+import { formatRefereeDateTime } from "@/lib/referee-presenters";
 import { prisma } from "@/lib/prisma";
 import { completedAssignmentReviewReason } from "@/lib/referee-completion-evidence";
 
@@ -31,12 +31,8 @@ export default async function RefereeWorkspacePage() {
   if (!session) redirect("/referees/login");
   if (session.referee.mustChangePassword) redirect("/referees/workspace/account");
   const now = new Date();
-  const [storedApplications, assignedPositions, availability, openMatchCount] = await Promise.all([
-    prisma.refereeApplication.findMany({
-      where: { refereeId: session.refereeId },
-      include: { match: { include: { competition: true, homeTeam: true, awayTeam: true } } },
-      orderBy: { createdAt: "desc" },
-    }),
+  const [currentMatches, assignedPositions, availability] = await Promise.all([
+    getRefereeCurrentMatches(session.refereeId, { now, limit: 3 }),
     prisma.appointmentPosition.findMany({
       where: { refereeId: session.refereeId, appointment: { status: { in: ["PUBLISHED", "COMPLETED"] }, match: { status: { not: "CANCELLED" } } } },
       include: {
@@ -56,10 +52,7 @@ export default async function RefereeWorkspacePage() {
       },
     }),
     prisma.refereeAvailability.findMany({ where: { refereeId: session.refereeId, endAt: { gte: now } }, orderBy: { startAt: "asc" }, take: 5 }),
-    prisma.match.count({ where: { status: "SCHEDULED", applicationWindowStatus: "OPEN", applicationDeadline: { gt: now } } }),
   ]);
-  const officialMatchIds = new Set(assignedPositions.map((position) => position.appointment.match.id));
-  const applications = storedApplications.map((application) => ({ ...application, status: effectiveApplicationStatus(application.status, officialMatchIds.has(application.matchId), application.match.status === "SCHEDULED" && application.match.applicationWindowStatus === "OPEN" && Boolean(application.match.applicationDeadline && application.match.applicationDeadline > now)) }));
   const sortedPositions = [...assignedPositions].sort((left, right) => (left.appointment.match.kickoff?.getTime() ?? Infinity) - (right.appointment.match.kickoff?.getTime() ?? Infinity));
   const upcomingPositions = sortedPositions.filter((item) => item.appointment.status === "PUBLISHED" && item.appointment.match.status === "SCHEDULED" && item.appointment.match.kickoff !== null && Boolean(item.appointment.match.venue?.trim()));
   const historicalPositions = sortedPositions.filter((item) => item.appointment.status === "COMPLETED").reverse();
@@ -70,8 +63,12 @@ export default async function RefereeWorkspacePage() {
       <RefereeWorkspaceNav />
       <section className="functional-section"><div className="detail-shell referee-dashboard">
         <section className="referee-dashboard-priority">
-          <header className="functional-section-heading"><div><p>OPEN MATCHES & INTEREST</p><h2>可报名场次 / 我的执裁意向</h2></div><Link href="/referees/open-matches">查看 {openMatchCount} 场开放比赛 →</Link></header>
-          {applications.length ? <div className="referee-personal-list">{applications.slice(0, 5).map((application) => <article key={application.id}><div><span>{application.match.competition.name}</span><h3>{application.match.homeTeam.name} vs {application.match.awayTeam.name}</h3><p>{formatRefereeDateTime(application.match.kickoff)}</p></div><strong data-status={application.status}>{applicationStatusLabels[application.status]}</strong>{application.match.status === "SCHEDULED" && application.match.applicationDeadline && application.match.applicationDeadline > now && !["APPOINTED", "WITHDRAWN"].includes(application.status) ? <ApplicationWithdrawButton applicationId={application.id} /> : null}</article>)}</div> : <div className="functional-empty functional-empty-compact"><strong>尚未提交执裁意向</strong><p>开放场次会在这里形成报名与审核记录。</p><Link href="/referees/open-matches">浏览开放场次</Link></div>}
+          <header className="functional-section-heading">
+            <div><p>OPEN MATCHES & INTEREST</p><h2>可报名场次 / 我的执裁意向</h2></div>
+            <Link href="/referees/open-matches">查看更多（共 {currentMatches.total} 场） →</Link>
+          </header>
+          <p className="referee-current-summary">当前 {currentMatches.openCount} 场开放报名 · 优先显示开放场次，最多展示三场 · 北京时间</p>
+          <RefereeCurrentMatchList items={currentMatches.items} />
         </section>
 
         <section id="official-tasks">
