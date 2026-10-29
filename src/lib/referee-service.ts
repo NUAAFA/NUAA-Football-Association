@@ -992,121 +992,131 @@ function assertAppointmentTransition(
   return target;
 }
 
-export async function saveAppointmentDraft(input: {
+export type AppointmentDraftInput = {
   matchId: string;
   publicationNote: string;
   changeReason?: string;
   overrideReason?: string;
   positions: PositionInput[];
-}, authorization: AdminServiceAuthorization<"referees:write">) {
+};
+
+export async function saveAppointmentDraft(
+  input: AppointmentDraftInput,
+  authorization: AdminServiceAuthorization<"referees:write">,
+) {
   const actor = authorizedAdminActor(authorization, "referees:write");
-  const result = await refereeStateTransaction(async (tx) => {
-    const match = await tx.match.findUnique({
-      where: { id: input.matchId },
-      include: { competition: true, positionRequirements: true },
-    });
-    if (!match) throw new RefereeServiceError("比赛不存在。", 404);
-    assertPositionTemplateConfigured(match.competition.format);
-    if (match.status !== "SCHEDULED") {
-      throw new RefereeServiceError("只有已安排且未取消的比赛可以配置选派。", 409);
-    }
-    const existingAppointment = await tx.refereeAppointment.findUnique({
-      where: { matchId: match.id },
-    });
-    assertAppointmentTransition(existingAppointment?.status ?? "NONE", "saveDraft");
-    const template = getPositionTemplate(match.competition.format);
-    const allowed = new Map(template.map((item) => [item.key, item]));
-    const requirements = new Map(
-      match.positionRequirements.map((item) => [item.key, item.count]),
-    );
-    const normalized = input.positions.map((item) => ({
-      ...item,
-      slot: item.slot ?? 1,
-    }));
-    const identities = normalized.map((item) => `${item.key}:${item.slot}`);
-    if (
-      new Set(identities).size !== identities.length ||
-      normalized.some(
-        (item) =>
-          !allowed.has(item.key) ||
-          item.slot < 1 ||
-          item.slot > (requirements.get(item.key) ?? 1),
-      )
-    ) {
-      throw new RefereeServiceError("岗位配置包含重复、超额或不适用于本场赛制的岗位。");
-    }
+  return refereeStateTransaction((tx) => saveAppointmentDraftInTransaction(input, tx, actor?.id));
+}
 
-    const refereeIds = normalized.flatMap((item) => (item.refereeId ? [item.refereeId] : []));
-    if (new Set(refereeIds).size !== refereeIds.length) {
-      throw new RefereeServiceError("同一裁判员不能在同一场比赛承担多个岗位。");
-    }
-    await assertAppointmentPositionsEligible({
-      format: match.competition.format,
-      positions: normalized,
-      db: tx,
-    });
-
-    if (existingAppointment?.revision && !input.changeReason?.trim()) {
-      throw new RefereeServiceError("修改已发布或已撤回选派时，请填写改派原因。");
-    }
-    const warnings = await detectAppointmentWarnings(match.id, normalized, tx);
-    if (hardAppointmentConflicts(warnings).length) {
-      throw new RefereeServiceError("存在不可覆盖的选派冲突，草稿未保存。", 409, warnings);
-    }
-    if (warningsRequiringOverride(warnings).length && !input.overrideReason?.trim()) {
-      throw new RefereeServiceError("存在可覆盖冲突，请填写覆盖原因后再保存。", 409, warnings);
-    }
-    const appointment = await tx.refereeAppointment.upsert({
-      where: { matchId: match.id },
-      update: {
-        status: "DRAFT",
-        publicationNote: input.publicationNote || null,
-        lastChangeReason: input.changeReason || null,
-        withdrawnAt: null,
-      },
-      create: {
-        matchId: match.id,
-        status: "DRAFT",
-        publicationNote: input.publicationNote || null,
-        lastChangeReason: input.changeReason || null,
-      },
-    });
-    await tx.appointmentPosition.deleteMany({ where: { appointmentId: appointment.id } });
-    if (normalized.length) {
-      await tx.appointmentPosition.createMany({
-        data: normalized.map((item) => {
-          const definition = allowed.get(item.key)!;
-          return {
-            appointmentId: appointment.id,
-            refereeId: item.refereeId,
-            key: item.key,
-            label: definition.label,
-            sortOrder: definition.order,
-            slot: item.slot,
-          };
-        }),
-      });
-    }
-    const saved = await tx.refereeAppointment.findUniqueOrThrow({
-      where: { id: appointment.id },
-      include: { positions: true },
-    });
-    await writeAudit({
-      action: "APPOINTMENT_DRAFT_SAVED",
-      entityType: "RefereeAppointment",
-      entityId: saved.id,
-      summary: "保存裁判选派草稿",
-      actorId: actor?.id ?? undefined,
-      metadata: {
-        matchId: input.matchId,
-        reason: input.changeReason || null,
-        overrideReason: input.overrideReason || null,
-        warningCodes: warnings.map((warning) => warning.code),
-      },
-    }, tx);
-    return { appointment: saved, warnings };
+async function saveAppointmentDraftInTransaction(
+  input: AppointmentDraftInput,
+  tx: Prisma.TransactionClient,
+  actorId?: string | null,
+) {
+  const match = await tx.match.findUnique({
+    where: { id: input.matchId },
+    include: { competition: true, positionRequirements: true },
   });
-  return result;
+  if (!match) throw new RefereeServiceError("比赛不存在。", 404);
+  assertPositionTemplateConfigured(match.competition.format);
+  if (match.status !== "SCHEDULED") {
+    throw new RefereeServiceError("只有已安排且未取消的比赛可以配置选派。", 409);
+  }
+  const existingAppointment = await tx.refereeAppointment.findUnique({
+    where: { matchId: match.id },
+  });
+  assertAppointmentTransition(existingAppointment?.status ?? "NONE", "saveDraft");
+  const template = getPositionTemplate(match.competition.format);
+  const allowed = new Map(template.map((item) => [item.key, item]));
+  const requirements = new Map(
+    match.positionRequirements.map((item) => [item.key, item.count]),
+  );
+  const normalized = input.positions.map((item) => ({
+    ...item,
+    slot: item.slot ?? 1,
+  }));
+  const identities = normalized.map((item) => `${item.key}:${item.slot}`);
+  if (
+    new Set(identities).size !== identities.length ||
+    normalized.some(
+      (item) =>
+        !allowed.has(item.key) ||
+        item.slot < 1 ||
+        item.slot > (requirements.get(item.key) ?? 1),
+    )
+  ) {
+    throw new RefereeServiceError("岗位配置包含重复、超额或不适用于本场赛制的岗位。");
+  }
+
+  const refereeIds = normalized.flatMap((item) => (item.refereeId ? [item.refereeId] : []));
+  if (new Set(refereeIds).size !== refereeIds.length) {
+    throw new RefereeServiceError("同一裁判员不能在同一场比赛承担多个岗位。");
+  }
+  await assertAppointmentPositionsEligible({
+    format: match.competition.format,
+    positions: normalized,
+    db: tx,
+  });
+
+  if (existingAppointment?.revision && !input.changeReason?.trim()) {
+    throw new RefereeServiceError("修改已发布或已撤回选派时，请填写改派原因。");
+  }
+  const warnings = await detectAppointmentWarnings(match.id, normalized, tx);
+  if (hardAppointmentConflicts(warnings).length) {
+    throw new RefereeServiceError("存在不可覆盖的选派冲突，草稿未保存。", 409, warnings);
+  }
+  if (warningsRequiringOverride(warnings).length && !input.overrideReason?.trim()) {
+    throw new RefereeServiceError("存在可覆盖冲突，请填写覆盖原因后再保存。", 409, warnings);
+  }
+  const appointment = await tx.refereeAppointment.upsert({
+    where: { matchId: match.id },
+    update: {
+      status: "DRAFT",
+      publicationNote: input.publicationNote || null,
+      lastChangeReason: input.changeReason || null,
+      withdrawnAt: null,
+    },
+    create: {
+      matchId: match.id,
+      status: "DRAFT",
+      publicationNote: input.publicationNote || null,
+      lastChangeReason: input.changeReason || null,
+    },
+  });
+  await tx.appointmentPosition.deleteMany({ where: { appointmentId: appointment.id } });
+  if (normalized.length) {
+    await tx.appointmentPosition.createMany({
+      data: normalized.map((item) => {
+        const definition = allowed.get(item.key)!;
+        return {
+          appointmentId: appointment.id,
+          refereeId: item.refereeId,
+          key: item.key,
+          label: definition.label,
+          sortOrder: definition.order,
+          slot: item.slot,
+        };
+      }),
+    });
+  }
+  const saved = await tx.refereeAppointment.findUniqueOrThrow({
+    where: { id: appointment.id },
+    include: { positions: true },
+  });
+  await writeAudit({
+    action: "APPOINTMENT_DRAFT_SAVED",
+    entityType: "RefereeAppointment",
+    entityId: saved.id,
+    summary: "保存裁判选派草稿",
+    actorId: actorId ?? undefined,
+    metadata: {
+      matchId: input.matchId,
+      reason: input.changeReason || null,
+      overrideReason: input.overrideReason || null,
+      warningCodes: warnings.map((warning) => warning.code),
+    },
+  }, tx);
+  return { appointment: saved, warnings };
 }
 
 async function saveAppointmentVersion(
@@ -1152,9 +1162,17 @@ export async function publishAppointment(
   reason: string,
   overrideReason: string,
   authorization: AdminServiceAuthorization<"referees:write">,
+  draft?: Pick<AppointmentDraftInput, "positions" | "publicationNote">,
 ) {
   const actor = authorizedAdminActor(authorization, "referees:write");
   return refereeStateTransaction(async (tx) => {
+    // Save and publish the submitted editor values atomically. Failed publication
+    // must not leave a different draft, audit entry, or partial version behind.
+    if (draft) {
+      await saveAppointmentDraftInTransaction({
+        ...draft, matchId, changeReason: reason, overrideReason,
+      }, tx, actor?.id);
+    }
     const appointment = await tx.refereeAppointment.findUnique({
       where: { matchId },
       include: { positions: true, match: { include: { competition: true } } },
@@ -1166,8 +1184,8 @@ export async function publishAppointment(
     if (appointment.match.status !== "SCHEDULED") {
       throw new RefereeServiceError("比赛已结束或取消，不能发布选派。", 409);
     }
-    if (!appointment.positions.length || appointment.positions.some((item) => !item.refereeId)) {
-      throw new RefereeServiceError("发布前须为所有已启用岗位分配裁判员。", 409);
+    if (!appointment.positions.some((item) => item.refereeId)) {
+      throw new RefereeServiceError("发布前请至少分配一名裁判员。", 409);
     }
     if (appointment.revision > 0 && !reason.trim()) {
       throw new RefereeServiceError("重新发布选派时必须填写明确的修改原因。", 400);

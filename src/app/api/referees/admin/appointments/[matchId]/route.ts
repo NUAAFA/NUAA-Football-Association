@@ -45,8 +45,12 @@ export async function POST(request: Request, context: { params: Promise<{ matchI
     const { matchId } = await context.params;
     const reason = readShortText(body.reason, "操作原因", 240, false);
     const overrideReason = readShortText(body.overrideReason, "冲突覆盖原因", 500, false);
+    const draft = action === "publish" && Object.hasOwn(body, "positions") ? {
+      positions: readPositionAssignments(body.positions),
+      publicationNote: readShortText(body.publicationNote, "公示备注", 240, false),
+    } : undefined;
     const result = action === "publish"
-      ? await publishAppointment(matchId, reason, overrideReason, authorization.authorization)
+      ? await publishAppointment(matchId, reason, overrideReason, authorization.authorization, draft)
       : action === "withdraw"
         ? await withdrawAppointment(matchId, reason, authorization.authorization)
         : action === "complete"

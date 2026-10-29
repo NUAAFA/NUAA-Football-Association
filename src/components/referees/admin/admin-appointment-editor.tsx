@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 type PositionKey = "REFEREE" | "ASSISTANT_REFEREE_1" | "ASSISTANT_REFEREE_2" | "FOURTH_OFFICIAL" | "RESERVE_ASSISTANT_REFEREE" | "SECOND_REFEREE" | "THIRD_REFEREE" | "TIMEKEEPER" | "FOURTH_REFEREE";
 export type AppointmentWarningView = { code: string; refereeId: string; refereeName: string; message: string; severity: "HARD" | "OVERRIDABLE" | "ADVISORY"; overridable: boolean };
@@ -69,6 +69,8 @@ export function AdminAppointmentEditor({
   initialWarnings: AppointmentWarningView[];
 }) {
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
+  const busyRef = useRef(false);
   const identity = (item: { key: string; slot: number }) => `${item.key}:${item.slot}`;
   const initial = new Map(match.positions.map((item) => [identity(item), item.refereeId]));
   const [enabled, setEnabled] = useState<Record<string, boolean>>(() => Object.fromEntries(match.template.map((item) => [identity(item), initial.has(identity(item))])));
@@ -90,33 +92,52 @@ export function AdminAppointmentEditor({
   function updateAssignment(key: string, value: string) {
     setAssigned((current) => ({ ...current, [key]: value }));
     setWarnings([]);
+    setMessage("");
+  }
+
+  function currentDraft(form: HTMLFormElement) {
+    return {
+      positions: match.template.filter((item) => enabled[identity(item)]).map((item) => ({ key: item.key, slot: item.slot, refereeId: assigned[identity(item)] || null })),
+      publicationNote: new FormData(form).get("publicationNote"),
+    };
   }
 
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy) return;
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     try {
-    const form = new FormData(event.currentTarget);
-    const positions = match.template.filter((item) => enabled[identity(item)]).map((item) => ({ key: item.key, slot: item.slot, refereeId: assigned[identity(item)] || null }));
-    const { response, result } = await jsonApi(`/api/referees/admin/appointments/${match.id}`, "PUT", { positions, publicationNote: form.get("publicationNote"), changeReason: reason, overrideReason });
+    const { response, result } = await jsonApi(`/api/referees/admin/appointments/${match.id}`, "PUT", { ...currentDraft(event.currentTarget), changeReason: reason, overrideReason });
     setWarnings(result.warnings ?? []);
     if (result.warnings?.some((warning) => warning.overridable)) setMoreOpen(true);
     setMessage(response.ok ? "选派草稿已保存。" : result.error ?? "保存失败。");
     if (response.ok) router.refresh();
-    } catch { setMessage("网络异常，请核对当前状态后重试。"); } finally { setBusy(false); }
+    } catch { setMessage("网络异常，请核对当前状态后重试。"); } finally { busyRef.current = false; setBusy(false); }
   }
 
   async function action(actionName: "publish" | "withdraw" | "complete" | "cancel") {
-    if (busy) return; setBusy(true);
+    if (busyRef.current) return;
+    let draft;
+    if (actionName === "publish") {
+      if (!formRef.current) return;
+      const enabledPositions = match.template.filter((item) => enabled[identity(item)]);
+      if (!enabledPositions.some((item) => assigned[identity(item)])) {
+        setMessage("发布前请至少分配一名裁判员。");
+        return;
+      }
+      draft = currentDraft(formRef.current);
+    }
+    busyRef.current = true;
+    setBusy(true);
     try {
-    const { response, result } = await jsonApi(`/api/referees/admin/appointments/${match.id}`, "POST", { action: actionName, reason, overrideReason });
+    const { response, result } = await jsonApi(`/api/referees/admin/appointments/${match.id}`, "POST", { action: actionName, reason, overrideReason, ...draft });
     setWarnings(result.warnings ?? []);
     if (result.warnings?.some((warning) => warning.overridable)) setMoreOpen(true);
     const labels = { publish: "选派已发布。", withdraw: "选派已撤回，可进入修改。", complete: "选派已标记完成。", cancel: "选派已取消。" };
     setMessage(response.ok ? labels[actionName] : result.error ?? "操作失败。");
     if (response.ok) router.refresh();
-    } catch { setMessage("网络异常，请核对当前状态后重试。"); } finally { setBusy(false); }
+    } catch { setMessage("网络异常，请核对当前状态后重试。"); } finally { busyRef.current = false; setBusy(false); }
   }
 
   async function review(applicationId: string, status: string, reviewNote: string) {
@@ -140,8 +161,8 @@ export function AdminAppointmentEditor({
 
   return <>
     <section className="admin-panel admin-assignment-panel">
-      <header className="admin-panel-header admin-workbench-header"><div><h2>裁判选派工作台</h2><p>{match.format === "ELEVEN_A_SIDE" ? "十一人制" : match.format === "FUTSAL" ? "五人制" : "无预设"}岗位模板 · 可正式选派优先，培养中可选；暂不安排不可选</p></div><div className="admin-assignment-summary"><span><strong>{assignedCount}</strong> / {Object.values(enabled).filter(Boolean).length} 已启用岗位已分配</span><span data-warning={warnings.length > 0}><strong>{warnings.length}</strong> 个提醒</span></div></header>
-      <form className="admin-form admin-assignment-form" onSubmit={save}>
+      <header className="admin-panel-header admin-workbench-header"><div><h2>裁判选派工作台</h2><p>{match.format === "ELEVEN_A_SIDE" ? "十一人制" : match.format === "FUTSAL" ? "五人制" : "无预设"}岗位模板 · 可正式选派优先，培养中可选；暂不安排不可选</p><p>至少安排一人即可发布；未分配岗位保留空缺。</p></div><div className="admin-assignment-summary"><span><strong>{assignedCount}</strong> / {Object.values(enabled).filter(Boolean).length} 已启用岗位已分配</span><span data-warning={warnings.length > 0}><strong>{warnings.length}</strong> 个提醒</span></div></header>
+      <form className="admin-form admin-assignment-form" onSubmit={save} ref={formRef}>
         <div aria-label="裁判岗位分配" className="admin-workbench-table" role="table" tabIndex={0}>
           <div className="admin-workbench-table-head" role="row"><span role="columnheader">岗位</span><span role="columnheader">裁判员</span><span role="columnheader">岗位能力</span><span role="columnheader">状态检查</span></div>
           <div className="admin-position-assignment-list">{match.template.map((position) => {
@@ -152,8 +173,8 @@ export function AdminAppointmentEditor({
           const selectedReferee = referees.find((referee) => referee.id === refereeId);
           const selectedCapability = selectedReferee ? capabilityStatus(selectedReferee, match.format, position.key) : "NOT_ASSIGNED";
           return <div className={`admin-position-assignment${enabled[key] ? "" : " is-disabled"}`} key={key} role="row">
-            <div className="admin-workbench-role" data-label="岗位" role="cell"><label className="admin-position-toggle"><input aria-label={`启用${position.label}`} checked={enabled[key]} disabled={!canEditDraft} onChange={(event) => setEnabled((current) => ({ ...current, [key]: event.target.checked }))} type="checkbox" /><span><strong>{position.label}</strong>{position.slot > 1 ? <small>岗位序号 {position.slot}</small> : null}</span></label></div>
-            <div className="admin-position-select" data-label="裁判员" role="cell"><select aria-label={`${position.label}裁判员`} disabled={!enabled[key] || !canEditDraft} onChange={(event) => updateAssignment(key, event.target.value)} value={refereeId}><option value="">待分配</option>{[...referees].sort((left, right) => candidateRank(right, match.format, position.key) - candidateRank(left, match.format, position.key)).map((referee) => { const capability = capabilityStatus(referee, match.format, position.key); const eligible = canUseForPosition(referee, match.format, position.key); const signals = `${capabilityText(capability)} · ${availabilityText(referee.availability)}${referee.overlap ? " · 时间重叠" : ""}${referee.interested ? " · 已报名" : ""}`; return <option disabled={!eligible && referee.id !== refereeId} key={referee.id} value={referee.id}>{eligible ? signals : `${referee.status}/${referee.assignmentEligibility}/${capabilityText(capability)}`} · {referee.label} · 已完成 {referee.completedCount} 场</option>; })}</select></div>
+            <div className="admin-workbench-role" data-label="岗位" role="cell"><label className="admin-position-toggle"><input aria-label={`启用${position.label}`} checked={enabled[key]} disabled={busy || !canEditDraft} onChange={(event) => { setEnabled((current) => ({ ...current, [key]: event.target.checked })); setMessage(""); }} type="checkbox" /><span><strong>{position.label}</strong>{position.slot > 1 ? <small>岗位序号 {position.slot}</small> : null}</span></label></div>
+            <div className="admin-position-select" data-label="裁判员" role="cell"><select aria-label={`${position.label}裁判员`} disabled={busy || !enabled[key] || !canEditDraft} onChange={(event) => updateAssignment(key, event.target.value)} value={refereeId}><option value="">待分配</option>{[...referees].sort((left, right) => candidateRank(right, match.format, position.key) - candidateRank(left, match.format, position.key)).map((referee) => { const capability = capabilityStatus(referee, match.format, position.key); const eligible = canUseForPosition(referee, match.format, position.key); const signals = `${capabilityText(capability)} · ${availabilityText(referee.availability)}${referee.overlap ? " · 时间重叠" : ""}${referee.interested ? " · 已报名" : ""}`; return <option disabled={!eligible && referee.id !== refereeId} key={referee.id} value={referee.id}>{eligible ? signals : `${referee.status}/${referee.assignmentEligibility}/${capabilityText(capability)}`} · {referee.label} · 已完成 {referee.completedCount} 场</option>; })}</select></div>
             <div className="admin-workbench-capability" data-label="岗位能力" role="cell">{refereeId ? <span data-state={selectedCapability}>{selectedCapability === "READY" ? "✓" : "⚠"} {capabilityText(selectedCapability)}</span> : <span>—</span>}</div>
             <div className={`admin-workbench-checks${nonCapabilityWarnings.length ? " has-warning" : ""}`} data-label="状态检查" role="cell">{refereeId ? nonCapabilityWarnings.length ? nonCapabilityWarnings.map((warning) => <span key={`${warning.code}-${warning.refereeId}`}>⚠ {warning.message}</span>) : <span>✓ 无冲突</span> : <span>—</span>}</div>
           </div>;
