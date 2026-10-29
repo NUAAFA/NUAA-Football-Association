@@ -200,6 +200,54 @@ async function main() {
     assert(statusById.get(multiB.id) === "APPOINTED" && statusById.get(multiC.id) === "APPOINTED", "Final B+C set is not APPOINTED.");
     assert(statusById.get(withdrawn.id) === "WITHDRAWN" && statusById.get(rejected.id) === "REJECTED", "Terminal application semantics were overwritten.");
 
+    // Reproduce an incomplete saved draft behind a fully populated editor.
+    const positionKeys = ["REFEREE", "ASSISTANT_REFEREE_1", "ASSISTANT_REFEREE_2", "FOURTH_OFFICIAL"] as const;
+    await prisma.refereePositionCapability.createMany({ data: referees.flatMap((referee) => positionKeys.slice(1).map((positionKey) => ({ refereeId: referee.id, format: "ELEVEN_A_SIDE" as const, positionKey, status: "READY" as const }))) });
+    const currentPositions = positionKeys.map((key, index) => ({ key, slot: 1, refereeId: referees[index].id }));
+    const stale = await createFixture("NONE", "current-editor-over-stale-draft");
+    await service.saveAppointmentDraft({ matchId: stale.match.id, publicationNote: "old note", positions: currentPositions.map((position, index) => ({ ...position, refereeId: index ? null : position.refereeId })) }, refereeAuthorization);
+    let staleRejected = false;
+    try { await service.publishAppointment(stale.match.id, "", "", refereeAuthorization); }
+    catch (error) { staleRejected = error instanceof service.RefereeServiceError && error.message.includes("所有已启用岗位"); }
+    assert(staleRejected, "Old publication did not reproduce the incomplete saved draft error.");
+    const published = await service.publishAppointment(stale.match.id, "", "", refereeAuthorization, { positions: currentPositions, publicationNote: "current editor note" });
+    const stored = await prisma.refereeAppointment.findUniqueOrThrow({ where: { matchId: stale.match.id }, include: { positions: true } });
+    assert(stored.status === "PUBLISHED" && stored.positions.length === 4 && currentPositions.every((position) => stored.positions.some((saved) => saved.key === position.key && saved.refereeId === position.refereeId)), "Publication did not use all four current editor assignments.");
+    const version = JSON.parse(published.version.snapshot) as { publicationNote: string; positions: typeof currentPositions };
+    assert(version.publicationNote === "current editor note" && version.positions.length === 4, "Published snapshot did not include current assignments and note.");
+    assert(published.warnings.some((warning) => warning.code === "TIME_UNCERTAIN"), "Optional end-time advisory was lost or blocked publication.");
+
+    const direct = await createFixture("NONE", "publish-without-manual-save");
+    await service.publishAppointment(direct.match.id, "", "", refereeAuthorization, { positions: currentPositions, publicationNote: "direct" });
+    assert((await prisma.refereeAppointment.findUniqueOrThrow({ where: { matchId: direct.match.id } })).status === "PUBLISHED", "First publication still requires a separate manual save.");
+
+    const rollback = await createFixture("DRAFT", "atomic-publication-failure");
+    await createApplication(referees[1].id, rollback.match.id, "WITHDRAWN");
+    const beforeFailedPublish = await snapshot(rollback.match.id);
+    let rollbackRejected = false;
+    try { await service.publishAppointment(rollback.match.id, "", "", refereeAuthorization, { positions: currentPositions, publicationNote: "must roll back" }); }
+    catch (error) { rollbackRejected = error instanceof service.RefereeServiceError && error.message.includes("人工例外原因"); }
+    assert(rollbackRejected, "Expected late publication validation did not reject.");
+    assert(await snapshot(rollback.match.id) === beforeFailedPublish, "Failed atomic publication mutated draft, versions, applications, or audits.");
+
+    const incomplete = await createFixture("DRAFT", "incomplete-current-editor");
+    for (const positions of [[], [{ key: "REFEREE" as const, slot: 1, refereeId: null }], [currentPositions[0], { ...currentPositions[1], refereeId: referees[0].id }]]) {
+      const before = await snapshot(incomplete.match.id);
+      let rejected = false;
+      try { await service.publishAppointment(incomplete.match.id, "", "", refereeAuthorization, { positions, publicationNote: "invalid" }); }
+      catch (error) { rejected = error instanceof service.RefereeServiceError; }
+      assert(rejected && await snapshot(incomplete.match.id) === before, "Invalid editor assignments changed or published the saved draft.");
+    }
+
+    const disabled = await createFixture("NONE", "remove-unused-slot-on-publish");
+    await service.saveAppointmentDraft({ matchId: disabled.match.id, publicationNote: "old", positions: [{ ...currentPositions[0] }, { ...currentPositions[1], refereeId: null }] }, refereeAuthorization);
+    await service.publishAppointment(disabled.match.id, "", "", refereeAuthorization, { positions: [currentPositions[0]], publicationNote: "only enabled slot" });
+    assert(await prisma.appointmentPosition.count({ where: { appointment: { matchId: disabled.match.id } } }) === 1, "Disabled stale positions still blocked publication.");
+    await service.withdrawAppointment(stale.match.id, "editor republish", refereeAuthorization);
+    await service.publishAppointment(stale.match.id, "editor republish", "", refereeAuthorization, { positions: currentPositions, publicationNote: "republished" });
+    const republished = await prisma.refereeAppointment.findUniqueOrThrow({ where: { matchId: stale.match.id } });
+    assert(republished.status === "PUBLISHED" && republished.revision === 3, "Atomic editor republish broke revision history.");
+
     console.log(JSON.stringify({
       matrixCases: states.length * actions.length,
       allowedCount,
@@ -209,6 +257,13 @@ async function main() {
       replaceAWithB: true,
       removeAAddC: true,
       terminalApplicationStatusesPreserved: true,
+      currentEditorReplacesIncompleteSavedDraft: true,
+      directPublicationWithoutManualSave: true,
+      failedPublicationRollsBackDraftVersionsApplicationsAndAudits: true,
+      emptyIncompleteAndDuplicateAssignmentsRejected: true,
+      disabledSlotsRemoved: true,
+      optionalEndTimeStillAdvisory: true,
+      currentEditorRepublish: true,
     }, null, 2));
   } finally {
     await prisma.$disconnect();

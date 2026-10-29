@@ -55,6 +55,7 @@
     "test:security-admission": "tsx scripts/test-security-admission.ts",
     "test:security-nginx": "node scripts/test-security-nginx.mjs",
     "test:security-appointments": "tsx scripts/test-security-appointments.ts",
+    "test:appointment-publish:browser": "node --import tsx scripts/test-appointment-publish-browser.mjs",
     "test:security-api-errors": "tsx scripts/test-security-api-errors.ts",
     "test:security-http": "tsx scripts/test-security-http.ts",
     "test:security-runtime-r2": "tsx scripts/test-security-runtime-r2.ts",
