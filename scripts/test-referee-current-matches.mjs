@@ -148,7 +148,7 @@ try {
 
     if (process.argv.includes("--browser")) {
       const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ? pathToFileURL(process.env.PLAYWRIGHT_MODULE).href : "playwright");
-      browser = await chromium.launch({ channel: "chrome", headless: true });
+      browser = await chromium.launch({ channel: process.env.CURRENT_MATCH_BROWSER_CHANNEL ?? "chrome", headless: true });
       const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
       await context.addCookies([{ name: "nuaa_referee_member", value: token, url: origin, httpOnly: true, sameSite: "Lax" }]);
       await context.route(origin + "/api/**", async (route) => {
