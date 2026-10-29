@@ -67,6 +67,7 @@ jobs:
           npm run test:f03-schedule-compat
           npm run test:f03-schedule-compat:http
           npm run test:f03-tentative:http
+          npm run test:referee-signup:http
           npm run test:referee-submission-requests
           TZ=UTC npm run test:targeted-followup
           TZ=Europe/London npm run test:targeted-followup
