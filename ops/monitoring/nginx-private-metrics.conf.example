@@ -1,0 +1,14 @@
+# Optional privacy optimization, not required for current collector installation.
+# Current ordinary NUAAFA traffic inherits global combined access.log; only its
+# hidden-file deny location disables logging. Preserve that explicit exception.
+# Separate approval, exact config hash, nginx -t and approved reload are required.
+# In http context (not inside server):
+log_format nuaafa_metrics '$msec $status';
+
+# In ONLY the approved nuaafa.cn HTTPS server, if separately approved:
+# access_log /var/log/nginx/nuaafa-status.log nuaafa_metrics;
+
+# Timestamp + status only: no IP, URI, query, user agent or referrer. The fixed
+# bridge currently uses global access.log. A future exact source-path change to
+# this optional log requires a separately reviewed candidate and installation.
+# File creation/permissions/rename-rotation/capacity budget are approval items.

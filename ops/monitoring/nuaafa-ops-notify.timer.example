@@ -1,0 +1,11 @@
+[Unit]
+Description=NUAAFA candidate sender cadence (policy requires approval)
+
+[Timer]
+OnActiveSec=2min
+OnUnitActiveSec=2min
+AccuracySec=10s
+Persistent=false
+Unit=nuaafa-ops-notify.service
+
+# No Install section; no enable/install command is supplied.

@@ -1,0 +1,10 @@
+{
+  "enabled": false,
+  "transport": "smtp_tls",
+  "host": "approved-relay.invalid",
+  "port": 465,
+  "username": "REQUIRES_APPROVAL",
+  "password_file": "/run/credentials/nuaafa-ops-notify.service/relay-password",
+  "from": "operations@invalid.example",
+  "to": ["approved-receiver@invalid.example"]
+}
