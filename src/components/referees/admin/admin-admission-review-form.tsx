@@ -98,7 +98,7 @@ export function AdminAdmissionReviewForm({
         <div><dt>账号状态</dt><dd>已启用 · 培训中 · 可选派</dd></div>
         <div><dt>临时密码</dt><dd><code>{onboarding.temporaryPassword}</code></dd></div>
       </dl>
-      <div><strong>默认岗位培养状态</strong><ul>{onboarding.capabilitySummary.map((item) => <li key={item}>{item}</li>)}</ul></div>
+      <div><strong>默认岗位状态</strong><ul>{onboarding.capabilitySummary.map((item) => <li key={item}>{item}</li>)}</ul></div>
       <p aria-live="polite" className="admin-form-message">{message}</p>
       <footer>
         <button className="admin-button admin-button-secondary" onClick={() => void copyCredentials()} type="button">复制登录凭据</button>

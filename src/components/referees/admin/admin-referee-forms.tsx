@@ -180,12 +180,12 @@ export function RefereeCreateForm() {
       <div><dt>裁判员编号</dt><dd>{onboarding.publicCode}</dd></div><div><dt>学院</dt><dd>{onboarding.college}</dd></div>
       <div><dt>默认状态</dt><dd>已启用 · 培训中 · 可选派 · 默认进入公开名录</dd></div><div><dt>临时密码</dt><dd><code>{onboarding.temporaryPassword}</code></dd></div>
     </dl>
-    <div><strong>默认岗位培养状态</strong><ul>{onboarding.capabilitySummary.map((item) => <li key={item}>{item}</li>)}</ul></div>
+    <div><strong>默认岗位状态</strong><ul>{onboarding.capabilitySummary.map((item) => <li key={item}>{item}</li>)}</ul></div>
     <p aria-live="polite" className="admin-form-message">{message}</p>
     <footer><button className="admin-button admin-button-secondary" onClick={() => void copyCredentials()} type="button">复制登录凭据</button><button className="admin-button" onClick={() => router.push(`/admin/referees/${onboarding.refereeId}`)} type="button">进入裁判员档案</button></footer>
   </section>;
   return <form className="admin-form admin-form-section" onSubmit={submit}>
-    <header><h2>一键创建账号</h2><p>填写姓名和学号后，系统自动识别学院、分配裁判员编号和临时密码，并应用标准培养模板。</p></header>
+    <header><h2>一键创建账号</h2><p>填写姓名和学号后，系统自动识别学院、分配裁判员编号和临时密码，十一人制与五人制全部岗位默认可正式选派，后续可在档案中手动限制。</p></header>
     <div className="admin-form-grid">
       <label><span>姓名</span><input autoFocus maxLength={48} name="name" required /></label>
       <label><span>学号</span><input maxLength={32} name="studentId" required /></label>

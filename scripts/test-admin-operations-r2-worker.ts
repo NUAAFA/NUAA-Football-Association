@@ -78,8 +78,7 @@ async function main() {
     assert(/^\d{3}$/.test(onboarded.publicCode), "publicCode format is not canonical 3 digits.");
     assert(onboarded.college?.name === "继续教育学院", "CG college mapping failed.");
     assert(onboarded.capabilities.length === 10, "Default capabilities were not fully initialized.");
-    assert(onboarded.capabilities.filter((item) => item.positionKey === "REFEREE").every((item) => item.status === "NOT_ASSIGNED"), "Referee-role defaults are not NOT_ASSIGNED.");
-    assert(onboarded.capabilities.filter((item) => item.positionKey !== "REFEREE").every((item) => item.status === "TRAINING"), "Support-role defaults are not TRAINING.");
+    assert(onboarded.capabilities.every((item) => item.status === "READY"), "Approved referee did not receive all READY positions.");
     assert(await security.verifyPassword(approved.onboarding.temporaryPassword, onboarded.passwordHash!), "Temporary password hash does not verify.");
     assert((await credentials.authenticateRefereeCredentials(" cg20260001 ", approved.onboarding.temporaryPassword))?.id === onboarded.id, "studentId login failed.");
     assert(!(await credentials.authenticateRefereeCredentials(onboarded.publicCode, approved.onboarding.temporaryPassword)), "publicCode unexpectedly remains a login identity.");
@@ -90,6 +89,8 @@ async function main() {
     const directOne = await admission.createOnboardedRefereeAccount({ name: "并发一", studentId: "16260011" }, actor);
     const directTwo = await admission.createOnboardedRefereeAccount({ name: "并发二", studentId: "16260012" }, actor);
     assert(directOne.publicCode !== directTwo.publicCode && Number(directTwo.publicCode) === Number(directOne.publicCode) + 1, "publicCode sequence did not allocate unique monotonic codes.");
+    const directlyCreated = await verifier.referee.findUniqueOrThrow({ where: { id: directOne.refereeId }, include: { capabilities: true } });
+    assert(directlyCreated.capabilities.length === 10 && directlyCreated.capabilities.every((item) => item.status === "READY"), "Directly created referee did not receive all READY positions.");
 
     const missingAccount = await verifier.referee.create({ data: { publicCode: "980", name: "缺学号兼容测试", status: "ACTIVE" } });
     await verifier.referee.create({ data: { publicCode: "981", name: "归一化重复一", studentId: "czduplicate", status: "INACTIVE" } });
@@ -130,7 +131,16 @@ async function main() {
     await expectError(() => service.createMatch({ slug: "r2-cross", competitionId: competitions[1].id, stage: "错误场次", kickoff: new Date("2027-03-02T10:00:00.000Z"), venue: "R2 场地", homeTeamId: teamsA[0].id, awayTeamId: teamsB[0].id, status: "SCHEDULED", applicationWindowStatus: "CLOSED", positionCounts: {} }, { id: admin.id, role: "SUPER_ADMIN" }), "Cross-competition match creation was accepted.");
 
     await eligibility.assertAppointmentPositionsEligible({ format: "ELEVEN_A_SIDE", positions: [{ refereeId: onboarded.id, key: "ASSISTANT_REFEREE_1" }], db: verifier });
+    await eligibility.assertAppointmentPositionsEligible({ format: "ELEVEN_A_SIDE", positions: [{ refereeId: onboarded.id, key: "REFEREE" }], db: verifier });
+    await verifier.refereePositionCapability.update({
+      where: { refereeId_format_positionKey: { refereeId: onboarded.id, format: "ELEVEN_A_SIDE", positionKey: "REFEREE" } },
+      data: { status: "NOT_ASSIGNED" },
+    });
     await expectError(() => eligibility.assertAppointmentPositionsEligible({ format: "ELEVEN_A_SIDE", positions: [{ refereeId: onboarded.id, key: "REFEREE" }], db: verifier }), "NOT_ASSIGNED referee role was selectable.", 409);
+    await verifier.refereePositionCapability.update({
+      where: { refereeId_format_positionKey: { refereeId: onboarded.id, format: "ELEVEN_A_SIDE", positionKey: "ASSISTANT_REFEREE_1" } },
+      data: { status: "TRAINING" },
+    });
     const fullDay = await r1.saveRefereeAvailability({ refereeId: onboarded.id, startAt: new Date("2027-03-01T00:00:00.000Z"), endAt: new Date("2027-03-02T00:00:00.000Z"), kind: "AVAILABLE", competitionFormat: "ELEVEN_A_SIDE", note: "整天可执裁", actor: { type: "REFEREE", id: onboarded.id } });
     const unavailable = await r1.saveRefereeAvailability({ refereeId: onboarded.id, startAt: new Date("2027-03-03T00:00:00.000Z"), endAt: new Date("2027-03-04T00:00:00.000Z"), kind: "UNAVAILABLE", competitionFormat: null, note: "整天不可执裁", actor: { type: "REFEREE", id: onboarded.id } });
     const window = await r1.saveRefereeAvailability({ refereeId: onboarded.id, startAt: new Date("2027-03-05T09:00:00.000Z"), endAt: new Date("2027-03-05T12:00:00.000Z"), kind: "AVAILABLE", competitionFormat: "FUTSAL", note: "上午时段", actor: { type: "REFEREE", id: onboarded.id } });
