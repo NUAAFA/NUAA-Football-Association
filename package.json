@@ -141,6 +141,9 @@
     "fast-glob": "file:vendor/next-default-root-glob/next-default-root-glob-1.0.0.tgz"
   },
   "overrides": {
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.1"
+    },
     "@prisma/config@7.9.1": {
       "deepmerge-ts": "8.0.2"
     },

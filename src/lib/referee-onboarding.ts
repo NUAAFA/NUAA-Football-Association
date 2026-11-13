@@ -4,17 +4,17 @@ import { Prisma, type AppointmentPositionKey } from "@/generated/prisma-v29/clie
 import { RefereeServiceError } from "@/lib/referee-service-error";
 
 export const defaultRefereeCapabilities = [
-  ["ELEVEN_A_SIDE", "REFEREE", "NOT_ASSIGNED"],
-  ["ELEVEN_A_SIDE", "ASSISTANT_REFEREE_1", "TRAINING"],
-  ["ELEVEN_A_SIDE", "ASSISTANT_REFEREE_2", "TRAINING"],
-  ["ELEVEN_A_SIDE", "FOURTH_OFFICIAL", "TRAINING"],
-  ["ELEVEN_A_SIDE", "RESERVE_ASSISTANT_REFEREE", "TRAINING"],
-  ["FUTSAL", "REFEREE", "NOT_ASSIGNED"],
-  ["FUTSAL", "SECOND_REFEREE", "TRAINING"],
-  ["FUTSAL", "THIRD_REFEREE", "TRAINING"],
-  ["FUTSAL", "FOURTH_REFEREE", "TRAINING"],
-  ["FUTSAL", "TIMEKEEPER", "TRAINING"],
-] as const satisfies ReadonlyArray<readonly ["ELEVEN_A_SIDE" | "FUTSAL", AppointmentPositionKey, "NOT_ASSIGNED" | "TRAINING"]>;
+  ["ELEVEN_A_SIDE", "REFEREE", "READY"],
+  ["ELEVEN_A_SIDE", "ASSISTANT_REFEREE_1", "READY"],
+  ["ELEVEN_A_SIDE", "ASSISTANT_REFEREE_2", "READY"],
+  ["ELEVEN_A_SIDE", "FOURTH_OFFICIAL", "READY"],
+  ["ELEVEN_A_SIDE", "RESERVE_ASSISTANT_REFEREE", "READY"],
+  ["FUTSAL", "REFEREE", "READY"],
+  ["FUTSAL", "SECOND_REFEREE", "READY"],
+  ["FUTSAL", "THIRD_REFEREE", "READY"],
+  ["FUTSAL", "FOURTH_REFEREE", "READY"],
+  ["FUTSAL", "TIMEKEEPER", "READY"],
+] as const satisfies ReadonlyArray<readonly ["ELEVEN_A_SIDE" | "FUTSAL", AppointmentPositionKey, "READY"]>;
 
 export function generateTemporaryRefereePassword() {
   return `${randomBytes(18).toString("base64url")}aA1!`;
@@ -43,7 +43,7 @@ export async function allocateRefereePublicCode(tx: Prisma.TransactionClient) {
 
 export function onboardingCapabilitySummary() {
   return [
-    "十一人制：裁判员暂不安排；第一助理、第二助理、第四官员、候补助理培养中",
-    "五人制：裁判员暂不安排；第二、第三、第四裁判员、计时员培养中",
+    "十一人制：全部五个岗位默认可正式选派；可在档案中手动调整",
+    "五人制：全部五个岗位默认可正式选派；可在档案中手动调整",
   ];
 }
